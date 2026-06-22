@@ -118,11 +118,14 @@ export const effectStorageSvelte = `<script>
 ## ทดลองได้เลย: live logger
 
 export const effectPlayCode = `<script>
+  import { untrack } from 'svelte';
   let name = \$state('World');
   let log = \$state([]);
 
   \$effect(() => {
-    log = [...log, 'name changed to: ' + name];
+    const current = name; // tracked dependency
+    // write log without reading it reactively -> no infinite loop
+    untrack(() => { log = [...log, 'name changed to: ' + current]; });
   });
 <\/script>
 
