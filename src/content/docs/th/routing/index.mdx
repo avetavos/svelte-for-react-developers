@@ -1,0 +1,101 @@
+---
+title: 'Routing ด้วย SvelteKit'
+description: 'ภาพรวม routing แบบ file-based ของ SvelteKit เปรียบเทียบกับ react-router และ Next.js'
+---
+
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React ไม่มี router ในตัว แอป React ส่วนใหญ่จึงใช้ **react-router** (กำหนด route ด้วย component `<Route>` แบบ declarative) หรือใช้ framework อย่าง **Next.js** (routing แบบ file-based ใน `pages/` หรือ `app/`) SvelteKit คือ full-stack framework ของ Svelte และ routing ถูกรวมอยู่ในตัวแล้ว — คุณไม่จำเป็นต้องติดตั้ง package router เพิ่มเติมเลย
+
+การเปลี่ยนแนวคิดนั้นง่ายมาก: **file system ของคุณคือ route map** ไฟล์ทุกไฟล์ที่คุณสร้างใต้ `src/routes/` จะกลายเป็น URL โดยอัตโนมัติ ไม่ต้องมี JSX route config ไม่ต้องมี `createBrowserRouter` ไม่ต้องมี wrapper `<Routes>`
+
+> รันคำสั่งนี้ในโปรเจกต์ SvelteKit (`npx sv create`)
+
+## ไดเรกทอรี `src/routes/`
+
+SvelteKit จอง `src/routes/` ไว้สำหรับ route tree ของคุณ โครงสร้างของไดเรกทอรีนี้คือโครงสร้าง URL ของแอปพลิเคชัน
+
+| ไฟล์ | URL |
+|---|---|
+| `src/routes/+page.svelte` | `/` |
+| `src/routes/about/+page.svelte` | `/about` |
+| `src/routes/blog/[slug]/+page.svelte` | `/blog/:slug` |
+| `src/routes/dashboard/+layout.svelte` | ครอบทุกหน้าใต้ `/dashboard/*` |
+
+## ชื่อไฟล์พิเศษ — ดูรวดเดียวเข้าใจ
+
+SvelteKit ใช้ convention ของ **ชื่อไฟล์ที่ขึ้นต้นด้วย `+`** เพื่อให้ไฟล์ที่เป็นของ SvelteKit ไม่ปะปนกับ helper module ของคุณเองที่อยู่ในโฟลเดอร์เดียวกัน
+
+| ชื่อไฟล์ | หน้าที่ |
+|---|---|
+| `+page.svelte` | UI ของหน้าที่แสดงผลที่ route นี้ |
+| `+page.js` | ฟังก์ชัน `load()` — รันทั้งบน server *และ* client |
+| `+page.server.js` | ฟังก์ชัน `load()` — รันบน server เท่านั้น (DB, cookies, secrets) |
+| `+layout.svelte` | Shell ที่แชร์กัน ครอบทุก child route ในโฟลเดอร์นี้ |
+| `+layout.js` / `+layout.server.js` | `load()` สำหรับ layout |
+| `+error.svelte` | Error boundary สำหรับ route segment นี้ |
+
+## การแมปจาก React
+
+ถ้าคุณมาจาก react-router การเปลี่ยน mental model คือ:
+
+- react-router: คุณเขียน **config แบบ JS/JSX** ที่แมป path string ไปยัง component import
+- Next.js Pages Router: โฟลเดอร์ `pages/` — ไฟล์แมปไปยัง route
+- Next.js App Router: โฟลเดอร์ `app/` — ไฟล์ `page.tsx` ในโฟลเดอร์ต่าง ๆ แมปไปยัง route
+- SvelteKit: โฟลเดอร์ `src/routes/` — ไฟล์ `+page.svelte` ในโฟลเดอร์ต่าง ๆ แมปไปยัง route
+
+SvelteKit ใกล้เคียงกับ Next.js App Router มากที่สุด แต่ใช้ `+page.svelte` แทน `page.tsx` และจัดการ data loading ใน `+page.js` / `+page.server.js` แทนที่จะทำให้ตัว component เป็น async
+
+## โมดูลนี้ครอบคลุมอะไรบ้าง
+
+| บทเรียน | แนวคิด |
+|---|---|
+| หน้านี้ | Mental model: file-based routing และไดเรกทอรี `src/routes/` |
+| File-based routing | Nested routes, dynamic segment แบบ `[param]`, walkthrough ของ file tree |
+| Load functions | `+page.js` / `+page.server.js` สำหรับดึงข้อมูล — เทียบกับ react-router loaders และ `getServerSideProps` |
+
+<Diff title="react-router / Next.js vs SvelteKit routing">
+
+- react-router: กำหนด route ด้วย JS — `<Route path="/about" element={<About />} />`
+- Next.js Pages Router: `pages/about.tsx` แมปไปยัง `/about`
+- Next.js App Router: `app/about/page.tsx` แมปไปยัง `/about`
+- SvelteKit: `src/routes/about/+page.svelte` แมปไปยัง `/about` — แนวคิดเดียวกัน แค่ convention ชื่อไฟล์ต่างกัน
+- Dynamic segment ของ react-router: `:id` ของ Next.js: `[id].tsx` / `[id]/page.tsx` ของ SvelteKit: `[id]/+page.svelte`
+- Layout ของ SvelteKit (`+layout.svelte`) เทียบเท่า `layout.tsx` ของ Next.js — ครอบทุก children ในโฟลเดอร์
+- Data loading: `loader` ของ react-router, `getServerSideProps` / Server Components ของ Next.js → `load()` ใน `+page.server.js` ของ SvelteKit
+
+</Diff>
+
+export const quizRoutingIndex = [
+  {
+    q: 'SvelteKit route อยู่ในไดเรกทอรีไหน?',
+    options: ['src/pages/', 'src/routes/', 'src/app/', 'routes/'],
+    answer: 1,
+  },
+  {
+    q: 'ไฟล์ชื่อ +page.svelte แทนความหมายอะไรใน SvelteKit?',
+    options: [
+      'Layout component ที่แชร์กัน',
+      'Data loader ที่รันบน server เท่านั้น',
+      'UI ของหน้าที่แสดงผลที่ URL ที่ตรงกัน',
+      'Route parameter แบบ dynamic',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'SvelteKit routing แตกต่างจาก react-router อย่างไร?',
+    options: [
+      'SvelteKit ต้องการไฟล์ JS config ที่แมป path ไปยัง component',
+      'SvelteKit ใช้ convention ของ file system — โครงสร้างโฟลเดอร์คือ route map',
+      'SvelteKit กำหนด route ด้วย JSX element แบบ <Route>',
+      'เหมือนกัน — SvelteKit ครอบ react-router ไว้ข้างใน',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="routing/index" questions={quizRoutingIndex} />
+
+<ProgressTracker client:visible id="routing/index" />

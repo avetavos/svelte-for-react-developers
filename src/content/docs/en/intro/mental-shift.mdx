@@ -1,0 +1,170 @@
+---
+title: "Mental Shift — From React's Model to Svelte's"
+description: 'Svelte 5 makes assignment reactive — no setters, no dependency arrays. Understand the core mental shift from React to Svelte 5 runes.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React's mental model is built around **immutability and explicit setters**. You call `useState`, get a value and a setter, and you must call the setter every time you want an update. Svelte 5 flips this completely — **assignment is reactivity**. Write `count++` and the DOM updates. No setter. No dispatch. No ceremony.
+
+This is the single biggest shift when moving from React to Svelte.
+
+## The core idea: runes
+
+Svelte 5 introduces **runes** — special compiler-understood primitives that replace React hooks:
+
+- `$state` replaces `useState` — declares a reactive variable
+- `$derived` replaces `useMemo` — computes a value that updates when its dependencies change
+- `$effect` replaces `useEffect` — runs a side effect whenever reactive values it reads change
+
+Unlike React hooks, runes are not function calls with magic rules — they are compiler instructions. The Svelte compiler sees `$state(0)` and generates fine-grained DOM update code. No hook rules. No dependency arrays. No stale closure bugs.
+
+## Counter with derived state
+
+export const mentalShiftReact = `function Counter() {
+  const [count, setCount] = React.useState(0);
+  const doubled = count * 2;
+  return (
+    <div>
+      <button onClick={() => setCount(c => c + 1)}>+</button>
+      <p>Count: {count}</p>
+      <p>Doubled: {doubled}</p>
+    </div>
+  );
+}`;
+
+export const mentalShiftSvelte = `<script>
+  let count = \$state(0);
+  let doubled = \$derived(count * 2);
+<\/script>
+
+<button onclick={() => count++}>+</button>
+<p>Count: {count}</p>
+<p>Doubled: {doubled}</p>`;
+
+<ReactSvelte react={mentalShiftReact} svelte={mentalShiftSvelte} />
+
+Key differences:
+- React needs `setCount` — you cannot write `count++` because `count` is a plain `const`. Svelte lets you assign directly.
+- React's `doubled` is recalculated on every render. Svelte's `$derived` is tracked by the compiler — it only recalculates when `count` changes.
+- Svelte's template is shorter because there is no wrapping function, no return, and no JSX closing tags.
+
+## Reactivity is the default
+
+In React you opt **in** to reactivity: anything outside of `useState` or `useReducer` is not reactive. In Svelte you opt **out**: any `$state` variable is reactive everywhere it is read, including in the template, in `$derived` expressions, and inside `$effect` callbacks.
+
+This means you can refactor freely. Extract a helper function that reads `$state` — it stays reactive. Pass a `$state` value to a child component — it stays reactive. The compiler tracks reads, not call sites.
+
+## $effect without dependency arrays
+
+React's `useEffect` requires a dependency array. Get it wrong and you have either a stale closure or an infinite loop. Svelte's `$effect` auto-tracks every `$state` and `$derived` value read inside it — no array needed:
+
+```js
+// React — you must list every dependency
+useEffect(() => {
+  document.title = `Count: ${count}`;
+}, [count]);
+
+// Svelte 5 — compiler tracks dependencies automatically
+$effect(() => {
+  document.title = `Count: ${count}`;
+});
+```
+
+If `count` changes, the effect re-runs. If you add another `$state` variable inside the effect later, it is tracked automatically. No missed dependencies, no lint warnings.
+
+## Try it: runes in action
+
+export const mentalShiftCode = `<script>
+  let count = \$state(0);
+  let doubled = \$derived(count * 2);
+  let message = \$state('Start counting!');
+
+  \$effect(() => {
+    message = count === 0
+      ? 'Start counting!'
+      : count > 9
+        ? 'Getting high!'
+        : 'Keep going...';
+  });
+<\/script>
+
+<div class="counter">
+  <button onclick={() => count--}>-</button>
+  <strong>{count}</strong>
+  <button onclick={() => count++}>+</button>
+</div>
+<p>Doubled: {doubled}</p>
+<p>{message}</p>
+<button onclick={() => count = 0}>Reset</button>
+
+<style>
+  .counter { display: flex; align-items: center; gap: 1rem; font-size: 1.5rem; }
+  button { font-size: 1.2rem; padding: 0.2rem 0.7rem; cursor: pointer; }
+  strong { min-width: 2rem; text-align: center; }
+  p { color: #555; margin: 0.3rem 0; }
+</style>`;
+
+<SveltePlayground client:visible code={mentalShiftCode} />
+
+<Diff title="React hooks vs Svelte 5 runes">
+
+- React: `const [count, setCount] = useState(0)` — state is immutable, must use setter. Svelte 5: `let count = $state(0)` — assignment triggers update: `count++` works directly.
+- React: `const doubled = count * 2` — recalculated on every render (or memoized with `useMemo`). Svelte 5: `let doubled = $derived(count * 2)` — compiler tracks dependencies, updates only when `count` changes.
+- React: `useEffect(() => { ... }, [count])` — side effects with manual dependency arrays. Svelte 5: `$effect(() => { ... })` — auto-tracks any `$state` or `$derived` values read inside.
+- React: you choose what to re-render via explicit state and memos. Svelte: the compiler knows exactly what changed and updates only those DOM nodes.
+- React hooks must follow the Rules of Hooks (top-level only, no conditionals). Svelte runes are compiler primitives — no such rules apply.
+- Svelte's reactivity is the **default**. React's reactivity is **opt-in** per variable.
+
+</Diff>
+
+export const quizMentalShift = [
+  {
+    q: 'How do you update reactive state in Svelte 5?',
+    options: [
+      'Call a setter function like setCount()',
+      'Assign directly: count++ or count = newVal',
+      'Use setState({count: count+1})',
+      'Dispatch an action',
+    ],
+    answer: 1,
+  },
+  {
+    q: "What is the Svelte 5 equivalent of React's useMemo?",
+    options: [
+      '$state',
+      '$effect',
+      '$derived',
+      '$memo',
+    ],
+    answer: 2,
+  },
+  {
+    q: "What is the Svelte 5 equivalent of React's useEffect?",
+    options: [
+      '$watch',
+      'onMount only',
+      '$effect',
+      '$reaction',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'In Svelte 5, when you write `count++`, what happens?',
+    options: [
+      'Nothing — you must call a setter',
+      'The component schedules a re-render via a queue',
+      'The compiler-generated code updates only the DOM nodes that depend on count',
+      'It throws: assignments are not reactive without a store',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/mental-shift" questions={quizMentalShift} />
+
+<ProgressTracker client:visible id="intro/mental-shift" />

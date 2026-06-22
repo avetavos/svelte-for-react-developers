@@ -1,0 +1,187 @@
+---
+title: 'Reactivity Overview'
+description: 'Svelte 5 reactivity via runes and assignment vs React setState and the immutability rule.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React's reactivity is built on **immutability** — you never mutate state directly; you call a setter and React schedules a re-render. Svelte 5's reactivity is built on **runes and direct assignment** — you declare state with `$state()`, then mutate it as you would any JavaScript variable. Svelte's compiler detects the assignment and emits the DOM update code. Both models produce the same outcome; the feel is very different.
+
+## Declaring state
+
+export const reactivityDeclareReact = `function Counter() {
+  // Must call useState — raw let gives a stale value
+  const [count, setCount] = React.useState(0);
+  return <p>Count: {count}</p>;
+}`;
+
+export const reactivityDeclareSvelte = `<script>
+  // $state() marks this as reactive — plain let is not tracked
+  let count = \$state(0);
+<\/script>
+
+<p>Count: {count}</p>`;
+
+<ReactSvelte react={reactivityDeclareReact} svelte={reactivityDeclareSvelte} />
+
+## Updating state
+
+export const reactivityUpdateReact = `function Counter() {
+  const [count, setCount] = React.useState(0);
+  // Must call the setter — mutating count directly does nothing
+  return (
+    <button onClick={() => setCount(c => c + 1)}>
+      {count}
+    </button>
+  );
+}`;
+
+export const reactivityUpdateSvelte = `<script>
+  let count = \$state(0);
+  // Direct mutation — no setter needed
+<\/script>
+
+<button onclick={() => count++}>
+  {count}
+</button>`;
+
+<ReactSvelte react={reactivityUpdateReact} svelte={reactivityUpdateSvelte} />
+
+## Derived / computed values
+
+In React you reach for `useMemo` to avoid recomputing expensive values on every render. In Svelte 5 you use `$derived` — no dependency array, no hook rules, just an expression.
+
+export const reactivityDerivedReact = `function ShoppingCart({ items }) {
+  const total = React.useMemo(
+    () => items.reduce((sum, item) => sum + item.price, 0),
+    [items]   // <-- must list every dependency manually
+  );
+  return <p>Total: \${total}</p>;
+}`;
+
+export const reactivityDerivedSvelte = `<script>
+  let { items } = \$props();
+  // Dependencies tracked automatically — no array needed
+  let total = \$derived(
+    items.reduce((sum, item) => sum + item.price, 0)
+  );
+<\/script>
+
+<p>Total: \${total}</p>`;
+
+<ReactSvelte react={reactivityDerivedReact} svelte={reactivityDerivedSvelte} />
+
+## Side effects
+
+`useEffect` becomes `$effect`. The most welcome change: **no dependency array**. Svelte tracks which `$state` variables your effect reads and re-runs automatically when they change.
+
+export const reactivityEffectReact = `function TitleUpdater({ title }) {
+  React.useEffect(() => {
+    document.title = title;
+    // Must list title in the array or the effect goes stale
+  }, [title]);
+  return null;
+}`;
+
+export const reactivityEffectSvelte = `<script>
+  let { title } = \$props();
+  // Runs when title changes — Svelte tracks it automatically
+  \$effect(() => {
+    document.title = title;
+    // Return a cleanup function just like useEffect
+    return () => { document.title = 'App'; };
+  });
+<\/script>`;
+
+<ReactSvelte react={reactivityEffectReact} svelte={reactivityEffectSvelte} />
+
+## Try it: reactive counter with all three runes
+
+export const reactivityCode = `<script>
+  let count = \$state(0);
+  let step = \$state(1);
+  let doubled = \$derived(count * 2);
+
+  \$effect(() => {
+    if (count > 10) {
+      console.log('Count exceeded 10!');
+    }
+  });
+<\/script>
+
+<div class="demo">
+  <label>
+    Step:
+    <input type="number" bind:value={step} min="1" max="5" style="width:3rem;margin-left:0.5rem" />
+  </label>
+  <div class="row">
+    <button onclick={() => count -= step}>-{step}</button>
+    <span class="count">{count}</span>
+    <button onclick={() => count += step}>+{step}</button>
+  </div>
+  <p class="derived">Doubled: {doubled}</p>
+  <button class="reset" onclick={() => (count = 0)}>Reset</button>
+</div>
+
+<style>
+  .demo { font-family: sans-serif; display: flex; flex-direction: column; gap: 0.75rem; }
+  .row { display: flex; align-items: center; gap: 1rem; }
+  .count { font-size: 2rem; font-weight: bold; min-width: 3rem; text-align: center; }
+  button { font-size: 1rem; padding: 0.3rem 0.75rem; cursor: pointer; }
+  .derived { margin: 0; color: #666; }
+  .reset { font-size: 0.85rem; }
+</style>`;
+
+<SveltePlayground client:visible code={reactivityCode} />
+
+<Diff title="React useState / useMemo / useEffect vs Svelte 5 runes">
+
+- React: `const [x, setX] = useState(init)` — two variables, a setter, immutability enforced. Svelte: `let x = $state(init)` — one variable, mutable, compiler handles reactivity.
+- React: `setCount(c => c + 1)` — functional updater to avoid stale closures. Svelte: `count++` — always reads the current value, no stale-closure risk.
+- React: `useMemo(() => expr, [deps])` — manual dependency array, hook rules apply. Svelte: `$derived(expr)` — automatic dependency tracking, no array, no rules.
+- React: `useEffect(() => {}, [deps])` — manual dependency array, easy to get stale. Svelte: `$effect(() => {})` — automatic tracking, re-runs when any read `$state` changes.
+- React: Effects run after render; cleanup returned from the callback. Svelte: `$effect` cleanup is identical — return a function.
+- React state must not be mutated directly (objects/arrays must be spread/copied). Svelte `$state` objects **can** be mutated in place — `items.push(newItem)` is fine.
+
+</Diff>
+
+export const quizReactivity = [
+  {
+    q: 'How do you update a $state variable in Svelte 5?',
+    options: [
+      'Call setState(newValue)',
+      'Assign to it directly — count++ or count = newValue',
+      'Use this.set(newValue)',
+      'Dispatch a "change" event',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the Svelte 5 equivalent of React\'s useEffect with a dependency array?',
+    options: [
+      '$state with a callback',
+      '$derived with an array of deps',
+      '$effect — dependencies are tracked automatically, no array needed',
+      'onMount with a cleanup function',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Why does Svelte $derived not need a dependency array like React useMemo?',
+    options: [
+      'It caches every possible input',
+      'The Svelte compiler tracks which $state variables the expression reads at build time',
+      'It always recomputes on every render',
+      'Svelte uses a proxy to intercept all variable reads at runtime',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="mental-model/reactivity-overview" questions={quizReactivity} />
+
+<ProgressTracker client:visible id="mental-model/reactivity-overview" />

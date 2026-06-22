@@ -1,0 +1,165 @@
+---
+title: "Build & Deploy ด้วย SvelteKit Adapters"
+description: 'SvelteKit adapters มาแทนโหมด output ของ Next.js — static, Node server, Vercel และอื่น ๆ — ตั้งค่าใน svelte.config.js'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน Next.js คุณควบคุมรูปแบบ output ด้วย `output` ใน `next.config.js` (`'export'` สำหรับ static, ค่าเริ่มต้นสำหรับ Node server) และเลือกแพลตฟอร์ม deployment โดยทำตามเอกสารของมัน ส่วน SvelteKit ใช้แนวทางที่ชัดเจนกว่า: คุณติดตั้งแพ็กเกจ **adapter** แล้วอ้างอิงมันใน `svelte.config.js` adapter เป็นตัวกำหนดว่า `npm run build` จะผลิตอะไรออกมา — เว็บไซต์ static, Node.js server, bundle ของ Vercel edge function และอื่น ๆ
+
+## เปรียบเทียบไฟล์ config
+
+export const buildConfigReact = `// next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export', // static export
+};
+module.exports = nextConfig;`;
+
+export const buildConfigSvelte = `// svelte.config.js
+import adapter from '@sveltejs/adapter-static';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+
+/** @type {import('@sveltejs/kit').Config} */
+const config = {
+  preprocess: vitePreprocess(),
+  kit: {
+    adapter: adapter({
+      fallback: '404.html',
+    }),
+  },
+};
+
+export default config;`;
+
+<ReactSvelte react={buildConfigReact} svelte={buildConfigSvelte} reactTitle="next.config.js" svelteTitle="svelte.config.js" />
+
+## adapter ที่มีให้ใช้
+
+| Adapter | ตัวเทียบเท่า | กรณีการใช้งาน |
+|---|---|---|
+| `@sveltejs/adapter-static` | Next.js `output: 'export'` | static เต็มรูปแบบ — deploy ไปยัง CDN ใดก็ได้ (Netlify, GitHub Pages, S3) |
+| `@sveltejs/adapter-auto` | — | ตรวจจับ Vercel, Netlify, Cloudflare โดยอัตโนมัติ |
+| `@sveltejs/adapter-node` | Next.js standalone server | Node.js server (Dockerfile, VPS, Railway) |
+| `@sveltejs/adapter-vercel` | การ deploy Next.js แบบเฉพาะ Vercel | การ deploy ไปยัง Vercel แบบชัดเจนพร้อม config edge/serverless |
+
+## คำสั่ง build และ preview
+
+```bash
+# Build for production (output depends on adapter)
+npm run build
+
+# Preview the production build locally
+npm run preview
+```
+
+คำสั่งเหล่านี้แมปตรง ๆ กับ `next build` และ `next start` / `vite preview`
+
+## GitHub Actions CI
+
+โปรเจกต์ React/Vite:
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+      - run: npm test -- --watchAll=false
+```
+
+โปรเจกต์ SvelteKit:
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npm run test
+```
+
+สิ่งที่เพิ่มเข้ามาที่สำคัญใน workflow ของ SvelteKit คือ `npm run check` (รัน `svelte-check` เพื่อจับ type error ก่อน build) และ `npm run test` (รัน Vitest)
+
+## การติดตั้ง adapter
+
+```bash
+# Static
+npm install --save-dev @sveltejs/adapter-static
+
+# Auto (recommended for most deployments)
+npm install --save-dev @sveltejs/adapter-auto
+
+# Node server
+npm install --save-dev @sveltejs/adapter-node
+
+# Vercel
+npm install --save-dev @sveltejs/adapter-vercel
+```
+
+<Diff title="Next.js output modes vs SvelteKit adapters">
+
+- Next.js: `output: 'export'` ใน `next.config.js` สำหรับ static; ค่าเริ่มต้นสำหรับการ render ฝั่ง server
+- SvelteKit: ติดตั้งแพ็กเกจ adapter, import มันใน `svelte.config.js`, ส่งต่อให้ `kit.adapter`
+- `adapter-static` ≈ Next.js `output: 'export'` — ผลิตโฟลเดอร์ของ HTML/CSS/JS
+- `adapter-auto` ไม่มีตัวเทียบเท่าใน Next.js — ตรวจจับและตั้งค่าแพลตฟอร์มโดยอัตโนมัติ
+- `adapter-node` ≈ output แบบ standalone server ของ Next.js
+- `adapter-vercel` ให้การควบคุมแบบละเอียดระหว่าง edge กับ serverless functions บน Vercel
+- CI: เพิ่ม `npm run check` ก่อน `npm run build` ใน SvelteKit — ไม่มีขั้นตอน tsc เทียบเท่าที่จำเป็นใน React Vite (tsc ถูกรวมอยู่ในขั้น build แล้ว)
+
+</Diff>
+
+export const quizBuildDeploy = [
+  {
+    q: 'คุณตั้งค่า SvelteKit adapter ที่ไหน?',
+    options: [
+      'vite.config.ts',
+      'svelte.config.js',
+      'package.json',
+      '.env',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'SvelteKit adapter ใดที่เทียบเท่า Next.js output: "export"?',
+    options: [
+      '@sveltejs/adapter-auto',
+      '@sveltejs/adapter-node',
+      '@sveltejs/adapter-static',
+      '@sveltejs/adapter-vercel',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'workflow ของ SvelteKit เพิ่มขั้นตอน CI พิเศษอะไรเมื่อเทียบกับ workflow ของ React Vite?',
+    options: [
+      'npm run lint',
+      'npm run check (svelte-check)',
+      'npm run typecheck',
+      'npx tsc --noEmit',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="tooling/build-deploy" questions={quizBuildDeploy} />
+
+<ProgressTracker client:visible id="tooling/build-deploy" />

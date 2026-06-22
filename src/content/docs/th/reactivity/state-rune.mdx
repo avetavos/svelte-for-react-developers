@@ -1,0 +1,200 @@
+---
+title: '$state — Reactive State'
+description: 'วิธีที่ $state แทน useState ใน Svelte 5 — แก้ไขตรงได้เลย deep reactivity ไม่ต้องใช้ setter'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React คุณประกาศ state ด้วย `useState` และต้องอัปเดตเสมอผ่าน **setter function** — คุณไม่สามารถแก้ไข state variable ตรง ๆ ได้ Svelte 5 พลิกแนวคิดนี้โดยสิ้นเชิง: `$state` ให้คุณได้ตัวแปรธรรมดาที่คุณ **แก้ไขตรงได้เลย** คอมไพเลอร์จะเขียนใหม่เป็น signals เบื้องหลัง ทำให้ UI อัปเดตอัตโนมัติ
+
+## ประกาศและอัปเดต state
+
+export const stateBasicReact = `function Counter() {
+  const [count, setCount] = React.useState(0);
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>+1</button>
+      <button onClick={() => setCount(0)}>Reset</button>
+    </div>
+  );
+}`;
+
+export const stateBasicSvelte = `<script>
+  let count = \$state(0);
+<\/script>
+
+<p>Count: {count}</p>
+<button onclick={() => count++}>+1</button>
+<button onclick={() => count = 0}>Reset</button>`;
+
+<ReactSvelte react={stateBasicReact} svelte={stateBasicSvelte} />
+
+ไม่มี `setCount` คุณเขียน `count++` หรือ `count = 0` ตรง ๆ — เหมือนกับตัวแปร JavaScript ธรรมดาทุกอย่าง
+
+## Deep reactivity: objects และ arrays
+
+`useState` ของ React เป็น **shallow** — คุณต้อง spread object หรือแทนที่ array เพื่อ trigger re-render `$state` เป็น **deeply reactive**: การ mutate property ที่ซ้อนอยู่หรือเรียก `array.push()` จะอัปเดต UI อัตโนมัติ
+
+export const stateObjectReact = `function Profile() {
+  const [user, setUser] = React.useState({ name: 'Alice', age: 30 });
+  const [tags, setTags] = React.useState(['svelte', 'react']);
+
+  function birthday() {
+    setUser(u => ({ ...u, age: u.age + 1 }));
+  }
+  function addTag() {
+    setTags(t => [...t, 'js']);
+  }
+
+  return (
+    <div>
+      <p>{user.name} is {user.age}</p>
+      <button onClick={birthday}>Birthday</button>
+      <p>{tags.join(', ')}</p>
+      <button onClick={addTag}>Add tag</button>
+    </div>
+  );
+}`;
+
+export const stateObjectSvelte = `<script>
+  let user = \$state({ name: 'Alice', age: 30 });
+  let tags = \$state(['svelte', 'react']);
+<\/script>
+
+<p>{user.name} is {user.age}</p>
+<button onclick={() => user.age++}>Birthday</button>
+
+<p>{tags.join(', ')}</p>
+<button onclick={() => tags.push('js')}>Add tag</button>`;
+
+<ReactSvelte react={stateObjectReact} svelte={stateObjectSvelte} />
+
+`user.age++` และ `tags.push('js')` ทำงานได้เลย ไม่ต้อง spread ไม่ต้องแทนที่ — deep reactivity แบบ proxy ของ Svelte จัดการให้
+
+## ตัวแปร state หลายตัว
+
+export const stateMultiReact = `function Form() {
+  const [name, setName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [submitted, setSubmitted] = React.useState(false);
+
+  function submit() {
+    setSubmitted(true);
+  }
+
+  if (submitted) return <p>Sent! Hello, {name}.</p>;
+  return (
+    <form onSubmit={e => { e.preventDefault(); submit(); }}>
+      <input value={name} onChange={e => setName(e.target.value)} placeholder="Name" />
+      <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" />
+      <button type="submit">Send</button>
+    </form>
+  );
+}`;
+
+export const stateMultiSvelte = `<script>
+  let name = \$state('');
+  let email = \$state('');
+  let submitted = \$state(false);
+<\/script>
+
+{#if submitted}
+  <p>Sent! Hello, {name}.</p>
+{:else}
+  <form onsubmit={e => { e.preventDefault(); submitted = true; }}>
+    <input bind:value={name} placeholder="Name" />
+    <input bind:value={email} placeholder="Email" />
+    <button type="submit">Send</button>
+  </form>
+{/if}`;
+
+<ReactSvelte react={stateMultiReact} svelte={stateMultiSvelte} />
+
+## ทดลองได้เลย: todo list แบบ deep reactive
+
+export const statePlayCode = `<script>
+  let todos = \$state([
+    { text: 'Learn \$state', done: false },
+    { text: 'Try deep reactivity', done: false },
+  ]);
+  let newText = \$state('');
+
+  function addTodo() {
+    if (newText.trim()) {
+      todos.push({ text: newText.trim(), done: false });
+      newText = '';
+    }
+  }
+<\/script>
+
+<div style="font-family:sans-serif;padding:1rem">
+  <ul style="padding:0;list-style:none">
+    {#each todos as todo}
+      <li style="margin-bottom:0.5rem">
+        <label>
+          <input type="checkbox" bind:checked={todo.done} />
+          <span style={\`text-decoration:\${todo.done ? 'line-through' : 'none'};margin-left:0.5rem\`}>
+            {todo.text}
+          </span>
+        </label>
+      </li>
+    {/each}
+  </ul>
+  <input bind:value={newText} placeholder="New todo" onkeydown={e => e.key === 'Enter' && addTodo()} />
+  <button onclick={addTodo}>Add</button>
+</div>`;
+
+<SveltePlayground client:visible code={statePlayCode} />
+
+<Diff title="useState vs $state">
+
+- React `useState` คืน pair `[value, setter]` — ต้องอัปเดตผ่าน `setX(newValue)` เสมอ Svelte `$state` คืนตัวแปรโดยตรง — แก้ไขตรง (`count++`, `user.age = 30`)
+- React state เป็น **shallow**: การแก้ไข nested property โดยไม่ spread จะไม่ trigger re-render Svelte `$state` เป็น **deeply reactive** ผ่าน proxy — `user.age++` และ `array.push()` ล้วนอัปเดต DOM
+- React ส่งเสริม immutable update (`[...arr, item]`) Svelte ส่งเสริม mutation ปกติ (`arr.push(item)`) — proxy ตรวจจับการเปลี่ยนแปลงได้
+- ทั้งคู่กำหนดค่า default เริ่มต้น: `useState(0)` / `$state(0)`
+- setter ของ React รับ updater function ได้ (`setCount(c => c + 1)`) ด้วย `$state` เขียน expression ตรง: `count = count + 1` หรือ `count++`
+
+</Diff>
+
+export const quizStateRune = [
+  {
+    q: 'เพิ่มค่า counter แบบ $state ใน Svelte 5 ทำอย่างไร?',
+    options: [
+      'setCount(count + 1)',
+      'count.set(count + 1)',
+      'count++',
+      '$state.update(count, n => n + 1)',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'มี let user = $state({ name: "Alice" }) จะเปลี่ยน user.name เป็น "Bob" ทำอย่างไร?',
+    options: [
+      'setUser({ ...user, name: "Bob" })',
+      'user = { ...user, name: "Bob" }',
+      'user.name = "Bob"',
+      '$state.patch(user, { name: "Bob" })',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'เรียก tags.push("new") บน $state array แล้วเกิดอะไรขึ้น?',
+    options: [
+      'ไม่มีอะไรเกิดขึ้น — ต้องแทนที่ array: tags = [...tags, "new"]',
+      'DOM อัปเดตอัตโนมัติเพราะ $state ใช้ proxy ตรวจ mutation methods',
+      'เกิด runtime error',
+      'ต้องเรียก $state.refresh(tags) ตามหลัง',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="reactivity/state-rune" questions={quizStateRune} />
+
+<ProgressTracker client:visible id="reactivity/state-rune" />

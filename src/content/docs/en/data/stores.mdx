@@ -1,0 +1,150 @@
+---
+title: 'Svelte Stores'
+description: 'writable, readable, and derived stores — Svelte''s built-in shared state, analogous to Zustand or Redux for React developers.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+When React state needs to be shared across components, you reach for Context + `useReducer`, Redux, or Zustand. Svelte has built-in stores that cover the same ground with no extra packages:
+
+- **`writable(initial)`** — any component can read and write
+- **`readable(initial, start)`** — read-only; an external source (timer, WebSocket) drives updates
+- **`derived(stores, fn)`** — computed from one or more stores, updates automatically
+
+The magic is the **`$` prefix in markup**. Writing `{$count}` in a Svelte template auto-subscribes the component to the store and auto-unsubscribes when the component is destroyed. In plain JS (outside a `.svelte` file) you call `.subscribe()` manually.
+
+## writable store vs Zustand
+
+export const storesWritableReact = `// store.ts (Zustand)
+import { create } from 'zustand';
+export const useCountStore = create(set => ({
+  count: 0,
+  increment: () => set(s => ({ count: s.count + 1 })),
+  reset: () => set({ count: 0 }),
+}));
+
+// Counter.tsx
+function Counter() {
+  const { count, increment, reset } = useCountStore();
+  return (
+    <>
+      <p>Count: {count}</p>
+      <button onClick={increment}>+</button>
+      <button onClick={reset}>Reset</button>
+    </>
+  );
+}`;
+
+export const storesWritableSvelte = `<!-- stores.ts -->
+import { writable } from 'svelte/store';
+export const count = writable(0);
+
+<!-- Counter.svelte -->
+<script>
+  import { count } from './stores.ts';
+<\/script>
+
+<p>Count: {\$count}</p>
+<button onclick={() => count.update(n => n + 1)}>+</button>
+<button onclick={() => count.set(0)}>Reset</button>`;
+
+<ReactSvelte react={storesWritableReact} svelte={storesWritableSvelte} />
+
+A `writable` store exposes three methods: `.set(value)` to replace, `.update(fn)` to transform, and `.subscribe(fn)` to listen manually. In `.svelte` markup, the `$` prefix handles subscribe/unsubscribe for you.
+
+## derived store vs useSelector / useMemo
+
+export const storesDerivedReact = `// With Zustand selector
+const double = useCountStore(s => s.count * 2);
+
+// Or with useMemo in a component
+const double = React.useMemo(() => count * 2, [count]);`;
+
+export const storesDerivedSvelte = `import { writable, derived } from 'svelte/store';
+
+export const count = writable(0);
+
+// Derived store — updates whenever count changes
+export const doubleCount = derived(count, \$count => \$count * 2);
+
+// In a component:
+// {\$doubleCount}  ← auto-subscribed`;
+
+<ReactSvelte react={storesDerivedReact} svelte={storesDerivedSvelte} />
+
+`derived` works with multiple source stores too: `derived([a, b], ([$a, $b]) => $a + $b)`.
+
+## Try it: writable + derived inline
+
+export const storesPlaygroundCode = `<script>
+  import { writable, derived } from 'svelte/store';
+
+  const count = writable(0);
+  const doubleCount = derived(count, \$c => \$c * 2);
+  const message = derived(count, \$c =>
+    \$c === 0 ? 'Get started!' : \$c > 9 ? 'Double digits!' : 'Keep going...'
+  );
+<\/script>
+
+<div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem">
+  <button onclick={() => count.update(n => n - 1)}>-</button>
+  <strong style="min-width:2rem;text-align:center">{\$count}</strong>
+  <button onclick={() => count.update(n => n + 1)}>+</button>
+  <button onclick={() => count.set(0)}>Reset</button>
+</div>
+
+<p>Double: <strong>{\$doubleCount}</strong></p>
+<p>{\$message}</p>`;
+
+<SveltePlayground client:visible code={storesPlaygroundCode} />
+
+<Diff title="$store auto-subscribe — markup vs plain JS">
+
+- In a `.svelte` component, prefix any store with `$` (`$count`) — Svelte auto-calls `.subscribe()` on mount and `.unsubscribe()` on destroy.
+- In plain `.ts` / `.js` files, there is no `$` shorthand — call `count.subscribe(value => { ... })` manually and store the returned unsubscribe function.
+- `writable` → read + write. `readable` → read-only (good for timers, geolocation). `derived` → computed (like `useMemo` but reactive across components).
+- Unlike Redux, there is no action/reducer ceremony. Call `.set()` or `.update()` directly.
+- Unlike React Context, stores don't need a Provider tree — any component can import and subscribe.
+
+</Diff>
+
+export const quizStores = [
+  {
+    q: 'What does the $ prefix do when you write {$count} in Svelte markup?',
+    options: [
+      'It marks the variable as a constant',
+      'It auto-subscribes the component to the store and auto-unsubscribes on destroy',
+      'It converts the store to a plain number',
+      'It is JavaScript template literal syntax',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which Svelte store type is most analogous to React\'s useMemo or a Zustand selector?',
+    options: [
+      'writable',
+      'readable',
+      'derived',
+      'effect',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'When does Svelte automatically unsubscribe a component from a store it reads with $?',
+    options: [
+      'When the store value becomes null',
+      'You must call unsubscribe() manually',
+      'When the component is destroyed (unmounted)',
+      'After every render cycle',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/stores" questions={quizStores} />
+
+<ProgressTracker client:visible id="data/stores" />

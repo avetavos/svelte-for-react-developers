@@ -1,0 +1,174 @@
+---
+title: 'Fetching Data'
+description: 'onMount + fetch สำหรับ client-side fetching และ SvelteKit load function สำหรับ server-side — เทียบกับ useEffect และ getServerSideProps ของ React'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+นักพัฒนา React ใช้ `useEffect` + `fetch` เพื่อดึงข้อมูล client-side หรือใช้ React Query / SWR เพื่อจัดการ caching และ loading state Svelte ใช้ `onMount` + `fetch` สำหรับ client-side fetching ด้วย API ที่ตรงไปตรงมากว่า สำหรับ server-side fetching SvelteKit มีฟังก์ชัน `load` ใน `+page.ts` ที่รันบน server และส่งข้อมูลให้ component โดยตรง — คล้ายกับ `getServerSideProps` ของ Next.js แต่ clean กว่ามาก
+
+## useEffect + fetch เทียบกับ onMount + fetch
+
+export const fetchingEffectReact = `function UserProfile({ userId }) {
+  const [user, setUser] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    setLoading(true);
+    fetch(\`/api/users/\${userId}\`)
+      .then(r => r.json())
+      .then(data => { setUser(data); setLoading(false); })
+      .catch(err => { setError(err.message); setLoading(false); });
+  }, [userId]);
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error}</p>;
+  return <p>{user?.name}</p>;
+}`;
+
+export const fetchingEffectSvelte = `<script>
+  import { onMount } from 'svelte';
+
+  let { userId } = \$props();
+  let user = \$state(null);
+  let loading = \$state(true);
+  let error = \$state(null);
+
+  onMount(async () => {
+    try {
+      const res = await fetch(\`/api/users/\${userId}\`);
+      user = await res.json();
+    } catch (e) {
+      error = e.message;
+    } finally {
+      loading = false;
+    }
+  });
+<\/script>
+
+{#if loading}<p>Loading...</p>
+{:else if error}<p>Error: {error}</p>
+{:else}<p>{user?.name}</p>
+{/if}`;
+
+<ReactSvelte react={fetchingEffectReact} svelte={fetchingEffectSvelte} />
+
+## getServerSideProps เทียบกับ SvelteKit load
+
+export const fetchingSSRReact = `// pages/users/[id].tsx (Next.js)
+export async function getServerSideProps({ params }) {
+  const user = await fetchUser(params.id);
+  return { props: { user } };
+}
+
+export default function UserPage({ user }) {
+  return <p>{user.name}</p>;
+}`;
+
+export const fetchingSSRSvelte = `// +page.ts (SvelteKit)
+export async function load({ params, fetch }) {
+  const res = await fetch(\`/api/users/\${params.id}\`);
+  const user = await res.json();
+  return { user };
+}
+
+<!-- +page.svelte -->
+<script>
+  let { data } = \$props();
+<\/script>
+
+<p>{data.user.name}</p>`;
+
+<ReactSvelte react={fetchingSSRReact} svelte={fetchingSSRSvelte} />
+
+## ลองเล่น: simulated async fetch
+
+export const fetchingPlaygroundCode = `<script>
+  import { onMount } from 'svelte';
+
+  let posts = \$state([]);
+  let loading = \$state(true);
+  let error = \$state(null);
+
+  onMount(async () => {
+    await new Promise(r => setTimeout(r, 800));
+    try {
+      posts = [
+        { id: 1, title: 'Getting Started with Svelte 5' },
+        { id: 2, title: 'Runes vs React Hooks' },
+        { id: 3, title: 'SvelteKit for Next.js Developers' },
+      ];
+    } catch (e) {
+      error = 'Failed to load posts';
+    } finally {
+      loading = false;
+    }
+  });
+<\/script>
+
+{#if loading}
+  <p>Loading posts...</p>
+{:else if error}
+  <p style="color:red">{error}</p>
+{:else}
+  <ul>
+    {#each posts as post}
+      <li>{post.title}</li>
+    {/each}
+  </ul>
+{/if}`;
+
+<SveltePlayground client:visible code={fetchingPlaygroundCode} />
+
+<Diff title="React useEffect+fetch vs Svelte onMount+fetch">
+
+- React `useEffect` รันหลัง render ทุกครั้งถ้าไม่ระบุ dependency array — ง่ายพลาด
+- `onMount` ของ Svelte รันครั้งเดียวหลัง component mount เสมอ — ไม่ต้องกังวล dependency
+- `useEffect` cleanup ต้องคืน function — `onMount` คืน function สำหรับ cleanup ได้เหมือนกัน
+- SvelteKit `load` รันบน server (หรือ client สำหรับ client-side navigation) โดยอัตโนมัติ
+- `load` ได้รับ `fetch` wrapper ที่ทำงานได้ทั้ง server และ client โดยไม่ต้องแก้โค้ด
+- ข้อมูลจาก `load` เข้าถึงได้ผ่าน `$props()` เป็น `data` — ไม่มี getStaticProps/getServerSideProps แยก
+
+</Diff>
+
+export const quizFetching = [
+  {
+    q: 'lifecycle function ใดของ Svelte ที่ใกล้เคียงกับ useEffect กับ empty dependency array มากที่สุด?',
+    options: [
+      'beforeUpdate',
+      'onDestroy',
+      'onMount',
+      'afterUpdate',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ฟังก์ชัน load ใน SvelteKit +page.ts ทำหน้าที่อะไร?',
+    options: [
+      'โหลด CSS styles สำหรับหน้านั้น',
+      'ดึงข้อมูลบน server (หรือ client) และส่งให้ component ผ่าน data prop',
+      'register event listeners สำหรับ page',
+      'compile Svelte component เป็น JavaScript',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ข้อดีของ onMount เหนือ useEffect สำหรับ initial data fetching คืออะไร?',
+    options: [
+      'onMount รองรับ async/await แต่ useEffect ไม่รองรับ',
+      'onMount รันครั้งเดียวหลัง mount เสมอ ไม่ต้องระบุ dependency array',
+      'onMount เร็วกว่า useEffect เสมอ',
+      'onMount สามารถ cancel HTTP request ได้อัตโนมัติ',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="data/fetching" questions={quizFetching} />
+
+<ProgressTracker client:visible id="data/fetching" />

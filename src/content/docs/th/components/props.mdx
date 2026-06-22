@@ -1,0 +1,120 @@
+---
+title: 'Props'
+description: 'วิธีที่ $props() ของ Svelte 5 แมปกับการ destructure props, ค่า default และ TypeScript types ของ React'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React คุณรับ props เข้ามาเป็น argument ของ function แล้ว destructure มันตรง parameter list ส่วนใน Svelte 5 คุณเรียก rune `$props()` แล้ว destructure ผลลัพธ์ที่ได้ — รูปแบบเกือบจะเหมือนกันเป๊ะ ดังนั้นการแมปในหัวจึงเกิดขึ้นแทบจะทันที
+
+## React props เทียบกับ `$props()`
+
+export const propsReact = `// Badge.jsx
+function Badge({ label, count = 0, color = 'blue' }) {
+  return (
+    <span style={{ color }}>
+      {label}: {count}
+    </span>
+  );
+}
+export default Badge;`;
+
+export const propsSvelte = `<!-- Badge.svelte -->
+<script>
+  let { label, count = 0, color = 'blue' } = \$props();
+<\/script>
+
+<span style="color: {color}">
+  {label}: {count}
+</span>`;
+
+<ReactSvelte react={propsReact} svelte={propsSvelte} />
+
+syntax การ destructure นั้น **เหมือนกัน** ค่า default ก็ทำงานแบบเดียวกัน ความต่างเดียวคือต้นทาง: React ใช้ argument ของ function ส่วน Svelte ใช้ `$props()`
+
+## Rest props
+
+ถ้าคุณอยากส่งต่อ attribute ที่ไม่รู้จักไปยัง DOM element (เช่น สำหรับ wrapper component) ก็ spread ส่วนที่เหลือออกไป:
+
+export const propsRestReact = `function Button({ children, ...rest }) {
+  return <button {...rest}>{children}</button>;
+}`;
+
+export const propsRestSvelte = `<script>
+  let { children, ...rest } = \$props();
+<\/script>
+
+<button {...rest}>
+  {@render children?.()}
+</button>`;
+
+<ReactSvelte react={propsRestReact} svelte={propsRestSvelte} />
+
+## ลองเล่น: props demo ที่รันได้จริง
+
+export const propsCode = `<script>
+  let { greeting = 'Hello', name = 'World', color = '#FF3E00' } = \$props();
+<\/script>
+
+<p style="color: {color}; font-size: 1.4rem;">
+  {greeting}, {name}!
+</p>
+
+<style>
+  p { font-weight: bold; }
+</style>`;
+
+<SveltePlayground client:visible code={propsCode} />
+
+ลองแก้ค่า default ในการ destructure `$props()` ดู แล้วจะเห็น output เปลี่ยนทันที
+
+<Diff title="React props vs Svelte $props()">
+
+- React: `function MyComp({ name, count = 0 }) { ... }` — props มาจาก parameter ของ function
+- Svelte: `let { name, count = 0 } = $props()` — destructure แบบเดียวกัน แต่มาจาก rune แทน
+- ทั้งคู่รองรับค่า default ด้วย syntax `= value`
+- ทั้งคู่รองรับ rest spread ด้วย `...rest` สำหรับส่งต่อ attribute ที่ไม่รู้จัก
+- TypeScript: React ใช้ `FC<Props>` หรือ parameter ที่กำหนด type ส่วน Svelte ใช้ `interface Props` + `$props<Props>()`
+
+</Diff>
+
+export const quizProps = [
+  {
+    q: 'คุณประกาศ prop พร้อมค่า default ใน Svelte 5 อย่างไร?',
+    options: [
+      'let { count } = $props({ count: 0 })',
+      'let { count = 0 } = $props()',
+      '$prop("count", 0)',
+      'export let count = 0',
+    ],
+    answer: 1,
+  },
+  {
+    q: '$props() คืนค่าอะไรออกมา?',
+    options: [
+      'array ของชื่อ prop',
+      'object แบบ reactive ของ props ทั้งหมดที่ส่งเข้ามาให้ component',
+      'instance ของ component',
+      'Svelte store',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณส่งต่อ props ที่ไม่รู้จักทั้งหมดไปยัง DOM element ใน Svelte 5 อย่างไร?',
+    options: [
+      'ใช้ $spread()',
+      'destructure ด้วย ...rest จาก $props() แล้ว spread ด้วย {...rest}',
+      'เรียก forwardRef()',
+      'ใช้ $$restProps',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="components/props" questions={quizProps} />
+
+<ProgressTracker client:visible id="components/props" />

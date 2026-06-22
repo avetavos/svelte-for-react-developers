@@ -1,0 +1,109 @@
+---
+title: 'Svelte DevTools'
+description: 'Svelte DevTools browser extension — inspecting reactive state and props vs React DevTools component tree and hooks viewer.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React developers rely on the **React DevTools** browser extension to inspect the component tree, view props and state, and profile renders. Svelte has its own counterpart: the **Svelte DevTools** extension (available for Chrome and Firefox). The overall workflow is familiar — open DevTools, find your component, inspect its data — but the panels reflect Svelte's reactivity model rather than React's hook-based one.
+
+## Installation
+
+Both extensions install the same way:
+
+- **React DevTools**: search "React Developer Tools" in the Chrome Web Store or Firefox Add-ons.
+- **Svelte DevTools**: search "Svelte DevTools" in the Chrome Web Store or Firefox Add-ons.
+
+Both extensions add a new tab to the browser DevTools panel and activate automatically when you open a page running React or Svelte respectively.
+
+## What you see in each panel
+
+export const devtoolsPanelReact = `// React DevTools — what you inspect:
+//
+// Components panel:
+//   ▸ App
+//     ▸ Header
+//     ▸ Counter           ← selected
+//         Props
+//           initialCount: 5
+//         Hooks
+//           State: 5      ← useState value
+//           Effect        ← useEffect registered
+//
+// Profiler panel:
+//   Flame chart of render times
+//   "Why did this render?" annotation`;
+
+export const devtoolsPanelSvelte = `// Svelte DevTools — what you inspect:
+//
+// Components panel:
+//   ▸ App
+//     ▸ Header
+//     ▸ Counter           ← selected
+//         Props
+//           initialCount: 5
+//         State
+//           count: 5      ← \$state variable (live)
+//
+// No flame chart — use browser Performance tab
+// Render count shown per component`;
+
+<ReactSvelte react={devtoolsPanelReact} svelte={devtoolsPanelSvelte} reactTitle="React DevTools" svelteTitle="Svelte DevTools" />
+
+## Key differences
+
+**React DevTools** shows the hook call order. You see each `useState`, `useEffect`, and custom hook listed in sequence. If you add a hook conditionally (which React forbids), the panel reveals the mismatch. This design reflects the fact that React hooks are the only way to hold component state.
+
+**Svelte DevTools** shows reactive variable names directly — the same names you wrote in `<script>`. A `\$state` variable named `count` appears as `count` in the State panel. There is no concept of "hook call order" because Svelte state is declared with runes, not hook calls. The panel simply mirrors your source variables.
+
+## Profiling
+
+React includes a built-in **Profiler** tab in DevTools that records a flame chart of component render times, commit phases, and reasons for re-renders. This is useful for identifying wasted renders.
+
+Svelte DevTools shows a **render count** per component but does not include a flame chart. For performance profiling in Svelte, use the browser's native **Performance** tab — record a trace and look for long tasks. Because Svelte compiles reactivity to fine-grained DOM updates (no virtual DOM diffing), whole-component re-renders are rare, making flame-chart-level profiling less commonly needed.
+
+## Development-only
+
+Both extensions only activate in development builds. They rely on debug metadata that Svelte and React strip from production bundles. If DevTools shows no components on a production deployment, that is expected behaviour.
+
+<Diff title="React DevTools vs Svelte DevTools">
+
+- Both: browser extension (Chrome + Firefox), component tree navigation, click-to-select
+- React: shows hook call list (useState values, useEffect registrations, custom hooks)
+- Svelte: shows reactive variable names directly from source (`\$state` vars appear by name)
+- React: built-in Profiler tab with flame chart and "why did this render?" annotations
+- Svelte: shows render counts but no flame chart — use browser Performance tab for profiling
+- Both: only active in development builds; no data shown in production
+- Svelte DevTools reflects the rune model — no "hooks" concept in the panel
+
+</Diff>
+
+export const quizDevtools = [
+  {
+    q: 'What does Svelte DevTools show in the State panel?',
+    options: [
+      'The hook call order, like React DevTools',
+      'Only props — Svelte has no visible state',
+      'Reactive variable names and their live values from your source',
+      'A flame chart of render times',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Svelte DevTools does not include a flame chart profiler. What should you use instead?',
+    options: [
+      'The React DevTools Profiler tab',
+      'The browser\'s native Performance tab',
+      'svelte-check --profile',
+      'Vitest bench mode',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="tooling/devtools" questions={quizDevtools} />
+
+<ProgressTracker client:visible id="tooling/devtools" />

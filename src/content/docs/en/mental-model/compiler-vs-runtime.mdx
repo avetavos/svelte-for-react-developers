@@ -1,0 +1,146 @@
+---
+title: 'Compiler vs Runtime'
+description: 'Svelte compiles to direct DOM updates at build time — no virtual DOM, no reconciliation loop at runtime.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+This is the biggest architectural difference between React and Svelte, and it shapes everything else. React is a **runtime library** — it ships to the browser and reconciles a virtual DOM on every state change. Svelte is a **compiler** — it analyses your components at build time and outputs plain JavaScript that updates the DOM directly. By the time your code reaches the browser, Svelte itself is largely gone.
+
+## What React ships to the browser
+
+React bundles a reconciler, a fiber scheduler, synthetic event system, and hooks runtime — all of this runs on every user's device, on every page load. When state changes, React builds a new virtual DOM tree, diffs it against the previous tree, and then flushes the minimal set of real DOM changes. That diff step happens at **runtime**, in the browser.
+
+## What Svelte ships to the browser
+
+Svelte analyses your component's template and state at **build time** and generates targeted imperative DOM update code. When `count` changes, the compiled output calls `textContent = count` — one direct DOM write, no diffing, no reconciler involved. The Svelte "runtime" that ships is tiny (a handful of utility functions for things like `{#each}` keyed lists and transitions).
+
+## Side-by-side mental model
+
+export const compilerReact = `// React — ships reconciler + fiber + hooks runtime
+// On every setState:
+//   1. Re-run the function component
+//   2. Build a new virtual DOM tree
+//   3. Diff against the previous tree
+//   4. Flush real DOM changes
+
+function Counter() {
+  const [count, setCount] = React.useState(0);
+  return (
+    <button onClick={() => setCount(c => c + 1)}>
+      Count: {count}
+    </button>
+  );
+}`;
+
+export const compilerSvelte = `<!-- Svelte — compiles to direct DOM code -->
+<!-- On count change, compiler emits roughly:
+     buttonText.data = "Count: " + count;
+     No diffing. No reconciler. -->
+
+<script>
+  let count = \$state(0);
+<\/script>
+
+<button onclick={() => count++}>
+  Count: {count}
+</button>`;
+
+<ReactSvelte react={compilerReact} svelte={compilerSvelte} reactTitle="React (runtime)" svelteTitle="Svelte (compiled)" />
+
+## What this means for you as a developer
+
+**Bundle size:** A React + ReactDOM bundle is ~42 kB gzipped minimum, before your app. Svelte adds almost nothing — the output is your app code plus a tiny shared runtime.
+
+**Performance:** No virtual DOM diffing means less work per state change. For most UIs this difference is imperceptible, but it becomes meaningful for large lists, animations, or low-end devices.
+
+**Mental model:** You write declarative components exactly as you do in React. The compiler handles the imperative DOM work for you. You do not have to think about how it works — just know that `count++` updates every place `count` appears in the template, automatically.
+
+**No stale closures from diffing:** Because Svelte does not re-run your entire component function on each update (the way React re-renders a function component), the class of bugs around stale closures in React hooks does not exist in the same form in Svelte.
+
+## Try it: see reactivity in action
+
+export const compilerCode = `<script>
+  let count = \$state(0);
+  let doubled = \$derived(count * 2);
+  let label = \$derived(count === 1 ? 'click' : 'clicks');
+<\/script>
+
+<div class="demo">
+  <button onclick={() => count++}>+1</button>
+  <button onclick={() => count--}>-1</button>
+  <button onclick={() => (count = 0)}>Reset</button>
+  <p>{count} {label} — doubled: {doubled}</p>
+</div>
+
+<style>
+  .demo { font-family: sans-serif; display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-start; }
+  button { padding: 0.3rem 0.8rem; font-size: 1rem; cursor: pointer; }
+  p { margin: 0; font-size: 1.1rem; }
+</style>`;
+
+<SveltePlayground client:visible code={compilerCode} />
+
+`$derived` is the Svelte equivalent of `useMemo` — it recomputes automatically when its dependencies change. No dependency array required; Svelte's compiler tracks dependencies for you.
+
+<Diff title="React runtime vs Svelte compiler">
+
+- React ships its reconciler, fiber scheduler, and hooks runtime to every browser. Svelte compiles that work away at build time.
+- React diffs a **virtual DOM** on every state change. Svelte emits **direct DOM assignments** — `element.textContent = value` — with no diff step.
+- React function components **re-run entirely** on each render. Svelte components run their `<script>` once at mount; only targeted update code runs on changes.
+- React `useMemo(() => x * 2, [x])` requires a manual dependency array. Svelte `$derived(x * 2)` tracks dependencies automatically at compile time.
+- React `useEffect(() => {}, [dep])` requires a manual dependency array and cleanup return. Svelte `$effect(() => {})` tracks dependencies automatically; return a function to clean up.
+- Bundle overhead: React ~42 kB gzipped minimum. Svelte adds near-zero overhead — the compiled output is your app code.
+
+</Diff>
+
+export const quizCompiler = [
+  {
+    q: 'When does Svelte analyse your component and generate DOM update code?',
+    options: [
+      'At runtime, on every state change',
+      'At build time, before the code reaches the browser',
+      'When the component first mounts in the browser',
+      'When the user first interacts with the component',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'React uses a virtual DOM primarily to:',
+    options: [
+      'Prevent XSS attacks',
+      'Enable server-side rendering',
+      'Diff state changes and compute the minimal real DOM updates',
+      'Allow TypeScript to type-check JSX',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the Svelte equivalent of React\'s useMemo?',
+    options: [
+      '$state',
+      '$effect',
+      '$props',
+      '$derived',
+    ],
+    answer: 3,
+  },
+  {
+    q: 'Which statement about Svelte bundle size is correct?',
+    options: [
+      'Svelte bundles are always smaller than React bundles because there is no framework runtime to ship',
+      'Svelte and React produce identical bundle sizes',
+      'Svelte bundles are larger because compilation adds overhead',
+      'Svelte requires React as a peer dependency',
+    ],
+    answer: 0,
+  },
+];
+
+<Quiz client:visible id="mental-model/compiler-vs-runtime" questions={quizCompiler} />
+
+<ProgressTracker client:visible id="mental-model/compiler-vs-runtime" />

@@ -1,0 +1,151 @@
+---
+title: 'Svelte File Anatomy — The Three Sections'
+description: 'A .svelte file has three optional sections: script, markup, and style. See how they map to a React component file.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+A React component lives inside a `.jsx` or `.tsx` file: JavaScript logic at the top, a `return` statement wrapping JSX, and CSS either imported from a separate file or applied via CSS-in-JS. A Svelte component is a single `.svelte` file divided into up to three clearly labelled sections — **`<script>`**, **markup**, and **`<style>`** — each with a single job. Nothing is interleaved; nothing needs a build plugin to scope styles.
+
+## The three sections
+
+export const anatomyReact = `// ProfileCard.jsx
+import styles from './ProfileCard.module.css';
+
+function ProfileCard({ name, role }) {
+  return (
+    <div className={styles.card}>
+      <h2>{name}</h2>
+      <p>{role}</p>
+    </div>
+  );
+}
+export default ProfileCard;`;
+
+export const anatomySvelte = `<!-- ProfileCard.svelte -->
+<script>
+  let { name, role } = \$props();
+<\/script>
+
+<div class="card">
+  <h2>{name}</h2>
+  <p>{role}</p>
+</div>
+
+<style>
+  .card { border: 1px solid #ccc; padding: 1rem; border-radius: 8px; }
+</style>`;
+
+<ReactSvelte react={anatomyReact} svelte={anatomySvelte} />
+
+Key points:
+- React keeps logic and markup entangled inside the function body. Svelte separates them into distinct sections — `<script>` for logic, everything below it is the markup template.
+- React needs `className` because `class` is a reserved JS word in JSX. Svelte markup is plain HTML — use `class` as usual.
+- React requires a CSS Modules import (or a styled-components setup) for scoped styles. Svelte's `<style>` block is **automatically scoped** to the component by the compiler — no extra tooling, no class name mangling you have to manage.
+- React needs `export default` to expose the component. In Svelte, the file itself is the export — the compiler handles it.
+- `\$props()` in Svelte 5 replaces the destructured props argument in a React function signature.
+
+## None of the three sections are required
+
+All three sections are optional. The simplest valid Svelte component is just markup:
+
+```svelte
+<p>Hello, world!</p>
+```
+
+Add `<script>` when you need logic, add `<style>` when you need styles. You only write what you need.
+
+## The markup section is the template — not a return value
+
+In React, the JSX lives inside a `return (...)` call. Parentheses, semicolons, and the function wrapper are all load-bearing syntax. In Svelte, everything outside `<script>` and `<style>` is the template. No `return`, no parentheses — just write HTML.
+
+```svelte
+<!-- This IS the template. No return statement. -->
+<h1>Hello {name}</h1>
+```
+
+Curly braces interpolate JavaScript expressions into the markup, just like JSX — but there is no surrounding function call to close.
+
+## Scoped styles with zero configuration
+
+React developers typically reach for CSS Modules, styled-components, or Tailwind to avoid style leaks across components. Svelte's `<style>` block is scoped by the compiler at build time. A rule like `.card` becomes something like `.card.svelte-xyz` in the output — it only matches elements inside that component file.
+
+The practical effect: write plain CSS selectors. They will never accidentally style a `.card` in another component.
+
+## Try it: all three sections in action
+
+export const anatomyCode = `<script>
+  let name = \$state('Svelte Developer');
+  let color = \$state('#FF3E00');
+<\/script>
+
+<div class="card">
+  <h2 style="color: {color}">{name}</h2>
+  <label>
+    Name: <input bind:value={name} />
+  </label>
+  <label>
+    Color: <input type="color" bind:value={color} />
+  </label>
+</div>
+
+<style>
+  .card { padding: 1.5rem; border-radius: 8px; border: 2px solid #eee; max-width: 320px; }
+  label { display: block; margin-top: 0.5rem; }
+  input { margin-left: 0.5rem; }
+  h2 { margin-top: 0; }
+</style>`;
+
+<SveltePlayground client:visible code={anatomyCode} />
+
+<Diff title="React component file vs Svelte component file">
+
+- A React component is a JS/TS function file — logic and JSX are mixed inside the function body, CSS is imported separately.
+- A Svelte component is a `.svelte` file — `<script>` (logic), markup (template), and `<style>` (CSS) each live in their own section.
+- JSX requires `className` instead of `class`, and template literals or CSS-in-JS for dynamic styles. Svelte markup uses plain HTML `class` and inline `style="color: {color}"` with curly-brace interpolation.
+- React scopes styles via CSS Modules, BEM conventions, or styled-components. Svelte's `<style>` block is component-scoped by the compiler automatically — `.card` only applies inside that file.
+- React exposes the component with `export default`. In Svelte, the `.svelte` file itself is the export — no explicit export statement needed.
+- Svelte 5 replaces the function's props argument with `\$props()` in `<script>`. The destructuring pattern looks the same; only the source changes.
+
+</Diff>
+
+export const quizSvelteFileAnatomy = [
+  {
+    q: 'Which section of a .svelte file is required?',
+    options: [
+      '<script> only',
+      '<style> only',
+      'markup only',
+      'All three sections',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'How does Svelte scope component styles?',
+    options: [
+      'You add a unique class manually',
+      'Via CSS Modules import',
+      'The compiler scopes <style> to the component automatically',
+      'Via styled-components',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the Svelte equivalent of `export default function MyComp`?',
+    options: [
+      'export default in <script>',
+      'module.exports',
+      'The .svelte file itself is the export — no explicit export needed',
+      'svelte:export',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/svelte-file-anatomy" questions={quizSvelteFileAnatomy} />
+
+<ProgressTracker client:visible id="intro/svelte-file-anatomy" />

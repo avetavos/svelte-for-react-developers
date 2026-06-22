@@ -1,0 +1,174 @@
+---
+title: 'Events'
+description: 'การจัดการ event ใน Svelte 5 ด้วย onclick เทียบกับ onClick ของ React — เป็น HTML attribute ธรรมดา ไม่มี syntax พิเศษ'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React คิดค้น synthetic event ขึ้นมาพร้อม handler prop แบบ camelCase (`onClick`, `onChange`, `onSubmit`) ส่วน Svelte 5 ตัด syntax พิเศษพวกนี้ทิ้งไปทั้งหมด — event handler ก็แค่ **HTML attribute ตัวพิมพ์เล็ก** ชื่อเดียวกับที่ browser ใช้ (`onclick`, `oninput`, `onsubmit`) ถ้าคุณรู้วิธีเขียน attribute `onclick` ในไฟล์ HTML ธรรมดา คุณก็รู้วิธีใช้ event ของ Svelte แล้ว
+
+## Click handler
+
+export const eventsClickReact = `function Counter() {
+  const [count, setCount] = React.useState(0);
+  return (
+    <button onClick={() => setCount(c => c + 1)}>
+      Count: {count}
+    </button>
+  );
+}`;
+
+export const eventsClickSvelte = `<script>
+  let count = \$state(0);
+<\/script>
+
+<button onclick={() => count++}>
+  Count: {count}
+</button>`;
+
+<ReactSvelte react={eventsClickReact} svelte={eventsClickSvelte} />
+
+จุดสำคัญ:
+- React: `onClick` (O ตัวใหญ่ C ตัวใหญ่) ส่วน Svelte 5: `onclick` (ตัวพิมพ์เล็กทั้งหมด)
+- React ต้องมี setter function จาก `useState` ส่วน Svelte 5 mutate `$state` ได้ตรง ๆ — `count++` ก็ใช้ได้เลย
+- ใน Svelte 5 directive `on:click` แบบเก่าจาก Svelte 4 **หายไปแล้ว** ให้ใช้ `onclick` ตัวพิมพ์เล็กเสมอ
+
+## Named handler function
+
+inline arrow function ใช้ได้ดีสำหรับเคสง่าย ๆ แต่ถ้าอยากให้อ่านง่ายขึ้นก็แยกออกมาเป็น named function:
+
+export const eventsNamedReact = `function Form() {
+  const [value, setValue] = React.useState('');
+  function handleChange(e) {
+    setValue(e.target.value);
+  }
+  return <input value={value} onChange={handleChange} />;
+}`;
+
+export const eventsNamedSvelte = `<script>
+  let value = \$state('');
+  function handleInput(e) {
+    value = e.target.value;
+  }
+<\/script>
+
+<input {value} oninput={handleInput} />`;
+
+<ReactSvelte react={eventsNamedReact} svelte={eventsNamedSvelte} />
+
+หมายเหตุ: สำหรับ two-way binding ของ input นั้น `bind:value` สะอาดกว่า (จะพูดถึงในบทเรียน Bindings) ที่ยกแพตเทิร์น named handler มาให้ดูตรงนี้ก็เพราะมันแมปตรง ๆ กับแพตเทิร์น `onChange` ของ React
+
+## Event object
+
+คุณเข้าถึง native DOM event ได้เต็มที่ — ไม่มี synthetic wrapper มาครอบ:
+
+export const eventsObjectReact = `function KeyLogger() {
+  const [key, setKey] = React.useState('');
+  return (
+    <input
+      onKeyDown={e => setKey(e.key)}
+      placeholder="Press a key"
+    />
+  );
+}`;
+
+export const eventsObjectSvelte = `<script>
+  let key = \$state('');
+<\/script>
+
+<input
+  onkeydown={e => (key = e.key)}
+  placeholder="Press a key"
+/>
+{#if key}
+  <p>Last key: <kbd>{key}</kbd></p>
+{/if}`;
+
+<ReactSvelte react={eventsObjectReact} svelte={eventsObjectSvelte} />
+
+## ลองเล่น: counter แบบ interactive
+
+export const eventsCode = `<script>
+  let count = \$state(0);
+  function increment() { count++; }
+  function decrement() { count--; }
+  function reset() { count = 0; }
+<\/script>
+
+<div class="row">
+  <button onclick={decrement}>-</button>
+  <span class="count">{count}</span>
+  <button onclick={increment}>+</button>
+</div>
+<button class="reset" onclick={reset}>Reset</button>
+
+<style>
+  .row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+  .count { font-size: 2rem; font-weight: bold; min-width: 2rem; text-align: center; }
+  button { font-size: 1.2rem; padding: 0.3rem 0.8rem; cursor: pointer; }
+  .reset { font-size: 0.9rem; padding: 0.2rem 0.6rem; }
+</style>`;
+
+<SveltePlayground client:visible code={eventsCode} />
+
+<Diff title="React onClick vs Svelte onclick">
+
+- React ใช้ synthetic event แบบ camelCase: `onClick`, `onChange`, `onKeyDown`, `onSubmit`
+- Svelte 5 ใช้ native HTML event attribute ตัวพิมพ์เล็ก: `onclick`, `oninput`, `onkeydown`, `onsubmit`
+- Svelte 4 ใช้ directive `on:click` — สิ่งนี้ถูก **ลบออก** ใน Svelte 5 ให้เขียน `onclick` (ไม่มี colon)
+- React ห่อ event ไว้ใน `SyntheticEvent` ส่วน Svelte ส่ง **native DOM Event** ตรง ๆ — API เหมือนกัน ไม่มี wrapper
+- state ของ React ต้องมี setter (`setCount`) ส่วนตัวแปร `$state` ของ Svelte นั้น mutate ได้ — assign ค่าตรง ๆ ได้เลย
+- event modifier (`on:click|preventDefault`) จาก Svelte 4 หายไปแล้ว ให้เรียก `e.preventDefault()` ภายใน handler แทน
+
+</Diff>
+
+export const quizEvents = [
+  {
+    q: 'คุณ attach click handler ใน Svelte 5 อย่างไร?',
+    options: [
+      'on:click={handler}',
+      'onClick={handler}',
+      'onclick={handler}',
+      '@click={handler}',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Svelte 4 ใช้ "on:click" แล้วมีอะไรเปลี่ยนไปใน Svelte 5?',
+    options: [
+      'ไม่มีอะไรเปลี่ยน — on:click ยังใช้ได้',
+      'เปลี่ยนเป็น onClick (camelCase เหมือน React)',
+      'directive ถูกลบออก ให้ใช้ onclick ตัวพิมพ์เล็กแทน',
+      'ตอนนี้คุณต้องใช้ addEventListener() เองแล้ว',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'คุณอยากเรียก e.preventDefault() ตอน submit form ใน Svelte 5 ต้องทำอย่างไร?',
+    options: [
+      'onsubmit|preventDefault={handler}',
+      'เรียก e.preventDefault() ภายใน handler function',
+      'เพิ่ม prevent modifier: on:submit|prevent',
+      'ใช้ Svelte action',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Svelte 5 ส่งอะไรเป็น event argument ให้กับ handler?',
+    options: [
+      'SyntheticEvent wrapper (เหมือน React)',
+      'Svelte EventObject',
+      'native DOM Event ตรง ๆ',
+      'object ธรรมดาที่มี { type, target }',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="components/events" questions={quizEvents} />
+
+<ProgressTracker client:visible id="components/events" />

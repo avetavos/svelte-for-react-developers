@@ -1,0 +1,188 @@
+---
+title: 'Styles'
+description: 'บล็อก <style> แบบ scoped และ directive class: ของ Svelte เทียบกับ CSS Modules และ CSS-in-JS'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React ไม่มีระบบ scope CSS มาในตัว — คุณต้องเลือกระหว่าง CSS Modules, Styled Components, Tailwind หรือ global CSS ธรรมดา ส่วนบล็อก `<style>` ของ Svelte ถูก **scope ให้ component โดยอัตโนมัติ**: ทุก selector จะได้ attribute ที่ไม่ซ้ำกันฉีดเข้าไปตอน build ดังนั้น `.button` ใน component หนึ่งจึงไม่มีทางชนกับ `.button` ในอีก component หนึ่ง ไม่ต้อง config อะไรเลย
+
+## Scoped styles
+
+export const stylesBasicReact = `// Button.module.css
+.button { background: #FF3E00; color: white; padding: 0.5rem 1rem; }
+
+// Button.jsx
+import styles from './Button.module.css';
+function Button({ label }) {
+  return <button className={styles.button}>{label}</button>;
+}`;
+
+export const stylesBasicSvelte = `<!-- Button.svelte -->
+<script>
+  let { label } = \$props();
+<\/script>
+
+<button>{label}</button>
+
+<style>
+  /* This .button only applies inside this component */
+  button { background: #FF3E00; color: white; padding: 0.5rem 1rem; }
+</style>`;
+
+<ReactSvelte react={stylesBasicReact} svelte={stylesBasicSvelte} reactTitle="React (CSS Modules)" />
+
+Svelte compile บล็อก `<style>` แล้วเพิ่ม attribute ที่ผ่านการ hash และไม่ซ้ำกันให้กับทุก element ที่ถูกแตะโดย style นั้น (เช่น `<button class="svelte-xyz123">`) selector จะกลายเป็น `button.svelte-xyz123` — ไม่ซ้ำกันทั้งโปรเจกต์ ไม่มีทางชนกันได้
+
+## Dynamic class: directive `class:`
+
+โดยทั่วไป React developer มักจะ toggle class ด้วย ternary หรือ library อย่าง `clsx` ส่วน Svelte มี directive `class:` มาให้แบบ first-class:
+
+export const stylesDynamicReact = `function Alert({ message, type = 'info' }) {
+  return (
+    <div className={\`alert alert--\${type}\`}>
+      {message}
+    </div>
+  );
+}
+
+// With boolean toggle:
+<div className={isActive ? 'box box--active' : 'box'}>`;
+
+export const stylesDynamicSvelte = `<script>
+  let { message, type = 'info' } = \$props();
+  let isActive = \$state(false);
+<\/script>
+
+<div class="alert alert--{type}">{message}</div>
+
+<!-- Boolean class toggle — no clsx needed: -->
+<div class="box" class:box--active={isActive}>...</div>`;
+
+<ReactSvelte react={stylesDynamicReact} svelte={stylesDynamicSvelte} />
+
+`class:name={condition}` จะเพิ่ม `name` เข้าไปใน class list ของ element เมื่อ `condition` เป็น truthy และเอาออกเมื่อไม่ใช่ สะอาด อ่านง่าย ไม่ต้องต่อ string
+
+## Global styles (เลือกที่จะไม่ scope)
+
+บางครั้งคุณจำเป็นต้อง target element ลูก หรือใส่ style แบบ global จริง ๆ ให้ใช้ `:global()`:
+
+```svelte
+<style>
+  /* Scoped — only affects elements in this component */
+  .container { padding: 1rem; }
+
+  /* Global — applies everywhere */
+  :global(body) { margin: 0; }
+
+  /* Scoped parent, global child */
+  .container :global(a) { color: #FF3E00; }
+</style>
+```
+
+## ลองเล่น: card ที่มี theme พร้อม dynamic class
+
+export const stylesCode = `<script>
+  let theme = \$state('light');
+  let highlighted = \$state(false);
+<\/script>
+
+<div class="card" class:dark={theme === 'dark'} class:highlighted>
+  <h3>Svelte Scoped Styles</h3>
+  <p>Toggle the theme and highlight to see class: in action.</p>
+  <div class="controls">
+    <button onclick={() => (theme = theme === 'light' ? 'dark' : 'light')}>
+      Switch to {theme === 'light' ? 'dark' : 'light'}
+    </button>
+    <button onclick={() => (highlighted = !highlighted)}>
+      {highlighted ? 'Remove' : 'Add'} highlight
+    </button>
+  </div>
+</div>
+
+<style>
+  .card {
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    padding: 1rem;
+    background: #fff;
+    color: #111;
+    transition: all 0.2s;
+  }
+  .card.dark {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    border-color: #585b70;
+  }
+  .card.highlighted {
+    border-color: #FF3E00;
+    box-shadow: 0 0 0 3px rgba(255, 62, 0, 0.25);
+  }
+  .controls { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+  button { padding: 0.3rem 0.7rem; cursor: pointer; border-radius: 4px; border: 1px solid #999; }
+</style>`;
+
+<SveltePlayground client:visible code={stylesCode} />
+
+<Diff title="React CSS strategies vs Svelte scoped styles">
+
+- React: ไม่มี scope ในตัว — คุณต้องเลือก CSS Modules, Styled Components, Emotion, Tailwind หรือ BEM
+- Svelte: `<style>` ภายใน `.svelte` ถูก **scope โดยอัตโนมัติ** — ไม่ต้อง config เลย
+- dynamic class ของ React: ternary, template literal หรือ library `clsx()`/`classnames`
+- Svelte: directive `class:name={condition}` — ไม่ต้องมี library
+- CSS-in-JS ของ React: style สามารถอ้างอิงตัวแปร JS ตอน runtime ได้
+- scoped style ของ Svelte เป็นแบบ static ตอน compile time ให้ใช้ CSS custom property (`var(--color)`) สำหรับ theming แบบ dynamic
+- ทางออกฉุกเฉิน: `:global(selector)` ใน Svelte ใช้ target element ที่อยู่นอก scope ของ component
+
+</Diff>
+
+export const quizStyles = [
+  {
+    q: 'selector CSS ภายในบล็อก <style> ของ Svelte จะเป็นอย่างไร?',
+    options: [
+      'กลายเป็น global CSS เหมือนไฟล์ .css ธรรมดา',
+      'Svelte scope ให้กับ component ปัจจุบันโดยอัตโนมัติผ่าน attribute ที่ผ่านการ hash',
+      'คุณต้องใช้ syntax ของ CSS Modules (styles.className)',
+      'มันถูกเพิกเฉยจนกว่าคุณจะเพิ่ม attribute scoped',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณเพิ่ม CSS class แบบมีเงื่อนไขใน Svelte โดยไม่ต้องต่อ string อย่างไร?',
+    options: [
+      'className={isActive ? "active" : ""}',
+      'class:active={isActive}',
+      ':class="{ active: isActive }"',
+      'classList.toggle("active", isActive)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณเขียน CSS rule แบบ global จริง ๆ ภายในบล็อก <style> ของ Svelte อย่างไร?',
+    options: [
+      'เพิ่ม !important ให้กับ rule',
+      'ใช้ไฟล์ global.css แยกต่างหากเท่านั้น',
+      'ครอบ selector ด้วย :global()',
+      'ใช้ prefix global:',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'อะไรคือแนวทางที่แนะนำสำหรับ theming แบบ dynamic ใน Svelte เมื่อ scoped style อ้างอิง runtime JS ไม่ได้?',
+    options: [
+      'library CSS-in-JS อย่าง Emotion',
+      'CSS custom property (CSS variable) ที่ตั้งค่าจาก Svelte state',
+      'attribute inline style สำหรับทุก element',
+      'build stylesheet ใหม่ทุกครั้งที่ state เปลี่ยน',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="components/styles" questions={quizStyles} />
+
+<ProgressTracker client:visible id="components/styles" />

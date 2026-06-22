@@ -1,0 +1,165 @@
+---
+title: "Build & Deploy with SvelteKit Adapters"
+description: 'SvelteKit adapters replace Next.js output modes — static, Node server, Vercel, and more — configured in svelte.config.js.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In Next.js you control the output format with `output` in `next.config.js` (`'export'` for static, default for Node server) and choose a deployment platform by following its docs. SvelteKit takes a more explicit approach: you install an **adapter** package and reference it in `svelte.config.js`. The adapter determines what `npm run build` produces — a static site, a Node.js server, a Vercel edge function bundle, and so on.
+
+## Config file comparison
+
+export const buildConfigReact = `// next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export', // static export
+};
+module.exports = nextConfig;`;
+
+export const buildConfigSvelte = `// svelte.config.js
+import adapter from '@sveltejs/adapter-static';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+
+/** @type {import('@sveltejs/kit').Config} */
+const config = {
+  preprocess: vitePreprocess(),
+  kit: {
+    adapter: adapter({
+      fallback: '404.html',
+    }),
+  },
+};
+
+export default config;`;
+
+<ReactSvelte react={buildConfigReact} svelte={buildConfigSvelte} reactTitle="next.config.js" svelteTitle="svelte.config.js" />
+
+## Available adapters
+
+| Adapter | Equivalent | Use case |
+|---|---|---|
+| `@sveltejs/adapter-static` | Next.js `output: 'export'` | Fully static — deploy to any CDN (Netlify, GitHub Pages, S3) |
+| `@sveltejs/adapter-auto` | — | Auto-detects Vercel, Netlify, Cloudflare automatically |
+| `@sveltejs/adapter-node` | Next.js standalone server | Node.js server (Dockerfile, VPS, Railway) |
+| `@sveltejs/adapter-vercel` | Vercel-specific Next.js deploy | Explicit Vercel deployment with edge/serverless config |
+
+## Build and preview commands
+
+```bash
+# Build for production (output depends on adapter)
+npm run build
+
+# Preview the production build locally
+npm run preview
+```
+
+These map directly to `next build` and `next start` / `vite preview`.
+
+## GitHub Actions CI
+
+React/Vite project:
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+      - run: npm test -- --watchAll=false
+```
+
+SvelteKit project:
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npm run test
+```
+
+The key additions in the SvelteKit workflow are `npm run check` (runs `svelte-check` for type errors before building) and `npm run test` (runs Vitest).
+
+## Installing an adapter
+
+```bash
+# Static
+npm install --save-dev @sveltejs/adapter-static
+
+# Auto (recommended for most deployments)
+npm install --save-dev @sveltejs/adapter-auto
+
+# Node server
+npm install --save-dev @sveltejs/adapter-node
+
+# Vercel
+npm install --save-dev @sveltejs/adapter-vercel
+```
+
+<Diff title="Next.js output modes vs SvelteKit adapters">
+
+- Next.js: `output: 'export'` in `next.config.js` for static; default for server-rendered
+- SvelteKit: install an adapter package, import it in `svelte.config.js`, pass to `kit.adapter`
+- `adapter-static` ≈ Next.js `output: 'export'` — produces a folder of HTML/CSS/JS
+- `adapter-auto` has no Next.js equivalent — detects and configures the platform automatically
+- `adapter-node` ≈ Next.js standalone server output
+- `adapter-vercel` gives fine-grained control over edge vs serverless functions on Vercel
+- CI: add `npm run check` before `npm run build` in SvelteKit — there is no equivalent tsc step needed in React Vite (tsc is folded into the build)
+
+</Diff>
+
+export const quizBuildDeploy = [
+  {
+    q: 'Where do you configure the SvelteKit adapter?',
+    options: [
+      'vite.config.ts',
+      'svelte.config.js',
+      'package.json',
+      '.env',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which SvelteKit adapter is equivalent to Next.js output: "export"?',
+    options: [
+      '@sveltejs/adapter-auto',
+      '@sveltejs/adapter-node',
+      '@sveltejs/adapter-static',
+      '@sveltejs/adapter-vercel',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What extra CI step does a SvelteKit workflow add compared to a React Vite workflow?',
+    options: [
+      'npm run lint',
+      'npm run check (svelte-check)',
+      'npm run typecheck',
+      'npx tsc --noEmit',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="tooling/build-deploy" questions={quizBuildDeploy} />
+
+<ProgressTracker client:visible id="tooling/build-deploy" />

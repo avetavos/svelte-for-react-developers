@@ -1,0 +1,161 @@
+---
+title: 'State in Modules'
+description: 'Sharing reactive $state across components via .svelte.ts modules — the Svelte 5 alternative to React Context.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React developers share state across the component tree with Context — `createContext`, a Provider wrapping part of the tree, and `useContext` in every consumer. It works, but it requires ceremony: the Provider must wrap all consumers, and adding a new piece of shared state means updating the Provider.
+
+Svelte 5 introduces a simpler model: **`.svelte.ts` modules**. You declare `$state` and `$derived` at module scope in a `.svelte.ts` (or `.svelte.js`) file, export those variables, and import them in any component. The reactivity just works — every component that reads the variable re-renders when it changes. No Provider, no context object, no `useContext` call.
+
+## React Context vs .svelte.ts module
+
+export const moduleContextReact = `// userStore.ts
+import { createContext, useContext, useState } from 'react';
+
+const UserContext = createContext(null);
+
+export function UserProvider({ children }) {
+  const [user, setUser] = useState(null);
+  return (
+    <UserContext.Provider value={{ user, setUser }}>
+      {children}
+    </UserContext.Provider>
+  );
+}
+
+export function useUser() {
+  return useContext(UserContext);
+}
+
+// App.tsx — must wrap consumers
+<UserProvider>
+  <Header />
+  <Main />
+</UserProvider>
+
+// Header.tsx
+const { user } = useUser();`;
+
+export const moduleContextSvelte = `// user.svelte.ts
+export let user = \$state(null);
+export function setUser(next) { user = next; }
+
+// Header.svelte — just import, no Provider needed
+<script>
+  import { user, setUser } from './user.svelte.ts';
+<\/script>
+
+<p>Hello, {user?.name ?? 'Guest'}</p>
+<button onclick={() => setUser({ name: 'Ada' })}>Log in</button>
+
+// Main.svelte — same import, same reactive state
+<script>
+  import { user } from './user.svelte.ts';
+<\/script>
+
+{#if user}
+  <p>Welcome back, {user.name}!</p>
+{/if}`;
+
+<ReactSvelte react={moduleContextReact} svelte={moduleContextSvelte} />
+
+Any component that imports `user` from `user.svelte.ts` automatically re-renders when `user` changes, because the Svelte compiler treats `$state` variables as reactive even at module scope.
+
+## Try it: inline analog
+
+`.svelte.ts` modules require multiple files, which the playground can't show. Below is a self-contained demo that uses the same reactive pattern — `$state` and `$derived` declared at the top of the script block, shared across simulated "sections" of the UI.
+
+In a real project you would move the state declarations to a `.svelte.ts` file and import them.
+
+export const modulePlaygroundCode = `<script>
+  // In a real project these would live in theme.svelte.ts and be imported
+  let theme = \$state('light');
+  let fontSize = \$state(16);
+  let label = \$derived(theme === 'light' ? '☀️ Light' : '🌙 Dark');
+
+  function toggleTheme() {
+    theme = theme === 'light' ? 'dark' : 'light';
+  }
+<\/script>
+
+<div style="
+  background: {theme === 'light' ? '#fff' : '#1a1a2e'};
+  color: {theme === 'light' ? '#111' : '#eee'};
+  padding: 1.5rem;
+  border-radius: 8px;
+  font-size: {fontSize}px;
+  transition: all 0.2s;
+">
+  <h3 style="margin-top:0">Module-level state (inline demo)</h3>
+
+  <p>Current theme: <strong>{label}</strong></p>
+  <p>Font size: <strong>{fontSize}px</strong></p>
+
+  <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1rem">
+    <button onclick={toggleTheme}>Toggle theme</button>
+    <button onclick={() => fontSize = Math.max(12, fontSize - 2)}>A-</button>
+    <button onclick={() => fontSize = Math.min(24, fontSize + 2)}>A+</button>
+    <button onclick={() => { theme = 'light'; fontSize = 16; }}>Reset</button>
+  </div>
+
+  <p style="margin-top:1rem;font-size:0.8em;opacity:0.6">
+    In a real project, move theme and fontSize to theme.svelte.ts
+    and import them anywhere — they stay in sync automatically.
+  </p>
+</div>`;
+
+<SveltePlayground client:visible code={modulePlaygroundCode} />
+
+<Diff title="React Context tree vs Svelte module-level reactive state">
+
+- React Context requires `createContext`, a Provider component, wrapping the tree, and `useContext` in each consumer.
+- Svelte `.svelte.ts` modules need none of that — `import` is the subscription. The compiler handles reactivity.
+- Moving shared state in React means updating the Provider. In Svelte, move the `$state` declaration to a `.svelte.ts` file; consumers just change their import path.
+- `$state` at module scope is **singleton** — every component shares the same instance (like a Zustand store, unlike React Context which can have multiple Provider instances).
+- `$derived` at module scope also works: declare it in the same `.svelte.ts` file and export it.
+- No tree restructuring needed. Any component, anywhere in the app, can import and reactively read the same state.
+
+</Diff>
+
+export const quizModules = [
+  {
+    q: 'What file extension enables $state and $derived at module scope in Svelte 5?',
+    options: [
+      '.ts',
+      '.svelte',
+      '.svelte.ts (or .svelte.js)',
+      '.reactive.ts',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'A component imports a $state variable from a .svelte.ts module. When does the component re-render?',
+    options: [
+      'Never — module-level state is not reactive',
+      'Only if the component calls a special refresh() function',
+      'Whenever the $state variable\'s value changes',
+      'Only when the page reloads',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What React pattern does module-level $state replace, and what does it remove?',
+    options: [
+      'useState — removes the setter function',
+      'React Context — removes the need for a Provider wrapping the tree',
+      'useReducer — removes the action/reducer pattern',
+      'useRef — removes the .current accessor',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="data/state-in-modules" questions={quizModules} />
+
+<ProgressTracker client:visible id="data/state-in-modules" />

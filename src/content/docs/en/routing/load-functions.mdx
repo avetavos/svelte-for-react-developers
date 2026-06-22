@@ -1,0 +1,179 @@
+---
+title: 'Load Functions'
+description: "How SvelteKit's +page.js and +page.server.js load() replace react-router loaders, getServerSideProps, and Next.js server components."
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+Every serious app needs to fetch data before rendering a page. React's ecosystem has handled this many ways over the years: react-router loaders, Next.js `getServerSideProps`, Next.js App Router server components. SvelteKit unifies the pattern into a single, predictable convention: **a `load` function exported from a file next to your page**.
+
+> Run this in a SvelteKit project (`npx sv create`).
+
+## react-router loader vs SvelteKit `+page.js` load
+
+react-router v6.4+ introduced `loader` functions — async functions that run before the route renders. SvelteKit's `+page.js` `load` is the same idea, but the file is co-located with the page instead of embedded in a route config object.
+
+export const loaderReact = `// react-router v6.4 — route config
+import { createBrowserRouter } from 'react-router-dom';
+import { useLoaderData } from 'react-router-dom';
+
+async function postLoader({ params }) {
+  const res = await fetch('/api/posts/' + params.id);
+  return res.json();
+}
+
+function PostPage() {
+  const post = useLoaderData();
+  return <h1>{post.title}</h1>;
+}
+
+const router = createBrowserRouter([
+  {
+    path: '/posts/:id',
+    element: <PostPage />,
+    loader: postLoader,
+  },
+]);`;
+
+export const loaderSvelte = `// src/routes/posts/[id]/+page.js
+export async function load({ params, fetch }) {
+  const res = await fetch('/api/posts/' + params.id);
+  const post = await res.json();
+  return { post };
+}`;
+
+<ReactSvelte react={loaderReact} svelte={loaderSvelte} reactTitle='React (react-router)' svelteTitle='SvelteKit +page.js' />
+
+The SvelteKit `+page.js` `load` runs on **both the server (initial request) and the client (SvelteKit navigations)**. This means you get server-rendered HTML on first load and fast client-side transitions on subsequent navigations — for free.
+
+## Receiving `data` in the page component
+
+Whatever `load` returns is available as `data` via `\$props()`:
+
+```svelte
+<!-- src/routes/posts/[id]/+page.svelte -->
+<script>
+  let { data } = \$props();
+  // data.post is the object returned from load()
+<\/script>
+
+<h1>{data.post.title}</h1>
+<p>{data.post.body}</p>
+```
+
+TypeScript: import `PageLoad` (for `+page.js`) or `PageServerLoad` (for `+page.server.js`) from the auto-generated `./$types` file:
+
+```ts
+// +page.js (universal)
+import type { PageLoad } from './$types';
+
+export const load: PageLoad = async ({ params, fetch }) => {
+  const post = await fetch('/api/posts/' + params.id).then(r => r.json());
+  return { post };
+};
+```
+
+## Next.js `getServerSideProps` vs SvelteKit `+page.server.js`
+
+`getServerSideProps` is Next.js Pages Router's server-only data loader — it runs exclusively on the server, can access databases and secrets, and passes data as `props` to the page component. SvelteKit's `+page.server.js` is the direct equivalent.
+
+export const ssrReact = `// Next.js Pages Router — pages/posts/[id].tsx
+export async function getServerSideProps({ params }) {
+  const post = await db.post.findUnique({
+    where: { id: Number(params.id) },
+  });
+  return { props: { post } };
+}
+
+export default function PostPage({ post }) {
+  return <h1>{post.title}</h1>;
+}`;
+
+export const ssrSvelte = `// src/routes/posts/[id]/+page.server.js
+import { db } from '\$lib/db';
+
+export async function load({ params, cookies }) {
+  const post = await db.post.findUnique({
+    where: { id: Number(params.id) },
+  });
+  return { post };
+}`;
+
+<ReactSvelte react={ssrReact} svelte={ssrSvelte} reactTitle='Next.js (getServerSideProps)' svelteTitle='SvelteKit +page.server.js' />
+
+The `+page.server.js` version:
+- Runs **only on the server** — safe for DB queries, secrets, private env vars.
+- Receives `cookies` in addition to `params`, `fetch`, and `url`.
+- Returns a plain object; SvelteKit serialises it and passes it to the client as `data`.
+
+## `+page.js` vs `+page.server.js` — when to use which
+
+| | `+page.js` (universal) | `+page.server.js` (server-only) |
+|---|---|---|
+| Runs on server | Yes (initial request) | Yes (always) |
+| Runs on client | Yes (navigations) | No |
+| Access `cookies` | No | Yes |
+| Access DB directly | Not recommended | Yes |
+| Access private env vars | No | Yes |
+| `fetch` is available | Yes (enhanced) | Yes (enhanced) |
+
+## `load` function arguments
+
+Both universal and server `load` functions receive the same core arguments:
+
+```js
+// +page.js or +page.server.js
+export async function load({ params, fetch, url, cookies }) {
+  // params   — route parameters, e.g. params.slug
+  // fetch    — SvelteKit-enhanced fetch (sets cookies, handles relative URLs)
+  // url      — the current URL as a URL object
+  // cookies  — (server only) read/write cookies
+}
+```
+
+<Diff title="react-router loader / getServerSideProps vs SvelteKit load">
+
+- react-router loader: defined inline in the route config object; accessed in the component via `useLoaderData()`.
+- SvelteKit `+page.js` `load`: defined in a co-located file; data arrives as `data` prop via `\$props()`.
+- Next.js `getServerSideProps`: exported from the page file itself; data arrives as React `props`.
+- SvelteKit `+page.server.js` `load`: a separate server-only file; data arrives as `data` prop via `\$props()`.
+- SvelteKit splits universal (`+page.js`) and server (`+page.server.js`) into separate files — the distinction is explicit.
+- `+page.js` runs on both server and client; `+page.server.js` never runs in the browser.
+- TypeScript: use `PageLoad` for `+page.js` and `PageServerLoad` for `+page.server.js`, both auto-generated in `./$types`.
+
+</Diff>
+
+export const quizLoad = [
+  {
+    q: 'What is the difference between +page.js and +page.server.js in SvelteKit?',
+    options: [
+      '+page.js runs only on the server; +page.server.js runs on both server and client',
+      '+page.js runs on both server and client; +page.server.js runs only on the server',
+      'They are identical — the filename does not matter',
+      '+page.js is for TypeScript; +page.server.js is for JavaScript',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How does a SvelteKit page component receive data returned from its load() function?',
+    options: [
+      'Via useLoaderData() hook',
+      'Via a Svelte store automatically named after the route',
+      'As the data prop, accessed with let { data } = $props()',
+      'Via a global $page.data reactive variable only',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which load() argument is only available in +page.server.js, not +page.js?',
+    options: ['params', 'fetch', 'url', 'cookies'],
+    answer: 3,
+  },
+];
+
+<Quiz client:visible id="routing/load-functions" questions={quizLoad} />
+
+<ProgressTracker client:visible id="routing/load-functions" />

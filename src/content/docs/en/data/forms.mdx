@@ -1,0 +1,229 @@
+---
+title: 'Forms'
+description: 'bind:value for two-way form binding, and SvelteKit form actions for server-side POST — replacing React controlled inputs and form libraries.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React controlled inputs require two things for every field: a `value` prop bound to state, and an `onChange` handler that calls a setter. For large forms this becomes repetitive, which is why react-hook-form exists.
+
+Svelte's `bind:value` replaces both in one directive. Write `bind:value={name}` and Svelte wires up the two-way binding automatically — reading the state on render and writing back on every input event. There is no `onChange`, no `e.target.value`, no setter.
+
+For full-page form submission without JavaScript, SvelteKit **form actions** in `+page.server.ts` handle POST requests server-side — similar to Remix `action` functions — with progressive enhancement built in.
+
+## Controlled input vs bind:value
+
+export const formsControlledReact = `function ProfileForm() {
+  const [name, setName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    console.log({ name, email });
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        value={name}
+        onChange={e => setName(e.target.value)}
+        placeholder="Name"
+      />
+      <input
+        type="email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        placeholder="Email"
+      />
+      <button type="submit">Save</button>
+    </form>
+  );
+}`;
+
+export const formsControlledSvelte = `<script>
+  let name = \$state('');
+  let email = \$state('');
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    console.log({ name, email });
+  }
+<\/script>
+
+<form onsubmit={handleSubmit}>
+  <input bind:value={name} placeholder="Name" />
+  <input type="email" bind:value={email} placeholder="Email" />
+  <button type="submit">Save</button>
+</form>`;
+
+<ReactSvelte react={formsControlledReact} svelte={formsControlledSvelte} />
+
+`bind:value` works on `input`, `textarea`, and `select`. For checkboxes and radio buttons, use `bind:checked`. There is no onChange anywhere.
+
+## React form onSubmit vs Svelte onsubmit
+
+export const formsSubmitReact = `function LoginForm() {
+  const [password, setPassword] = React.useState('');
+  const [remember, setRemember] = React.useState(false);
+
+  return (
+    <form onSubmit={e => {
+      e.preventDefault();
+      console.log({ password, remember });
+    }}>
+      <input
+        type="password"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
+      />
+      <label>
+        <input
+          type="checkbox"
+          checked={remember}
+          onChange={e => setRemember(e.target.checked)}
+        />
+        Remember me
+      </label>
+      <button type="submit">Log in</button>
+    </form>
+  );
+}`;
+
+export const formsSubmitSvelte = `<script>
+  let password = \$state('');
+  let remember = \$state(false);
+<\/script>
+
+<form onsubmit={e => {
+  e.preventDefault();
+  console.log({ password, remember });
+}}>
+  <input type="password" bind:value={password} />
+  <label>
+    <input type="checkbox" bind:checked={remember} />
+    Remember me
+  </label>
+  <button type="submit">Log in</button>
+</form>`;
+
+<ReactSvelte react={formsSubmitReact} svelte={formsSubmitSvelte} />
+
+## Try it: full form with bind:
+
+export const formsPlaygroundCode = `<script>
+  let name = \$state('');
+  let email = \$state('');
+  let role = \$state('developer');
+  let newsletter = \$state(false);
+  let submitted = \$state(null);
+
+  const roles = ['developer', 'designer', 'manager', 'other'];
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    submitted = { name, email, role, newsletter };
+  }
+
+  function reset() {
+    name = '';
+    email = '';
+    role = 'developer';
+    newsletter = false;
+    submitted = null;
+  }
+<\/script>
+
+{#if submitted}
+  <div style="padding:1rem;border:2px solid #4ade80;border-radius:8px;background:#f0fdf4">
+    <h3 style="margin-top:0;color:#166534">Submitted!</h3>
+    <ul style="margin:0;padding-left:1.25rem">
+      <li><strong>Name:</strong> {submitted.name}</li>
+      <li><strong>Email:</strong> {submitted.email}</li>
+      <li><strong>Role:</strong> {submitted.role}</li>
+      <li><strong>Newsletter:</strong> {submitted.newsletter ? 'Yes' : 'No'}</li>
+    </ul>
+    <button onclick={reset} style="margin-top:0.75rem">Reset</button>
+  </div>
+{:else}
+  <form onsubmit={handleSubmit} style="display:flex;flex-direction:column;gap:0.75rem;max-width:320px">
+    <label>
+      Name
+      <input bind:value={name} placeholder="Ada Lovelace" required style="display:block;width:100%;margin-top:0.25rem" />
+    </label>
+
+    <label>
+      Email
+      <input type="email" bind:value={email} placeholder="ada@example.com" required style="display:block;width:100%;margin-top:0.25rem" />
+    </label>
+
+    <label>
+      Role
+      <select bind:value={role} style="display:block;width:100%;margin-top:0.25rem">
+        {#each roles as r}
+          <option value={r}>{r[0].toUpperCase() + r.slice(1)}</option>
+        {/each}
+      </select>
+    </label>
+
+    <label style="display:flex;align-items:center;gap:0.5rem">
+      <input type="checkbox" bind:checked={newsletter} />
+      Subscribe to newsletter
+    </label>
+
+    <button type="submit" disabled={!name || !email}>Submit</button>
+  </form>
+{/if}`;
+
+<SveltePlayground client:visible code={formsPlaygroundCode} />
+
+<Diff title="Controlled inputs vs bind:value, and SvelteKit form actions">
+
+- React controlled inputs need `value={state}` + `onChange={e => setState(e.target.value)}` on every field — two attributes per input.
+- Svelte `bind:value={state}` is one directive that does both. No `onChange`, no `e.target.value`.
+- For checkboxes in React: `checked={bool}` + `onChange={e => set(e.target.checked)}`. In Svelte: `bind:checked={bool}`.
+- For `select` in React: `value={selected}` + `onChange`. In Svelte: `bind:value={selected}` on the `select` element.
+- `e.preventDefault()` in Svelte 5 is called inside the `onsubmit` handler. The old `on:submit|preventDefault` modifier from Svelte 4 is removed.
+- SvelteKit form actions (`export const actions` in `+page.server.ts`) handle server-side POST. The form works without JavaScript. Use `use:enhance` from `$app/forms` to progressively enhance to client-side submission. This is analogous to Remix `action` functions.
+
+</Diff>
+
+export const quizForms = [
+  {
+    q: 'What does bind:value replace in a React controlled input?',
+    options: [
+      'Only the value prop',
+      'Only the onChange handler',
+      'Both the value prop and the onChange handler',
+      'The ref attribute',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'How do you prevent default form submission in Svelte 5?',
+    options: [
+      'Use the on:submit|preventDefault modifier',
+      'Add a prevent attribute to the form element',
+      'Call e.preventDefault() inside the onsubmit handler function',
+      'Return false from the onsubmit handler',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which binding directive should you use for a checkbox input in Svelte?',
+    options: [
+      'bind:value',
+      'bind:selected',
+      'bind:checked',
+      'bind:state',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/forms" questions={quizForms} />
+
+<ProgressTracker client:visible id="data/forms" />

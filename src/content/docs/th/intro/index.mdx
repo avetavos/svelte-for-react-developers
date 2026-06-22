@@ -1,0 +1,144 @@
+---
+title: 'แนะนำ Svelte สำหรับ React Developer'
+description: 'ทำไม Svelte ถึงน่าสนใจสำหรับ React developer — compiler model, ไม่มี virtual DOM, boilerplate น้อยกว่า'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+คุณรู้จัก React อยู่แล้ว คุณเข้าใจ component, props, state และ render cycle Svelte สร้างขึ้นบนแนวคิดเดียวกันแต่แก้ปัญหาต่างออกไป — ในฐานะ **compiler** ไม่ใช่ runtime library คอร์สนี้จะแสดงให้คุณเห็นอย่างชัดเจนว่าอะไรเปลี่ยนไป อะไรยังคุ้นเคย และวิธีนำ React intuition ของคุณมาใช้กับ Svelte 5
+
+## Svelte คือ compiler ไม่ใช่ runtime
+
+React ส่ง JavaScript runtime (~45 kB gzip สำหรับ React + ReactDOM) ที่รันในเบราว์เซอร์และจัดการ virtual DOM tree ทุกครั้งที่เรียก `setState` จะเกิด reconciliation pass: React diff vDOM ใหม่กับอันก่อนหน้าแล้ว patch real DOM
+
+Svelte ทำงานที่ **build time** ไฟล์ `.svelte` ของคุณถูก compile เป็น JavaScript ที่กระชับและปราศจาก framework ที่คุยกับ DOM โดยตรง ไม่มี virtual DOM ให้ diff ไม่มี reconciler ที่ต้องส่งไป ผลลัพธ์คือ `document.createElement` และ `element.textContent =` ล้วนๆ — สิ่งที่เบราว์เซอร์ต้องการน้อยที่สุด
+
+ผลที่เกิดขึ้นจริง:
+
+- **Bundle ขนาดเล็กลง** Svelte app แทบไม่มี framework overhead เลย "Hello World" Svelte component compile ออกมาได้เพียงไม่กี่ร้อย bytes
+- **อัปเดตเร็วขึ้น** แทนที่จะ diff vDOM tree โค้ด Svelte ที่ compile แล้วจะอัปเดต DOM node เฉพาะที่เปลี่ยนจริงๆ โดยตรง
+- **ไม่ต้อง import React** component ของคุณเป็น standalone compiled module
+
+## Boilerplate น้อยลง
+
+React ต้องการการประกาศ state อย่างชัดเจน (`useState`) และ setter function แยกต่างหากสำหรับทุก reactive state ใน Svelte 5 คุณประกาศ reactive state ด้วย `$state()` และ mutate ด้วยการ assign ตรงๆ — compiler จะ instrument การ mutation ให้คุณเอง
+
+## Scoped styles ในตัว
+
+React ไม่มีความเห็นเกี่ยวกับ CSS ทีมต่างๆ ใช้ CSS Modules, styled-components, Tailwind หรือผสมกัน Svelte ส่ง scoped styles มาเป็น first-class language feature: `<style>` block ภายในไฟล์ `.svelte` จะ **ถูก scope โดยอัตโนมัติ** ให้กับ component นั้น ไม่ต้องการ tooling เพิ่มเติม ไม่มีการตั้งค่า class name mangling ไม่มี runtime overhead
+
+```svelte
+<style>
+  /* rule นี้ส่งผลกับ <p> ใน component นี้เท่านั้น */
+  p { color: steelblue; font-size: 1.2rem; }
+</style>
+```
+
+ตอน compile Svelte สร้าง attribute เฉพาะ (เช่น `svelte-abc123`) และเขียน selector ใหม่เป็น `p[svelte-abc123]` styles ภายนอกไม่รั่วเข้ามา styles ของคุณก็ไม่รั่วออกไป
+
+## ภาพรวมของคอร์ส
+
+| โมดูล | หัวข้อ |
+|-------|--------|
+| **แนะนำ** | Compiler model, reactivity พื้นฐาน, scoped styles |
+| **Components** | Props, events, slots/snippets, lifecycle |
+| **Reactivity** | `$state`, `$derived`, `$effect`, stores |
+| **Bindings** | `bind:value`, `bind:checked`, `bind:this` |
+| **Control Flow** | `{#if}`, `{#each}`, `{#await}`, `{#key}` |
+| **Styling** | Scoped styles, global styles, CSS variables, transitions |
+| **Routing** | SvelteKit pages, layouts, load functions |
+| **Advanced** | Context API, actions, custom stores, TypeScript |
+
+ตอนนี้มาดู component Svelte 5 ตัวแรกของคุณ — เปรียบเทียบกับ React เพื่อให้เห็นความแตกต่างชัดเจน
+
+export const indexReact = `function Greeting() {
+  const [name, setName] = React.useState('React developer');
+  return (
+    <div>
+      <h2>Hello, {name}!</h2>
+      <input value={name} onChange={e => setName(e.target.value)} />
+    </div>
+  );
+}`;
+
+export const indexSvelte = `<script>
+  let name = \$state('React developer');
+<\/script>
+
+<h2>Hello, {name}!</h2>
+<input bind:value={name} />`;
+
+<ReactSvelte react={indexReact} svelte={indexSvelte} />
+
+## ลองเล่นดูเลย
+
+Playground ด้านล่างนี้เป็น Svelte 5 component ที่สมบูรณ์และแก้ไขได้ เปลี่ยนชื่อ กดปุ่ม ปรับแต่ง style — ทุกอย่างรันในเบราว์เซอร์ของคุณ
+
+export const indexCode = `<script>
+  let name = \$state('React developer');
+  let count = \$state(0);
+<\/script>
+
+<h2>Hello, {name}!</h2>
+<input bind:value={name} placeholder="Type your name" />
+<p>You clicked <strong>{count}</strong> times.</p>
+<button onclick={() => count++}>Click me</button>
+
+<style>
+  h2 { color: #FF3E00; }
+  input { display: block; margin: 0.5rem 0; padding: 0.3rem 0.5rem; }
+  button { margin-top: 0.5rem; padding: 0.3rem 0.8rem; cursor: pointer; }
+</style>`;
+
+<SveltePlayground client:visible code={indexCode} />
+
+<Diff title="React component vs Svelte component">
+
+- **Runtime model** — React ส่ง JavaScript runtime library ที่รันในเบราว์เซอร์ของทุกคน Svelte compile component เป็น vanilla JS ตอน build time ไม่มี framework code ถูกส่งไป
+- **Virtual DOM** — React สร้าง virtual DOM tree ในทุก render และ diff เพื่อหาการเปลี่ยนแปลง Svelte สร้าง DOM mutation โดยตรง (`element.textContent = value`) ไม่มีขั้นตอน diffing
+- **Boilerplate** — React ต้องการ `useState` และ setter สำหรับทุก reactive value Svelte 5 ใช้การ assign `$state()` compiler จัดการ reactivity wiring อัตโนมัติ
+- **Styles** — React ไม่มี scoping ในตัว ทีมต้องเพิ่ม CSS Modules, styled-components หรือ Tailwind Svelte scope `<style>` block ให้กับ component อัตโนมัติโดยไม่ต้องตั้งค่าอะไร
+- **Bundle size** — React + ReactDOM คือ ~45 kB gzip ก่อน app code ของคุณ Svelte component compile เป็น JavaScript ไม่กี่ร้อย bytes ที่ไม่มี framework ขนาด app รวมโตขึ้นแค่ตาม code ของคุณเอง
+
+</Diff>
+
+export const quizIndex = [
+  {
+    q: 'อะไรคือสิ่งที่ทำให้ Svelte แตกต่างจาก React อย่างพื้นฐาน?',
+    options: [
+      'Svelte ใช้ virtual DOM algorithm ที่เร็วกว่า',
+      'Svelte เป็น compiler ที่ output vanilla JS โดยไม่มี runtime framework',
+      'Svelte รันบน server เท่านั้น',
+      'Svelte ต้องการ TypeScript',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณสร้าง reactive state ใน Svelte 5 ได้อย่างไร?',
+    options: [
+      'const [x, setX] = useState(0)',
+      'let x = reactive(0)',
+      'let x = $state(0)',
+      'let x = 0 (plain let เป็น reactive เสมอ)',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'สไตล์ใน Svelte component ถูก scope อย่างไร?',
+    options: [
+      'คุณต้องเพิ่ม CSS Modules config ใน bundler ของคุณ',
+      'styles เป็น global โดยค่าเริ่มต้น ใช้ :local() เพื่อ scope',
+      'คุณ wrap styles ใน styled() call แบบ styled-components',
+      'ทุก <style> block ภายในไฟล์ .svelte จะถูก scope ให้กับ component นั้นอัตโนมัติ',
+    ],
+    answer: 3,
+  },
+];
+
+<Quiz client:visible id="intro/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="intro/index" />

@@ -1,0 +1,143 @@
+---
+title: 'Same vs Different: ตารางอ้างอิง'
+description: 'การ mapping แบบ side-by-side ของทุก React concept กับ Svelte 5 equivalent'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+หน้านี้คือ cheat sheet ของคุณ ทุก React concept สำคัญ map ไปยัง Svelte equivalent — หลายอย่าง intent เกือบเหมือนกัน ต่างกันแค่ syntax บางส่วนต้องการ mental model shift จริง ๆ ทั้งสองประเภทอยู่ที่นี่
+
+## การ mapping แบบเต็ม
+
+| React | Svelte 5 | หมายเหตุ |
+|---|---|---|
+| `function Component()` | ไฟล์ `.svelte` | ไฟล์คือ component — ไม่ต้องมี function wrapper |
+| JSX `return (...)` | Markup body | ไม่มี `return` ไม่มี parens — template คือ file body |
+| `export default function` | ไฟล์คือ export | ไม่ต้อง export ด้วยตนเอง |
+| `className="foo"` | `class="foo"` | HTML attribute จริง — ไม่ต้องเปลี่ยนชื่อ |
+| Function prop arguments `({ name })` | `let { name } = $props()` | Rune-based prop declaration |
+| `useState(init)` | `$state(init)` | Direct mutation แทน setter function |
+| `useMemo(() => x, [deps])` | `$derived(x)` | Auto-tracked ไม่มี dependency array |
+| `useEffect(() => {}, [deps])` | `$effect(() => {})` | Auto-tracked cleanup ผ่าน return function |
+| `useCallback(fn, [deps])` | Plain function (ไม่มี equivalent) | Function ไม่ถูก re-create ในแต่ละ update |
+| `useRef(null)` | `let el = $state(null)` / `bind:this={el}` | `bind:this` bind กับ DOM element |
+| `useContext` / `createContext` | Svelte stores / `setContext` / `getContext` | Context API มีอยู่; store นิยมใช้สำหรับ reactivity |
+| `children` prop | `{@render children()}` snippet | Snippet คือ typed template fragment ไม่ใช่ value |
+| Named slot / render prop | `{#snippet name()}` / `{@render name()}` | Explicit และ type-safe กว่า render prop |
+| `onClick` | `onclick` | Lowercase, plain HTML event attribute |
+| `onChange` | `oninput` | `oninput` fire ทุก keystroke; `onchange` fire ตอน blur |
+| `onKeyDown` | `onkeydown` | Event name ทั้งหมดเป็น lowercase ใน Svelte 5 |
+| `<input value={x} onChange={fn}` | `bind:value={x}` | Two-way binding แทน controlled-input pattern |
+| CSS Modules / styled-components | `<style>` block | Auto-scoped zero config |
+| `clsx(a, { b: cond })` | `class:b={cond}` | Built-in conditional class directive |
+| `React Router` / `next/link` | SvelteKit `<a href>` / `goto()` | SvelteKit จัดการ routing; plain anchor ใช้ได้ |
+| `useNavigate` | `import { goto } from '$app/navigation'` | SvelteKit navigation API |
+| `useSearchParams` | `import { page } from '$app/stores'` | `$page.url.searchParams` |
+| `<Suspense>` / lazy | `{#await}` block | Built-in ใน template language |
+| `React.memo` | ไม่จำเป็น | Svelte ไม่ re-run component ทั้งหมดตอน update |
+| Create React App | Vite (+ `@sveltejs/vite-plugin-svelte`) | CRA deprecated; Vite คือมาตรฐาน |
+| Next.js | SvelteKit | Full-stack framework: SSR, routing, API routes |
+
+## สิ่งที่น่าแปลกใจที่สุด
+
+### 1. Mutation ใช้ได้
+
+export const sameReact = `// React — must be immutable
+const [items, setItems] = React.useState([]);
+function addItem(item) {
+  setItems([...items, item]); // spread, never push
+}`;
+
+export const sameSvelte = `<script>
+  // Svelte — direct mutation is tracked
+  let items = \$state([]);
+  function addItem(item) {
+    items.push(item); // push is fine — Svelte detects it
+  }
+<\/script>`;
+
+<ReactSvelte react={sameReact} svelte={sameSvelte} />
+
+### 2. ไม่มี hook rules
+
+React hook มีกฎเข้มงวด: เรียกที่ top level เท่านั้น ห้ามอยู่ใน condition หรือ loop ต้องเรียกในลำดับเดิมเสมอ Svelte rune ไม่มีข้อจำกัดเหล่านี้ — คุณสามารถเรียก `$state` ใน condition หรือใน loop ก็ได้ มันคือ compiler directive ไม่ใช่ function call ที่ถูกติดตามตาม call order
+
+export const sameHooksReact = `// React — hooks must be at the top level, always called
+function Conditional({ show }) {
+  // RULE: can't put hooks inside an if — even though it's unused
+  const [x, setX] = React.useState(0);
+  if (!show) return null;
+  return <button onClick={() => setX(x + 1)}>{x}</button>;
+}`;
+
+export const sameHooksSvelte = `<script>
+  let { show } = \$props();
+  // Runes can be declared anywhere — no ordering rules
+  let x = \$state(0);
+<\/script>
+
+{#if show}
+  <button onclick={() => x++}>{x}</button>
+{/if}`;
+
+<ReactSvelte react={sameHooksReact} svelte={sameHooksSvelte} />
+
+<Diff title="ห้าสิ่งที่น่าแปลกใจที่สุดสำหรับ React developer">
+
+- **Mutation ใช้ได้** `array.push()`, `object.key = value` — compiler ของ Svelte instrument `$state` เพื่อให้ direct mutation ถูกติดตาม กฎ immutability ของ React ไม่มีผลที่นี่
+- **ไม่มี hook rules** Rune (`$state`, `$derived`, `$effect`) คือ compiler directive ไม่ใช่ runtime function call ไม่มีกฎลำดับ call ไม่มีข้อจำกัด "ต้องอยู่ที่ top level"
+- **ไม่มี virtual DOM** ไม่มี reconciler ไม่มี fiber ไม่มี "batched re-render" Update คือ direct DOM write แบบ surgical คุณไม่สามารถเรียก `forceUpdate()` หรือ trigger full re-render ได้ — มันไม่ใช่ concept ที่มีอยู่
+- **`on:click` ไม่มีแล้ว** Svelte 4 ใช้ directive `on:event` Svelte 5 ใช้ lowercase HTML event attribute (`onclick`, `oninput`, `onkeydown`) syntax เก่าถูกลบออกไปแล้ว
+- **Children คือ snippet ไม่ใช่ value** `{@render children()}` เรียก snippet function คุณไม่สามารถ spread children, map เหนือมัน หรือส่งมันเป็น arbitrary value แบบที่ React ให้ treat `children` เป็น node tree
+
+</Diff>
+
+export const quizSameVsDifferent = [
+  {
+    q: 'Equivalent ของ React useState ใน Svelte 5 คืออะไร?',
+    options: [
+      '$effect',
+      '$derived',
+      '$state',
+      '$props',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Pattern ใดของ React ที่ "bind:value" ของ Svelte แทนที่?',
+    options: [
+      'useReducer',
+      'Controlled input ด้วย value + onChange',
+      'useRef สำหรับ DOM access',
+      'React.memo สำหรับ memoization',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณสามารถเรียก Svelte $state rune ภายใน if-block หรือ loop ได้ไหม?',
+    options: [
+      'ไม่ได้ — rune rule เหมือนกับ React hook rule',
+      'ได้ — rune คือ compiler directive ไม่ใช่ runtime function call ที่มีกฎลำดับ',
+      'ได้เฉพาะเมื่อ wrap ไว้ใน $effect ก่อน',
+      'ได้เฉพาะใน TypeScript mode',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Equivalent ของ Next.js ใน Svelte คืออะไร?',
+    options: [
+      'Vite',
+      'SvelteKit',
+      'Astro',
+      'Nuxt',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="mental-model/same-vs-different" questions={quizSameVsDifferent} />
+
+<ProgressTracker client:visible id="mental-model/same-vs-different" />

@@ -1,0 +1,98 @@
+---
+title: 'ภาพรวมเครื่องมือ'
+description: 'Toolchain ของ Svelte/SvelteKit เทียบกับ React/Next — แมป CRA, tsc, Jest และ React DevTools ไปยังเครื่องมือเทียบเท่าของ Svelte'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ถ้าคุณมาจากสาย React คุณก็มีแผนที่ในหัวเกี่ยวกับ toolchain อยู่แล้ว: ใช้ **Create React App** หรือ Vite เพื่อ scaffold, ใช้ **tsc** เพื่อตรวจสอบ type, ใช้ **Jest + React Testing Library** เพื่อทดสอบ และใช้ **React DevTools** เพื่อตรวจสอบ component ตอน runtime SvelteKit มีเครื่องมือที่เทียบเท่ากันสำหรับทุกอย่างเหล่านี้ — และในกรณีส่วนใหญ่เวอร์ชันของ Svelte ตั้งค่าได้ง่ายกว่า
+
+บทเรียนนี้จะแมปเครื่องมือแต่ละตัวของ React ไปยังตัวที่เทียบเท่ากันในฝั่ง Svelte เพื่อให้คุณเริ่มทำงานได้ทันที
+
+## เปรียบเทียบ scripts ใน package.json
+
+ความต่างที่เห็นได้ชัดที่สุดในการทำงานประจำวันคือ scripts ใน `package.json` นี่คือโปรเจกต์ React Vite ทั่วไปวางคู่กับโปรเจกต์ SvelteKit:
+
+export const toolingScriptsReact = `// package.json (React + Vite)
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "jest"
+  }
+}`;
+
+export const toolingScriptsSvelte = `// package.json (SvelteKit)
+{
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run"
+  }
+}`;
+
+<ReactSvelte react={toolingScriptsReact} svelte={toolingScriptsSvelte} />
+
+สังเกตว่า `tsc && vite build` กลายเป็นแค่ `vite build` — ขั้นตอน build ของ SvelteKit รัน `svelte-check` ไว้แยกเป็น script `check` อยู่แล้ว ทำให้การตรวจสอบ type กับการ bundle แยกออกจากกัน
+
+## การแมปเครื่องมือ
+
+<Diff title="React toolchain → Svelte/SvelteKit equivalent">
+
+- **Scaffolding:** Create React App / `npm create vite@latest` (React template) → `npm create svelte@latest` (SvelteKit) หรือ `npm create vite@latest` (Svelte template สำหรับแอป standalone)
+- **การตรวจสอบ type:** `tsc --noEmit` → `svelte-check --tsconfig ./tsconfig.json` (เข้าใจ syntax ของ template `.svelte`)
+- **การทดสอบ unit + component:** Jest + React Testing Library → Vitest + `@testing-library/svelte`
+- **การทดสอบ end-to-end:** Playwright — **เหมือนกันทั้งสองฝั่ง** ไม่ต้องเปลี่ยนอะไร
+- **ส่วนขยาย devtools ของ browser:** React DevTools → Svelte DevTools (ส่วนขยายของ Chrome / Firefox)
+- **การ build เพื่อ production:** `next build` / `vite build` → `npm run build` (adapter ของ SvelteKit เป็นตัวกำหนดรูปแบบ output)
+- **ไฟล์ config ของ framework:** `next.config.js` → `svelte.config.js`
+- **Vite plugin:** `@vitejs/plugin-react` → `@sveltejs/vite-plugin-svelte` (standalone) หรือ `@sveltejs/kit/vite` (SvelteKit)
+
+</Diff>
+
+## ใจความสำคัญ
+
+เครื่องมือมีชื่อต่างกันแต่ทำหน้าที่เหมือนกัน คุณไม่จำเป็นต้องเรียนรู้ mental model ใหม่สำหรับ toolchain — แค่แทนที่เครื่องมือแต่ละตัวด้วยตัวที่เทียบเท่ากันในฝั่ง Svelte การเปลี่ยนแปลงที่สำคัญที่สุดคือ `svelte-check` มาแทน `tsc` สำหรับการตรวจสอบ type ที่เข้าใจ template และ Vitest มาแทน Jest (โดยมี API ที่แทบจะเหมือนกัน)
+
+export const quizIndex = [
+  {
+    q: 'เครื่องมือใดมาแทน tsc สำหรับการตรวจสอบ type ของไฟล์ .svelte?',
+    options: [
+      'svelte-lint',
+      'svelte-check',
+      'vite-types',
+      'eslint-svelte',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'อะไรคือตัวเทียบเท่า Jest + React Testing Library ในฝั่ง SvelteKit?',
+    options: [
+      'Mocha + @testing-library/svelte',
+      'Vitest + @testing-library/svelte',
+      'Jasmine + Svelte Test Utils',
+      'Cypress + @sveltejs/testing',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'สำหรับการทดสอบ end-to-end โปรเจกต์ React และ SvelteKit ใช้เครื่องมือใดเหมือนกัน?',
+    options: [
+      'Cypress',
+      'Selenium',
+      'Playwright',
+      'Puppeteer',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="tooling/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="tooling/index" />

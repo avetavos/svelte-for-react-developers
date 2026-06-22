@@ -1,0 +1,108 @@
+---
+title: 'Compiler Model ของ Svelte'
+description: 'Svelte ทำงานเป็น compiler ณ เวลา build ต่างจาก React ที่ ship runtime มาด้วย — เข้าใจความแตกต่างนี้ก่อนเริ่มเรียน'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React ส่ง JavaScript **runtime** ไปให้ browser ของผู้ใช้ทุกคน — ประมาณ 45 kB แบบ gzip สำหรับ React และ ReactDOM รวมกัน runtime นั้นดูแล virtual DOM tree, diff ทุกครั้งที่ state เปลี่ยน และ patch real DOM ตามผล Svelte เลือกแนวทางที่แตกต่างอย่างสิ้นเชิง: มันทำงานในฐานะ **compiler** ไฟล์ `.svelte` ของคุณจะถูกแปลงเป็น JavaScript ธรรมดาที่ปราศจาก framework ณ เวลา build เมื่อโค้ดถึงมือ browser แล้ว ไม่มี Svelte runtime อยู่เลย — มีแต่คำสั่ง DOM โดยตรงที่ compiler สร้างออกมา
+
+## React runtime vs Svelte compiler
+
+export const compilerModelReact = `// React: ships a runtime to the browser
+// 1. render() builds a virtual DOM tree
+// 2. React's reconciler diffs old vs new vDOM
+// 3. Only changed nodes are patched in the real DOM
+// bundle includes React + ReactDOM (~45 kB gzip)`;
+
+export const compilerModelSvelte = `// Svelte: compiles your code at build time
+// 1. npm run build transforms .svelte → plain JS
+// 2. Output: direct DOM instructions (no vDOM)
+// 3. element.textContent = count  ← surgical update
+// zero framework runtime shipped to the browser`;
+
+<ReactSvelte react={compilerModelReact} svelte={compilerModelSvelte} />
+
+ประเด็นสำคัญคือ: แนวคิดของ React คือ **render → diff → patch** ซึ่งเกิดขึ้นใน browser ณ runtime ส่วนแนวคิดของ Svelte คือ **compile → direct DOM update** — การ "diffing" ถูกทำโดย compiler ก่อนที่โค้ดจะถูกส่งออกไปเลย ผลลัพธ์คือ bundle ที่เล็กกว่ามาก และไม่มีค่าใช้จ่ายของ runtime ในการ parse หรือ execute framework
+
+## ลองใช้งาน: counter ที่ compile แล้ว
+
+component ด้านล่างแสดงให้เห็น compiler model ในทางปฏิบัติ สังเกตว่าไม่มี `useState`, ไม่มี setter function และไม่มี reconciler compiler วิเคราะห์ว่า DOM node ใดขึ้นอยู่กับ `count` และสร้าง targeted update ออกมา — เฉพาะ node เหล่านั้นเท่านั้นที่เปลี่ยนเมื่อคุณกดปุ่ม
+
+export const compilerModelCode = `<script>
+  let count = \$state(0);
+  let label = \$derived(count === 0 ? 'Click to start' : \`Count: \${count}\`);
+<\/script>
+
+<p class="info">Svelte compiled this component to plain JS — no framework in the bundle.</p>
+<p class="label">{label}</p>
+<div class="row">
+  <button onclick={() => count--}>-</button>
+  <span class="num">{count}</span>
+  <button onclick={() => count++}>+</button>
+</div>
+
+<style>
+  .info { color: #666; font-size: 0.9rem; margin-bottom: 1rem; }
+  .label { font-weight: bold; margin-bottom: 0.5rem; }
+  .row { display: flex; align-items: center; gap: 1rem; }
+  .num { font-size: 2rem; font-weight: bold; min-width: 2rem; text-align: center; }
+  button { font-size: 1.2rem; padding: 0.25rem 0.7rem; cursor: pointer; }
+</style>`;
+
+<SveltePlayground client:visible code={compilerModelCode} />
+
+ลองกดปุ่มและสังเกตว่า label เปลี่ยนแปลงทันทีโดยไม่มี re-render ทั้ง component นี่คือ Svelte compiler ทำงาน — มันรู้ล่วงหน้าว่า `label` ขึ้นอยู่กับ `count` จึงสร้างโค้ดที่อัปเดตเฉพาะ DOM node ที่เกี่ยวข้องโดยตรง
+
+<Diff title="React runtime vs Svelte compiler">
+
+- React ships its runtime library (~45 kB gzip React + ReactDOM) to every user on every page load.
+- Svelte runs as a compiler at build time; zero framework code is included in the browser output.
+- React creates a virtual DOM tree on every render and then diffs it against the previous tree.
+- Svelte's compiler generates `element.textContent = value` style targeted updates — no diffing at runtime.
+- React re-executes the entire component function when state changes, producing a new vDOM subtree.
+- Svelte updates only the exact DOM nodes that depend on the changed piece of state.
+- Bundle impact: a Svelte counter is ~1 kB of output JS; the React equivalent ships the full React runtime before any app code.
+
+</Diff>
+
+export const quizCompilerModel = [
+  {
+    q: 'Svelte ทำงานหนักที่สุดเมื่อไหร่?',
+    options: [
+      'ตอน runtime เหมือน React',
+      'ตอน build time ในฐานะ compiler',
+      'ตอนที่ browser โหลดหน้าเว็บครั้งแรก',
+      'ผ่าน service worker',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Svelte ส่งอะไรไปให้ browser แทน framework runtime?',
+    options: [
+      'React เวอร์ชัน minified',
+      'virtual DOM engine',
+      'plain JavaScript ที่ compile แล้วซึ่ง update DOM โดยตรง',
+      'WebAssembly',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ทำไม Svelte bundle ถึงเล็กกว่า React bundle โดยทั่วไป?',
+    options: [
+      'Svelte ใช้ CDN',
+      'React มี feature ที่ไม่ได้ใช้',
+      'Svelte compile framework ออกไป — ไม่มี runtime ถูก ship',
+      'Svelte ใช้ lazy loading โดยอัตโนมัติ',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/compiler-model" questions={quizCompilerModel} />
+
+<ProgressTracker client:visible id="intro/compiler-model" />

@@ -1,0 +1,119 @@
+---
+title: 'Vite + @sveltejs/vite-plugin-svelte'
+description: 'How the Svelte Vite plugin compares to @vitejs/plugin-react and CRA — dev server, HMR, and SvelteKit config.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React developers who use Vite are already familiar with `@vitejs/plugin-react` — it adds JSX transform and Fast Refresh to Vite's dev server. Svelte has a direct equivalent: `@sveltejs/vite-plugin-svelte`. It compiles `.svelte` files and wires up Svelte's own HMR. If you use SvelteKit (the full-stack framework), the plugin is wrapped inside `@sveltejs/kit/vite` and configured for you automatically.
+
+## vite.config comparison
+
+export const viteConfigReact = `// vite.config.ts (React)
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+});`;
+
+export const viteConfigSvelte = `// vite.config.ts (Svelte standalone)
+import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+
+export default defineConfig({
+  plugins: [svelte()],
+});`;
+
+<ReactSvelte react={viteConfigReact} svelte={viteConfigSvelte} />
+
+### SvelteKit's vite.config
+
+When you use SvelteKit, the Vite config is even simpler because `sveltekit()` handles all plugin wiring internally:
+
+```ts
+// vite.config.ts (SvelteKit)
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  plugins: [sveltekit()],
+});
+```
+
+You do **not** import `@sveltejs/vite-plugin-svelte` directly in a SvelteKit project — `sveltekit()` re-exports and configures it for you.
+
+## Installation
+
+Install the standalone Svelte plugin (non-SvelteKit project):
+
+```bash
+npm install --save-dev @sveltejs/vite-plugin-svelte svelte
+```
+
+Create a SvelteKit project from scratch:
+
+```bash
+npm create svelte@latest my-app
+cd my-app
+npm install
+npm run dev
+```
+
+## HMR behaviour
+
+Both React and Svelte use Vite's native HMR infrastructure. The difference is in what happens to component state when a file is saved:
+
+- **React Fast Refresh** preserves local state for components whose hook shape did not change. If you add or remove a `useState` call, state resets.
+- **Svelte HMR** preserves reactive state (`$state` variables) by default across most edits, even when you change the markup or add new state variables.
+
+<Diff title="React Vite plugin vs Svelte Vite plugin">
+
+- React: `@vitejs/plugin-react` — adds Babel JSX transform + React Fast Refresh
+- Svelte (standalone): `@sveltejs/vite-plugin-svelte` — compiles `.svelte` files + Svelte HMR
+- SvelteKit: `@sveltejs/kit/vite` (`sveltekit()`) — wraps the svelte plugin + routing, SSR, and adapter hooks
+- CRA (Create React App) used webpack under the hood and is now deprecated. SvelteKit uses Vite natively.
+- HMR state preservation: React resets state if hook shape changes; Svelte HMR preserves state across most edits
+- Both support TypeScript, CSS modules, and path aliases via the shared Vite config
+
+</Diff>
+
+export const quizViteSvelte = [
+  {
+    q: 'Which Vite plugin compiles .svelte files in a standalone (non-SvelteKit) project?',
+    options: [
+      '@sveltejs/kit/vite',
+      '@sveltejs/vite-plugin-svelte',
+      '@vitejs/plugin-svelte',
+      'vite-plugin-svelte-compiler',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'In a SvelteKit project, which import do you use in vite.config.ts?',
+    options: [
+      "import { svelte } from '@sveltejs/vite-plugin-svelte'",
+      "import { sveltekit } from '@sveltejs/kit/vite'",
+      "import { svelte } from 'svelte/vite'",
+      "import kit from '@sveltejs/kit'",
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How does Svelte HMR differ from React Fast Refresh when you add a new state variable?',
+    options: [
+      'Both always reset all state',
+      'Svelte resets state; React preserves it',
+      'Svelte preserves state across most edits; React resets if hook shape changes',
+      'They behave identically',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="tooling/vite-svelte" questions={quizViteSvelte} />
+
+<ProgressTracker client:visible id="tooling/vite-svelte" />

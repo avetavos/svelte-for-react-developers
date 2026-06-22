@@ -1,6 +1,6 @@
 ---
 title: 'Snippets & Children'
-description: 'Svelte 5 {#snippet} and {@render} vs React children and render props.'
+description: '{#snippet} และ {@render} ของ Svelte 5 เทียบกับ children และ render props ของ React'
 ---
 
 import ReactSvelte from '../../../../components/ReactSvelte.tsx';
@@ -9,7 +9,7 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-React passes UI content to components via `children` (JSX between tags) or render props (functions that return JSX). Svelte 5 replaces the old `<slot>` system with **snippets** — reusable, named, parameterized template fragments defined with `{#snippet}` and rendered with `{@render}`. The default snippet is still called `children`, so basic usage feels immediately familiar.
+React ส่งเนื้อหา UI ให้ component ผ่าน `children` (JSX ที่อยู่ระหว่าง tag) หรือ render props (function ที่ return JSX) ส่วน Svelte 5 แทนที่ระบบ `<slot>` แบบเก่าด้วย **snippets** — ชิ้นส่วน template ที่นำกลับมาใช้ซ้ำได้ มีชื่อ และรับ parameter ได้ นิยามด้วย `{#snippet}` และ render ด้วย `{@render}` snippet ตัว default ยังคงชื่อ `children` อยู่ ดังนั้นการใช้งานพื้นฐานจึงรู้สึกคุ้นเคยทันที
 
 ## Default children
 
@@ -37,9 +37,9 @@ export const childrenSvelte = `<!-- Card.svelte -->
 
 <ReactSvelte react={childrenReact} svelte={childrenSvelte} />
 
-The `children` prop is a **snippet function** — you must call it with `{@render children()}`. React's `{children}` is a value; Svelte's `children` is a callable snippet.
+prop `children` คือ **snippet function** — คุณต้องเรียกมันด้วย `{@render children()}` ส่วน `{children}` ของ React เป็นค่า (value) แต่ `children` ของ Svelte เป็น snippet ที่เรียกได้ (callable)
 
-## Named snippets (like named slots / render props)
+## Named snippets (เหมือน named slot / render props)
 
 export const namedReact = `// Dialog.jsx
 function Dialog({ header, body, footer }) {
@@ -81,9 +81,9 @@ export const namedSvelte = `<!-- Dialog.svelte -->
 
 <ReactSvelte react={namedReact} svelte={namedSvelte} />
 
-## Snippets with parameters (render props pattern)
+## Snippets ที่มี parameter (แพตเทิร์น render props)
 
-Snippets can receive arguments — this replaces the React render-prop pattern cleanly:
+snippet รับ argument ได้ — สิ่งนี้แทนที่แพตเทิร์น render-prop ของ React ได้อย่างสะอาดสะอ้าน:
 
 export const renderPropsReact = `// List.jsx
 function List({ items, renderItem }) {
@@ -123,7 +123,7 @@ export const renderPropsSvelte = `<!-- List.svelte -->
 
 <ReactSvelte react={renderPropsReact} svelte={renderPropsSvelte} />
 
-## Try it: card with children
+## ลองเล่น: card ที่มี children
 
 export const snippetsChildrenCode = `<script>
   let items = \$state(['Learn Svelte', 'Build something', 'Deploy to Vercel']);
@@ -151,17 +151,17 @@ export const snippetsChildrenCode = `<script>
 
 <Diff title="React children/render props vs Svelte snippets">
 
-- React `children` (a ReactNode value) → Svelte `children` snippet (a function, call with `{@render children()}`).
-- React named render props (functions passed as props) → Svelte named snippets (`{#snippet name()}` … `{/snippet}` inside the component tag).
-- React render prop pattern `renderItem={item => <JSX />}` → Svelte parameterized snippets `{#snippet renderItem(item)}` … `{/snippet}`.
-- Svelte 4 `<slot name="header">` → Svelte 5 `{@render header()}` with a named snippet prop.
-- `{@render snippet?.()}` — use optional chaining when a snippet prop might be undefined.
+- React `children` (ค่าแบบ ReactNode) → Svelte snippet `children` (function ที่เรียกด้วย `{@render children()}`)
+- named render props ของ React (function ที่ส่งเป็น props) → named snippet ของ Svelte (`{#snippet name()}` … `{/snippet}` ภายใน tag ของ component)
+- แพตเทิร์น render prop ของ React `renderItem={item => <JSX />}` → snippet แบบรับ parameter ของ Svelte `{#snippet renderItem(item)}` … `{/snippet}`
+- Svelte 4 `<slot name="header">` → Svelte 5 `{@render header()}` พร้อม named snippet prop
+- `{@render snippet?.()}` — ใช้ optional chaining เมื่อ snippet prop อาจเป็น undefined
 
 </Diff>
 
 export const quizSnippets = [
   {
-    q: 'How do you render the default children in a Svelte 5 component?',
+    q: 'คุณ render default children ใน Svelte 5 component อย่างไร?',
     options: [
       '<slot />',
       '{children}',
@@ -171,7 +171,7 @@ export const quizSnippets = [
     answer: 2,
   },
   {
-    q: 'What is the Svelte 5 syntax for defining a reusable template fragment with parameters?',
+    q: 'syntax ของ Svelte 5 สำหรับนิยามชิ้นส่วน template ที่นำกลับมาใช้ซ้ำได้พร้อม parameter คืออะไร?',
     options: [
       '{#template name(param)}',
       '{#snippet name(param)} ... {/snippet}',
@@ -181,12 +181,12 @@ export const quizSnippets = [
     answer: 1,
   },
   {
-    q: 'What replaced Svelte 4 named slots in Svelte 5?',
+    q: 'อะไรมาแทนที่ named slot ของ Svelte 4 ใน Svelte 5?',
     options: [
-      'React-style render props',
-      'Named snippets passed as props and rendered with {@render}',
-      'Named <slot name="x"> tags still work',
-      'Portal components',
+      'render props สไตล์ React',
+      'named snippet ที่ส่งเป็น props แล้ว render ด้วย {@render}',
+      'tag <slot name="x"> ยังใช้ได้อยู่',
+      'Portal component',
     ],
     answer: 1,
   },

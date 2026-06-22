@@ -1,0 +1,160 @@
+---
+title: '$derived — Computed Values'
+description: '$derived and $derived.by vs useMemo — auto-tracked computed values with no dependency array in Svelte 5.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React's `useMemo` memoises expensive computations — but you must declare every reactive input in the **dependency array** or risk stale values. Svelte 5's `$derived` does the same thing without the array: the compiler scans the expression, finds every reactive variable it reads, and re-runs the computation automatically whenever any of them changes.
+
+## $derived vs useMemo
+
+export const derivedBasicReact = `function PriceCalc() {
+  const [price, setPrice] = React.useState(100);
+  const [qty, setQty] = React.useState(3);
+
+  const total = React.useMemo(() => price * qty, [price, qty]);
+  const withTax = React.useMemo(() => total * 1.07, [total]);
+
+  return (
+    <div>
+      <p>Unit price: {price} — Qty: {qty}</p>
+      <p>Total: {total} — With tax: {withTax.toFixed(2)}</p>
+      <button onClick={() => setQty(q => q + 1)}>+qty</button>
+    </div>
+  );
+}`;
+
+export const derivedBasicSvelte = `<script>
+  let price = \$state(100);
+  let qty = \$state(3);
+
+  let total = \$derived(price * qty);
+  let withTax = \$derived(total * 1.07);
+<\/script>
+
+<p>Unit price: {price} — Qty: {qty}</p>
+<p>Total: {total} — With tax: {withTax.toFixed(2)}</p>
+<button onclick={() => qty++}>+qty</button>`;
+
+<ReactSvelte react={derivedBasicReact} svelte={derivedBasicSvelte} />
+
+No `[price, qty]` dependency array. `$derived` chains — `withTax` reads `total`, which reads `price` and `qty`. The compiler builds the entire reactive graph automatically.
+
+## $derived.by — multi-step computations
+
+`$derived(expr)` only accepts a single expression. When the computation needs multiple statements — a filter, reduce, or conditional — use `$derived.by(() => { ... return result; })`. This maps to `useMemo` with a multi-statement body.
+
+export const derivedByReact = `function FilteredList() {
+  const [items] = React.useState(['apple', 'banana', 'apricot', 'blueberry', 'avocado']);
+  const [query, setQuery] = React.useState('a');
+
+  const filtered = React.useMemo(() => {
+    const lower = query.toLowerCase();
+    return items.filter(item => item.startsWith(lower));
+  }, [items, query]);
+
+  return (
+    <div>
+      <input value={query} onChange={e => setQuery(e.target.value)} />
+      <ul>{filtered.map(f => <li key={f}>{f}</li>)}</ul>
+    </div>
+  );
+}`;
+
+export const derivedBySvelte = `<script>
+  let items = \$state(['apple', 'banana', 'apricot', 'blueberry', 'avocado']);
+  let query = \$state('a');
+
+  let filtered = \$derived.by(() => {
+    const lower = query.toLowerCase();
+    return items.filter(item => item.startsWith(lower));
+  });
+<\/script>
+
+<input bind:value={query} />
+<ul>
+  {#each filtered as f}
+    <li>{f}</li>
+  {/each}
+</ul>`;
+
+<ReactSvelte react={derivedByReact} svelte={derivedBySvelte} />
+
+## Try it: live filter and stats
+
+export const derivedPlayCode = `<script>
+  let numbers = \$state([4, 8, 15, 16, 23, 42]);
+  let threshold = \$state(15);
+
+  let above = \$derived(numbers.filter(n => n >= threshold));
+  let sum = \$derived(above.reduce((a, b) => a + b, 0));
+  let avg = \$derived.by(() => {
+    if (above.length === 0) return 0;
+    return (sum / above.length).toFixed(2);
+  });
+<\/script>
+
+<div style="font-family:sans-serif;padding:1rem">
+  <label>
+    Threshold:
+    <input type="range" min="0" max="50" bind:value={threshold} />
+    {threshold}
+  </label>
+  <p>Numbers: {numbers.join(', ')}</p>
+  <p>Above threshold: {above.join(', ') || '(none)'}</p>
+  <p>Sum: {sum} — Average: {avg}</p>
+</div>`;
+
+<SveltePlayground client:visible code={derivedPlayCode} />
+
+<Diff title="useMemo vs $derived / $derived.by">
+
+- React `useMemo(() => expr, [deps])` — you must list every reactive input in `deps`. Miss one and you get a stale value. Svelte `$derived(expr)` — no deps array, compiler tracks everything.
+- For multi-statement computations: React still uses `useMemo` with a function body. Svelte uses `$derived.by(() => { ... return value; })`.
+- React `useMemo` is purely an optimisation hint — React may discard the memo. Svelte `$derived` is guaranteed to be synchronous and exact.
+- Both are **read-only** — you cannot assign to a derived/memo value directly.
+- Svelte `$derived` can depend on other `$derived` values and the dependency graph is resolved correctly, just like chained `useMemo` — but without repeating deps.
+
+</Diff>
+
+export const quizDerivedRune = [
+  {
+    q: 'You have $state price and $state qty. How do you declare a derived total in Svelte 5?',
+    options: [
+      'let total = useMemo(() => price * qty, [price, qty])',
+      'let total = $derived(price * qty)',
+      'let total = $state(price * qty)',
+      'let total = $effect(() => price * qty)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'When should you use $derived.by instead of $derived?',
+    options: [
+      'When the computation involves objects instead of primitives',
+      'When you need multiple statements before returning the result',
+      'When the value is async',
+      '$derived.by is the newer form — always prefer it',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'A $derived value reads from two $state variables A and B. You update A. What happens?',
+    options: [
+      'Nothing — you must include A in a dependency array first',
+      'The $derived value recalculates automatically',
+      'You must call $derived.invalidate()',
+      'Only works if B is also updated in the same tick',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="reactivity/derived-rune" questions={quizDerivedRune} />
+
+<ProgressTracker client:visible id="reactivity/derived-rune" />

@@ -1,0 +1,162 @@
+---
+title: '$props and $bindable — Component Props'
+description: '$props() destructuring with defaults and $bindable() for two-way props vs React props and lifting state.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React, a component declares its props via its function parameters (or TypeScript interface). Props are always **one-way, read-only** — the child calls a callback to ask the parent to update. Svelte 5 introduces `$props()` for the same one-way model, plus `$bindable()` for an opt-in **two-way binding** that eliminates the callback boilerplate.
+
+## $props() — declaring props with defaults
+
+export const propsBasicReact = `// Child
+function Greeting({ name = 'World', color = 'black' }) {
+  return <p style={{ color }}>Hello, {name}!</p>;
+}
+
+// Parent
+function App() {
+  return <Greeting name="Alice" color="steelblue" />;
+}`;
+
+export const propsBasicSvelte = `<script>
+  let { name = 'World', color = 'black' } = \$props();
+<\/script>
+
+<p style="color: {color}">Hello, {name}!</p>`;
+
+<ReactSvelte react={propsBasicReact} svelte={propsBasicSvelte} />
+
+`$props()` returns an object you destructure normally. Default values work with standard JS destructuring defaults. There is no `propTypes`, no separate TypeScript interface required (though you can add `interface Props` and annotate `$props<Props>()`).
+
+## Rest props / forwarding
+
+export const propsRestReact = `function Button({ children, variant = 'primary', ...rest }) {
+  return (
+    <button className={'btn btn-' + variant} {...rest}>
+      {children}
+    </button>
+  );
+}`;
+
+export const propsRestSvelte = `<script>
+  let { children, variant = 'primary', ...rest } = \$props();
+<\/script>
+
+<button class="btn btn-{variant}" {...rest}>
+  {@render children?.()}
+</button>`;
+
+<ReactSvelte react={propsRestReact} svelte={propsRestSvelte} />
+
+The `...rest` spread forwards any extra attributes to the underlying element — exactly like React.
+
+## $bindable() — two-way props (no callback needed)
+
+React requires "lifting state": the parent owns the value, the child receives it as a prop and a setter callback. Svelte's `$bindable()` lets the parent use `bind:propName` on the child, giving the child the ability to write back to the parent's variable without any explicit callback.
+
+export const bindableReact = `// React: parent must own state + pass setter down
+function TextInput({ value, onChange }) {
+  return <input value={value} onChange={e => onChange(e.target.value)} />;
+}
+
+function App() {
+  const [text, setText] = React.useState('');
+  return (
+    <div>
+      <TextInput value={text} onChange={setText} />
+      <p>You typed: {text}</p>
+    </div>
+  );
+}`;
+
+export const bindableSvelte = `<script>
+  // Child: TextInput.svelte
+  let { value = \$bindable('') } = \$props();
+<\/script>
+
+<input bind:value />
+
+<!-- Parent usage: <TextInput bind:value={text} /> -->`;
+
+<ReactSvelte react={bindableReact} svelte={bindableSvelte} />
+
+## Try it: bindable counter in a single file
+
+export const propsPlayCode = `<script>
+  import { mount } from 'svelte';
+
+  // Simulate a parent + child in one file using snippets
+  let count = \$state(10);
+  let step = \$state(1);
+
+  function inc() { count += step; }
+  function dec() { count -= step; }
+<\/script>
+
+<div style="font-family:sans-serif;padding:1rem">
+  <h3>Parent owns count</h3>
+  <p>count = <strong>{count}</strong></p>
+  <label>
+    Step: <input type="number" bind:value={step} style="width:4rem;margin-left:0.5rem" min="1" />
+  </label>
+
+  <div style="margin-top:1rem">
+    <h4>Child-like controls (bind:step, bind:count)</h4>
+    <button onclick={dec}>- {step}</button>
+    <button onclick={inc} style="margin-left:0.5rem">+ {step}</button>
+  </div>
+</div>`;
+
+<SveltePlayground client:visible code={propsPlayCode} />
+
+<Diff title="React props vs $props / $bindable">
+
+- React props: destructured function parameters. Svelte 5: `let { a, b = default } = $props()` — same destructuring, different declaration site.
+- React props are **always one-way read-only**. To let a child update parent state you must pass a callback (`onChange`, `onSubmit`, etc.). Svelte `$bindable()` props skip the callback and use `bind:propName` on the parent side for two-way binding.
+- React `...rest` spread to forward attributes: `{...rest}` on the JSX element. Svelte: identical `{...rest}` on the element — same syntax.
+- TypeScript types: React uses `interface Props` or inline destructuring types. Svelte uses `$props<Props>()` generic — same interface, different call site.
+- `$bindable()` is **opt-in** — only props explicitly declared with `$bindable()` can be used with `bind:`. Other props remain read-only in the child.
+
+</Diff>
+
+export const quizPropsBindable = [
+  {
+    q: 'How do you declare a prop with a default value in Svelte 5?',
+    options: [
+      'export let name = "World";',
+      'let { name = "World" } = $props();',
+      'const name = $state("World");',
+      'props.name ?? "World"',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does $bindable() allow that regular $props() does not?',
+    options: [
+      'It makes the prop reactive inside the child',
+      'It lets the child write back to the parent variable using bind:propName',
+      'It provides a setter function like useState',
+      'It makes the prop optional with no default',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How do you forward extra HTML attributes to the root element in a Svelte 5 component?',
+    options: [
+      'Use $attrs() instead of $props()',
+      'Destructure with ...rest from $props() and spread {...rest} on the element',
+      'Call forwardRef() like in React',
+      'Svelte does not support attribute forwarding',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="reactivity/props-bindable" questions={quizPropsBindable} />
+
+<ProgressTracker client:visible id="reactivity/props-bindable" />

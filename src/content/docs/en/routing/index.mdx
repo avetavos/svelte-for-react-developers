@@ -1,0 +1,101 @@
+---
+title: 'Routing with SvelteKit'
+description: 'How SvelteKit file-based routing maps to react-router and Next.js — the mental model for React developers.'
+---
+
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React has no built-in router. Most React apps use **react-router** (declarative `<Route>` components) or a framework like **Next.js** (file-based routing in `pages/` or `app/`). SvelteKit is Svelte's full-stack framework, and routing is baked in — you never install a router package.
+
+The shift is simple: **your file system is your route map.** Every file you create under `src/routes/` becomes a URL. No JSX route config, no `createBrowserRouter`, no `<Routes>` wrapper.
+
+> Run this in a SvelteKit project (`npx sv create`).
+
+## The `src/routes/` directory
+
+SvelteKit reserves the `src/routes/` directory for your route tree. The structure of that directory is the structure of your app's URLs.
+
+| File | URL |
+|---|---|
+| `src/routes/+page.svelte` | `/` |
+| `src/routes/about/+page.svelte` | `/about` |
+| `src/routes/blog/[slug]/+page.svelte` | `/blog/:slug` |
+| `src/routes/dashboard/+layout.svelte` | wraps all `/dashboard/*` pages |
+
+## Special filenames at a glance
+
+SvelteKit uses a convention of **`+` prefixed filenames** so that SvelteKit-owned files are never confused with your own helper modules in the same folder.
+
+| Filename | Purpose |
+|---|---|
+| `+page.svelte` | The page UI rendered at this route |
+| `+page.js` | `load()` function — runs on server *and* client |
+| `+page.server.js` | `load()` function — runs on server only (DB, cookies, secrets) |
+| `+layout.svelte` | Shared shell wrapping all child routes in this folder |
+| `+layout.js` / `+layout.server.js` | `load()` for the layout |
+| `+error.svelte` | Error boundary for this route segment |
+
+## How this maps from React
+
+If you're coming from react-router, the mental model shift is:
+
+- react-router: you write a **JS/JSX config** that maps path strings to component imports.
+- Next.js Pages Router: `pages/` folder, files map to routes.
+- Next.js App Router: `app/` folder, `page.tsx` files inside folders map to routes.
+- SvelteKit: `src/routes/` folder, `+page.svelte` files inside folders map to routes.
+
+SvelteKit is closest to Next.js App Router, but uses `+page.svelte` instead of `page.tsx` and collocates data-loading in `+page.js` / `+page.server.js` rather than making the component itself async.
+
+## What this module covers
+
+| Lesson | Concept |
+|---|---|
+| This page | Mental model: file-based routing, the `src/routes/` directory |
+| File-based routing | Nested routes, `[param]` dynamic segments, file-tree walkthrough |
+| Load functions | `+page.js` / `+page.server.js` for data fetching — vs react-router loaders and `getServerSideProps` |
+
+<Diff title="react-router / Next.js vs SvelteKit routing">
+
+- react-router: configure routes in JS — `<Route path="/about" element={<About />} />`.
+- Next.js Pages Router: `pages/about.tsx` maps to `/about`.
+- Next.js App Router: `app/about/page.tsx` maps to `/about`.
+- SvelteKit: `src/routes/about/+page.svelte` maps to `/about` — same idea, different filename convention.
+- react-router dynamic segment: `:id`. Next.js: `[id].tsx` / `[id]/page.tsx`. SvelteKit: `[id]/+page.svelte`.
+- SvelteKit layouts (`+layout.svelte`) are equivalent to Next.js `layout.tsx` — they wrap all children in the folder.
+- Data loading: react-router `loader`, Next.js `getServerSideProps` / Server Components → SvelteKit `+page.server.js` `load()`.
+
+</Diff>
+
+export const quizRoutingIndex = [
+  {
+    q: 'In which directory do SvelteKit routes live?',
+    options: ['src/pages/', 'src/routes/', 'src/app/', 'routes/'],
+    answer: 1,
+  },
+  {
+    q: 'What does a file named +page.svelte represent in SvelteKit?',
+    options: [
+      'A shared layout component',
+      'A server-only data loader',
+      'The page UI rendered at the matching URL',
+      'A dynamic route parameter',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'How does SvelteKit routing differ from react-router?',
+    options: [
+      'SvelteKit requires a JS config file mapping paths to components',
+      'SvelteKit uses file-system conventions — the folder structure IS the route map',
+      'SvelteKit routes are defined with JSX <Route> elements',
+      'They are identical — SvelteKit wraps react-router internally',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="routing/index" questions={quizRoutingIndex} />
+
+<ProgressTracker client:visible id="routing/index" />

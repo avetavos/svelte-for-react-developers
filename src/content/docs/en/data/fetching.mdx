@@ -1,0 +1,231 @@
+---
+title: 'Data Fetching'
+description: 'onMount + fetch for client-side data, and SvelteKit load functions for SSR — the Svelte equivalents of useEffect and getServerSideProps.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React developers fetch data in `useEffect` (or hand it to React Query / SWR). Svelte has two approaches that map cleanly to what you already know:
+
+- **`onMount` + `fetch`** — client-side fetching; runs after the component mounts, just like `useEffect` with an empty dependency array
+- **SvelteKit `load` function** — in `+page.ts` or `+page.server.ts`, returns data to the page component before render; the server-side equivalent of Next.js `getServerSideProps`
+
+The big win: `onMount` is a simple function call with no dependency array to manage, and SvelteKit's `load` runs on the server so there is no client-side loading flash for initial data.
+
+## useEffect + fetch vs onMount + fetch
+
+export const fetchingOnMountReact = `function PostList() {
+  const [posts, setPosts] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch('/api/posts')
+      .then(r => r.json())
+      .then(data => {
+        if (!cancelled) {
+          setPosts(data);
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error}</p>;
+  return <ul>{posts.map(p => <li key={p.id}>{p.title}</li>)}</ul>;
+}`;
+
+export const fetchingOnMountSvelte = `<script>
+  import { onMount } from 'svelte';
+
+  let posts = \$state([]);
+  let loading = \$state(true);
+  let error = \$state(null);
+
+  onMount(async () => {
+    try {
+      const res = await fetch('/api/posts');
+      posts = await res.json();
+    } catch (e) {
+      error = e.message;
+    } finally {
+      loading = false;
+    }
+  });
+<\/script>
+
+{#if loading}
+  <p>Loading...</p>
+{:else if error}
+  <p>Error: {error}</p>
+{:else}
+  <ul>
+    {#each posts as post}
+      <li>{post.title}</li>
+    {/each}
+  </ul>
+{/if}`;
+
+<ReactSvelte react={fetchingOnMountReact} svelte={fetchingOnMountSvelte} />
+
+Note: `onMount` runs once after mount. For one-shot fetches you do not need a cancellation flag — the component is already mounted. If you navigate away before the fetch resolves, reassigning `$state` after destruction is a no-op. Run this pattern in a SvelteKit project.
+
+## getServerSideProps vs SvelteKit load
+
+export const fetchingSSRReact = `// Next.js pages/posts.tsx
+export async function getServerSideProps(context) {
+  const res = await fetch('https://api.example.com/posts');
+  const posts = await res.json();
+  return { props: { posts } };
+}
+
+export default function Posts({ posts }) {
+  return (
+    <ul>
+      {posts.map(p => <li key={p.id}>{p.title}</li>)}
+    </ul>
+  );
+}`;
+
+export const fetchingSSRSvelte = `// +page.server.ts
+export async function load({ fetch }) {
+  const res = await fetch('https://api.example.com/posts');
+  const posts = await res.json();
+  return { posts };
+}
+
+// +page.svelte — data is injected automatically
+<script>
+  let { data } = \$props();
+<\/script>
+
+<ul>
+  {#each data.posts as post}
+    <li>{post.title}</li>
+  {/each}
+</ul>`;
+
+<ReactSvelte react={fetchingSSRReact} svelte={fetchingSSRSvelte} />
+
+SvelteKit's `load` function receives an enhanced `fetch` that works on both server and client, handles cookies, and is automatically available — no import needed. Run this pattern in a SvelteKit project.
+
+## Try it: simulated fetch
+
+Live network requests are unreliable in the sandbox. This demo simulates a 600 ms API call with `setTimeout` — the same `$state` + `onMount` pattern you'd use with real `fetch`.
+
+export const fetchingPlaygroundCode = `<script>
+  import { onMount } from 'svelte';
+
+  let posts = \$state([]);
+  let loading = \$state(true);
+  let error = \$state(null);
+
+  const MOCK_POSTS = [
+    { id: 1, title: 'Getting started with Svelte 5' },
+    { id: 2, title: 'Runes vs the old reactive syntax' },
+    { id: 3, title: 'SvelteKit routing in depth' },
+  ];
+
+  function fakeFetch() {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        // Simulate occasional error
+        if (Math.random() < 0.2) {
+          reject(new Error('Network timeout (simulated)'));
+        } else {
+          resolve(MOCK_POSTS);
+        }
+      }, 600);
+    });
+  }
+
+  async function loadPosts() {
+    loading = true;
+    error = null;
+    posts = [];
+    try {
+      posts = await fakeFetch();
+    } catch (e) {
+      error = e.message;
+    } finally {
+      loading = false;
+    }
+  }
+
+  onMount(loadPosts);
+<\/script>
+
+{#if loading}
+  <p>⏳ Loading posts...</p>
+{:else if error}
+  <p style="color:red">Error: {error}</p>
+  <button onclick={loadPosts}>Retry</button>
+{:else}
+  <ul>
+    {#each posts as post}
+      <li>{post.title}</li>
+    {/each}
+  </ul>
+  <button onclick={loadPosts}>Reload</button>
+{/if}`;
+
+<SveltePlayground client:visible code={fetchingPlaygroundCode} />
+
+<Diff title="useEffect+fetch teardown vs onMount, and getServerSideProps vs SvelteKit load">
+
+- React's `useEffect` for fetching needs a cleanup function to cancel in-flight requests (AbortController or a `cancelled` flag). `onMount` in Svelte has no cleanup for one-shot fetches — it simply runs once.
+- If you need teardown in Svelte, return a function from `onMount`: `onMount(() => { ... return () => cleanup(); })`.
+- React `getServerSideProps` is a page-level export. SvelteKit uses a co-located `+page.server.ts` file with an exported `load` function — the data shape flows into `$props().data` in the component.
+- SvelteKit `load` can run on the server, on the client, or both, depending on whether it's in `+page.server.ts` (server-only) or `+page.ts` (universal).
+- SvelteKit's `fetch` inside `load` is credential-aware and SSR-compatible — no extra setup for cookies/auth.
+
+</Diff>
+
+export const quizFetching = [
+  {
+    q: 'When does onMount run in Svelte?',
+    options: [
+      'Before the component renders (like useLayoutEffect)',
+      'After the component is mounted to the DOM',
+      'Every time reactive state changes',
+      'Only in SvelteKit, not plain Svelte',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Where does a SvelteKit load function run when placed in +page.server.ts?',
+    options: [
+      'Only in the browser',
+      'Only on the server',
+      'On both server and client depending on navigation type',
+      'Inside a Web Worker',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How does a Svelte component receive data returned by a SvelteKit load function?',
+    options: [
+      'Through a global window.__data object',
+      'Via the $store auto-subscribe pattern',
+      'Through the data prop, accessed with $props()',
+      'By calling useLoaderData() like Remix',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/fetching" questions={quizFetching} />
+
+<ProgressTracker client:visible id="data/fetching" />

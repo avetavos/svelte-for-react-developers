@@ -1,0 +1,160 @@
+---
+title: '$derived — Computed Values'
+description: '$derived และ $derived.by เทียบกับ useMemo — computed values ที่ติดตาม dependencies อัตโนมัติ ไม่ต้องใช้ deps array'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+`useMemo` ของ React จดจำผลการคำนวณที่หนัก — แต่คุณต้องประกาศ reactive input ทุกตัวใน **dependency array** yokai ค่าจะเก่า Svelte 5's `$derived` ทำสิ่งเดียวกันโดยไม่ต้องใช้ array: คอมไพเลอร์สแกน expression หาตัวแปร reactive ทุกตัวที่อ่าน และรันการคำนวณใหม่อัตโนมัติเมื่อใดก็ตามที่ค่าเหล่านั้นเปลี่ยน
+
+## $derived vs useMemo
+
+export const derivedBasicReact = `function PriceCalc() {
+  const [price, setPrice] = React.useState(100);
+  const [qty, setQty] = React.useState(3);
+
+  const total = React.useMemo(() => price * qty, [price, qty]);
+  const withTax = React.useMemo(() => total * 1.07, [total]);
+
+  return (
+    <div>
+      <p>Unit price: {price} — Qty: {qty}</p>
+      <p>Total: {total} — With tax: {withTax.toFixed(2)}</p>
+      <button onClick={() => setQty(q => q + 1)}>+qty</button>
+    </div>
+  );
+}`;
+
+export const derivedBasicSvelte = `<script>
+  let price = \$state(100);
+  let qty = \$state(3);
+
+  let total = \$derived(price * qty);
+  let withTax = \$derived(total * 1.07);
+<\/script>
+
+<p>Unit price: {price} — Qty: {qty}</p>
+<p>Total: {total} — With tax: {withTax.toFixed(2)}</p>
+<button onclick={() => qty++}>+qty</button>`;
+
+<ReactSvelte react={derivedBasicReact} svelte={derivedBasicSvelte} />
+
+ไม่มี `[price, qty]` dependency array `$derived` ต่อกันได้ — `withTax` อ่าน `total` ซึ่งอ่าน `price` และ `qty` คอมไพเลอร์สร้าง reactive graph ทั้งหมดอัตโนมัติ
+
+## $derived.by — การคำนวณหลายขั้นตอน
+
+`$derived(expr)` รับได้แค่ expression เดียว เมื่อการคำนวณต้องใช้หลาย statement — filter, reduce หรือ conditional — ใช้ `$derived.by(() => { ... return result; })` แทน ซึ่งตรงกับ `useMemo` ที่มี function body หลายบรรทัด
+
+export const derivedByReact = `function FilteredList() {
+  const [items] = React.useState(['apple', 'banana', 'apricot', 'blueberry', 'avocado']);
+  const [query, setQuery] = React.useState('a');
+
+  const filtered = React.useMemo(() => {
+    const lower = query.toLowerCase();
+    return items.filter(item => item.startsWith(lower));
+  }, [items, query]);
+
+  return (
+    <div>
+      <input value={query} onChange={e => setQuery(e.target.value)} />
+      <ul>{filtered.map(f => <li key={f}>{f}</li>)}</ul>
+    </div>
+  );
+}`;
+
+export const derivedBySvelte = `<script>
+  let items = \$state(['apple', 'banana', 'apricot', 'blueberry', 'avocado']);
+  let query = \$state('a');
+
+  let filtered = \$derived.by(() => {
+    const lower = query.toLowerCase();
+    return items.filter(item => item.startsWith(lower));
+  });
+<\/script>
+
+<input bind:value={query} />
+<ul>
+  {#each filtered as f}
+    <li>{f}</li>
+  {/each}
+</ul>`;
+
+<ReactSvelte react={derivedByReact} svelte={derivedBySvelte} />
+
+## ทดลองได้เลย: filter และสถิติแบบ live
+
+export const derivedPlayCode = `<script>
+  let numbers = \$state([4, 8, 15, 16, 23, 42]);
+  let threshold = \$state(15);
+
+  let above = \$derived(numbers.filter(n => n >= threshold));
+  let sum = \$derived(above.reduce((a, b) => a + b, 0));
+  let avg = \$derived.by(() => {
+    if (above.length === 0) return 0;
+    return (sum / above.length).toFixed(2);
+  });
+<\/script>
+
+<div style="font-family:sans-serif;padding:1rem">
+  <label>
+    Threshold:
+    <input type="range" min="0" max="50" bind:value={threshold} />
+    {threshold}
+  </label>
+  <p>Numbers: {numbers.join(', ')}</p>
+  <p>Above threshold: {above.join(', ') || '(none)'}</p>
+  <p>Sum: {sum} — Average: {avg}</p>
+</div>`;
+
+<SveltePlayground client:visible code={derivedPlayCode} />
+
+<Diff title="useMemo vs $derived / $derived.by">
+
+- React `useMemo(() => expr, [deps])` — ต้องระบุ reactive input ทุกตัวใน `deps` ถ้าลืมจะได้ค่าเก่า Svelte `$derived(expr)` — ไม่มี deps array คอมไพเลอร์ track ทุกอย่างให้
+- สำหรับการคำนวณหลาย statement: React ยังคงใช้ `useMemo` พร้อม function body Svelte ใช้ `$derived.by(() => { ... return value; })`
+- React `useMemo` เป็นแค่ hint สำหรับการ optimise — React อาจทิ้ง memo ทิ้ง Svelte `$derived` รับประกันว่า synchronous และแม่นยำ
+- ทั้งคู่เป็น **read-only** — ไม่สามารถ assign ค่าให้ derived/memo ตรง ๆ ได้
+- Svelte `$derived` สามารถขึ้นกับ `$derived` ตัวอื่นได้และ dependency graph จะถูก resolve ถูกต้อง — แต่ไม่ต้องทำซ้ำ deps
+
+</Diff>
+
+export const quizDerivedRune = [
+  {
+    q: 'มี $state price และ $state qty จะประกาศ derived total ใน Svelte 5 ยังไง?',
+    options: [
+      'let total = useMemo(() => price * qty, [price, qty])',
+      'let total = $derived(price * qty)',
+      'let total = $state(price * qty)',
+      'let total = $effect(() => price * qty)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ควรใช้ $derived.by แทน $derived เมื่อไหร่?',
+    options: [
+      'เมื่อการคำนวณเกี่ยวกับ object แทน primitive',
+      'เมื่อต้องการหลาย statement ก่อน return ผลลัพธ์',
+      'เมื่อค่าเป็น async',
+      '$derived.by เป็น form ใหม่ — ควรใช้เสมอ',
+    ],
+    answer: 1,
+  },
+  {
+    q: '$derived อ่านจาก $state สองตัวคือ A และ B เมื่ออัปเดต A จะเกิดอะไร?',
+    options: [
+      'ไม่มีอะไร — ต้องใส่ A ใน dependency array ก่อน',
+      '$derived คำนวณใหม่อัตโนมัติ',
+      'ต้องเรียก $derived.invalidate()',
+      'ทำงานเฉพาะถ้า B ถูกอัปเดตใน tick เดียวกัน',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="reactivity/derived-rune" questions={quizDerivedRune} />
+
+<ProgressTracker client:visible id="reactivity/derived-rune" />

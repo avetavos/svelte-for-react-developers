@@ -1,0 +1,116 @@
+---
+title: 'React to Svelte: Mental Model'
+description: 'The big shifts when moving from React to Svelte 5 — and all the instincts that transfer directly.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+You already know how to think in components, manage state, handle events, and compose UIs. Those instincts transfer to Svelte almost one-for-one. This module is about the few places where the mental model genuinely shifts — and making sure those shifts feel obvious rather than surprising.
+
+## What transfers directly
+
+- **Component boundaries** — one file, one component, composable by nesting. Same as React.
+- **Props flow down** — parent passes data to child. Identical concept, different syntax.
+- **Event handlers** — attach a function to an element. Identical concept, lowercase names in Svelte.
+- **Conditional rendering** — show/hide parts of the UI based on state. Same idea, different syntax.
+- **List rendering** — map over data to produce markup. Same idea, Svelte uses `{#each}` instead of `.map()`.
+- **Component lifecycle** — setup and teardown logic. `$effect` replaces `useEffect`.
+- **Scoped styles** — CSS that belongs to one component. React needs CSS Modules; Svelte gives this for free.
+
+## The four genuine shifts
+
+| React mental model | Svelte 5 mental model |
+|---|---|
+| State is immutable — call a setter to update | State is mutable — assign directly, Svelte detects the change |
+| Logic lives in JS; JSX is the return value | Logic and markup live in one `.svelte` file; no `return` |
+| React reconciles a virtual DOM at runtime | Svelte compiles to direct DOM updates at build time |
+| Children are a special `children` prop | Children are **snippets** — typed, callable template fragments |
+
+These four shifts cover 90 % of the "wait, why didn't that work?" moments you will hit as a React developer. Every lesson in this module focuses on one of them.
+
+## Module lessons
+
+| Lesson | Concept |
+|---|---|
+| This page | Overview of what transfers and what shifts |
+| Single-file components | `.svelte` structure vs JSX + CSS Modules |
+| Compiler vs runtime | How Svelte eliminates the virtual DOM |
+| Reactivity overview | Assignment-based reactivity vs `setState` |
+| Scoped styles | Auto-scoped `<style>` vs CSS Modules |
+| Same vs different | Side-by-side reference table |
+
+## A reassuring first comparison
+
+export const overviewReact = `// Counter.jsx
+import { useState } from 'react';
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <button onClick={() => setCount(c => c + 1)}>
+      Count: {count}
+    </button>
+  );
+}`;
+
+export const overviewSvelte = `<!-- Counter.svelte -->
+<script>
+  let count = \$state(0);
+<\/script>
+
+<button onclick={() => count++}>
+  Count: {count}
+</button>`;
+
+<ReactSvelte react={overviewReact} svelte={overviewSvelte} />
+
+Every concept in that counter — state, an event handler, rendering a value — exists in both. The syntax is just slightly different. That pattern repeats throughout this module.
+
+<Diff title="React mental model vs Svelte 5 mental model">
+
+- React state is **immutable** — you call `setCount(n + 1)` and React schedules a re-render. Svelte state is **mutable** — you write `count++` and Svelte's compiler-inserted reactivity picks it up.
+- React components are **functions that return JSX**. Svelte components are **files** — the markup is the file body, no `return`.
+- React ships a **runtime** to every user's browser for diffing and reconciliation. Svelte **compiles away** — the output is plain DOM manipulation code, no framework in the bundle.
+- React `children` is a prop (any renderable value). Svelte **snippets** are typed template fragments called with `{@render children()}`.
+
+</Diff>
+
+export const quizMentalModelIndex = [
+  {
+    q: 'Which React concept does NOT transfer to Svelte?',
+    options: [
+      'Component composition',
+      'Props flowing from parent to child',
+      'Calling a setter function to update state',
+      'Conditional rendering',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Svelte eliminates the virtual DOM by:',
+    options: [
+      'Using a faster diffing algorithm',
+      'Compiling components into direct DOM update code at build time',
+      'Batching all DOM writes into a single frame',
+      'Delegating reconciliation to the browser',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'In Svelte 5, how do you update a state variable called "score"?',
+    options: [
+      'setScore(score + 1)',
+      'this.setState({ score: score + 1 })',
+      'score += 1',
+      'dispatch("update", score + 1)',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="mental-model/index" questions={quizMentalModelIndex} />
+
+<ProgressTracker client:visible id="mental-model/index" />

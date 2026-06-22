@@ -1,0 +1,123 @@
+---
+title: 'Reactivity & Lifecycle (Runes)'
+description: 'How Svelte 5 runes map to React hooks — the complete reference for React developers.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React organises reactivity into discrete hooks: `useState`, `useMemo`, `useEffect`, `useRef`, and more. Svelte 5 replaces all of them with a single unified primitive called **runes** — compiler-understood keywords prefixed with `$`. You do not call these like functions in the traditional sense; the compiler reads them at build time and generates optimised reactive code for you.
+
+This module is the **course centrepiece**. Every subsequent lesson dives into one rune in depth. Start here to get the complete mental map before you dive in.
+
+## The runes ↔ hooks mapping
+
+| React hook | Svelte 5 rune | What it does |
+|---|---|---|
+| `useState(init)` | `$state(init)` | Reactive value — mutate directly, no setter needed |
+| `useMemo(() => expr, deps)` | `$derived(expr)` | Computed value — auto-tracks dependencies, no deps array |
+| `useMemo(() => fn(), deps)` | `$derived.by(() => fn())` | Computed value with a multi-step function body |
+| `useEffect(fn, deps)` | `$effect(fn)` | Side-effect — auto-tracks its dependencies |
+| `useEffect(fn, [])` | `onMount(fn)` | Run once after the component mounts |
+| `useEffect(() => () => cleanup, [])` | `onDestroy(fn)` | Run once when the component is destroyed |
+| `useRef(init)` | plain `let` variable or `bind:this` | Mutable ref that does not trigger re-renders |
+| `useContext(Ctx)` | `getContext(key)` | Read context provided by an ancestor |
+| Component props | `$props()` | Declare and destructure incoming props |
+| Callback props / lifting state | `$bindable()` | Two-way bindable prop |
+
+The biggest conceptual shift: **React hooks require an explicit dependency array.** Svelte runes are tracked by the compiler — you never list dependencies manually.
+
+## A first runnable counter
+
+export const indexCounterReact = `function Counter() {
+  const [count, setCount] = React.useState(0);
+  const doubled = React.useMemo(() => count * 2, [count]);
+
+  React.useEffect(() => {
+    document.title = 'Count: ' + count;
+  }, [count]);
+
+  return (
+    <div>
+      <button onClick={() => setCount(c => c + 1)}>+1</button>
+      <p>Count: {count} — Doubled: {doubled}</p>
+    </div>
+  );
+}`;
+
+export const indexCounterSvelte = `<script>
+  let count = \$state(0);
+  let doubled = \$derived(count * 2);
+
+  \$effect(() => {
+    document.title = 'Count: ' + count;
+  });
+<\/script>
+
+<button onclick={() => count++}>+1</button>
+<p>Count: {count} — Doubled: {doubled}</p>`;
+
+<ReactSvelte react={indexCounterReact} svelte={indexCounterSvelte} />
+
+Three runes, zero dependency arrays. The compiler figures out that `doubled` depends on `count`, and that the `$effect` should re-run whenever `count` changes.
+
+## Try it: live counter
+
+export const indexPlayCode = `<script>
+  let count = \$state(0);
+  let doubled = \$derived(count * 2);
+  let history = \$state([]);
+
+  \$effect(() => {
+    history = [...history, count];
+  });
+<\/script>
+
+<div style="font-family: sans-serif; padding: 1rem;">
+  <button onclick={() => count--} style="font-size:1.2rem;padding:0.3rem 0.8rem">-</button>
+  <strong style="font-size:1.5rem;margin:0 1rem">{count}</strong>
+  <button onclick={() => count++} style="font-size:1.2rem;padding:0.3rem 0.8rem">+</button>
+  <p>Doubled: {doubled}</p>
+  <p style="font-size:0.85rem;color:#666">History: {history.join(' → ')}</p>
+</div>`;
+
+<SveltePlayground client:visible code={indexPlayCode} />
+
+export const quizReactivityIndex = [
+  {
+    q: 'Which Svelte 5 rune replaces React\'s useState?',
+    options: ['$effect', '$derived', '$state', '$props'],
+    answer: 2,
+  },
+  {
+    q: 'Why does $derived need no dependency array?',
+    options: [
+      'It re-runs on every render like a plain expression',
+      'The Svelte compiler tracks dependencies automatically at build time',
+      'You must still pass deps — they are just optional',
+      'It only works for primitive values',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the Svelte 5 equivalent of useEffect with an empty deps array []?',
+    options: ['$effect with no body', 'onMount', '$derived.by', '$state.snapshot'],
+    answer: 1,
+  },
+  {
+    q: 'What is the key difference between $derived and $derived.by?',
+    options: [
+      '$derived is for objects; $derived.by is for primitives',
+      '$derived takes a single expression; $derived.by takes a function with a full body',
+      '$derived.by requires a deps array; $derived does not',
+      'They are identical — $derived.by is just an alias',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="reactivity/index" questions={quizReactivityIndex} />
+
+<ProgressTracker client:visible id="reactivity/index" />

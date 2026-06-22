@@ -1,0 +1,200 @@
+---
+title: '$state — Reactive State'
+description: 'How $state replaces useState in Svelte 5 — direct mutation, deep reactivity, no setter function.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React you declare state with `useState` and always update it through a **setter function** — you never modify the state variable directly. Svelte 5 flips this completely: `$state` gives you a plain variable that you **mutate directly**. The compiler rewrites it behind the scenes into signals, so the UI stays in sync automatically.
+
+## Declaring and updating state
+
+export const stateBasicReact = `function Counter() {
+  const [count, setCount] = React.useState(0);
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>+1</button>
+      <button onClick={() => setCount(0)}>Reset</button>
+    </div>
+  );
+}`;
+
+export const stateBasicSvelte = `<script>
+  let count = \$state(0);
+<\/script>
+
+<p>Count: {count}</p>
+<button onclick={() => count++}>+1</button>
+<button onclick={() => count = 0}>Reset</button>`;
+
+<ReactSvelte react={stateBasicReact} svelte={stateBasicSvelte} />
+
+There is no `setCount`. You write `count++` or `count = 0` directly — exactly what you would do with a plain JavaScript variable.
+
+## Deep reactivity: objects and arrays
+
+React's `useState` is **shallow** — you must spread objects or replace arrays to trigger a re-render. `$state` is **deeply reactive**: mutating a nested property or calling `array.push()` updates the UI automatically.
+
+export const stateObjectReact = `function Profile() {
+  const [user, setUser] = React.useState({ name: 'Alice', age: 30 });
+  const [tags, setTags] = React.useState(['svelte', 'react']);
+
+  function birthday() {
+    setUser(u => ({ ...u, age: u.age + 1 }));
+  }
+  function addTag() {
+    setTags(t => [...t, 'js']);
+  }
+
+  return (
+    <div>
+      <p>{user.name} is {user.age}</p>
+      <button onClick={birthday}>Birthday</button>
+      <p>{tags.join(', ')}</p>
+      <button onClick={addTag}>Add tag</button>
+    </div>
+  );
+}`;
+
+export const stateObjectSvelte = `<script>
+  let user = \$state({ name: 'Alice', age: 30 });
+  let tags = \$state(['svelte', 'react']);
+<\/script>
+
+<p>{user.name} is {user.age}</p>
+<button onclick={() => user.age++}>Birthday</button>
+
+<p>{tags.join(', ')}</p>
+<button onclick={() => tags.push('js')}>Add tag</button>`;
+
+<ReactSvelte react={stateObjectReact} svelte={stateObjectSvelte} />
+
+`user.age++` and `tags.push('js')` just work. No spreading, no replacing — Svelte's proxy-based deep reactivity handles it.
+
+## Multiple state variables
+
+export const stateMultiReact = `function Form() {
+  const [name, setName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [submitted, setSubmitted] = React.useState(false);
+
+  function submit() {
+    setSubmitted(true);
+  }
+
+  if (submitted) return <p>Sent! Hello, {name}.</p>;
+  return (
+    <form onSubmit={e => { e.preventDefault(); submit(); }}>
+      <input value={name} onChange={e => setName(e.target.value)} placeholder="Name" />
+      <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" />
+      <button type="submit">Send</button>
+    </form>
+  );
+}`;
+
+export const stateMultiSvelte = `<script>
+  let name = \$state('');
+  let email = \$state('');
+  let submitted = \$state(false);
+<\/script>
+
+{#if submitted}
+  <p>Sent! Hello, {name}.</p>
+{:else}
+  <form onsubmit={e => { e.preventDefault(); submitted = true; }}>
+    <input bind:value={name} placeholder="Name" />
+    <input bind:value={email} placeholder="Email" />
+    <button type="submit">Send</button>
+  </form>
+{/if}`;
+
+<ReactSvelte react={stateMultiReact} svelte={stateMultiSvelte} />
+
+## Try it: deep-reactive todo list
+
+export const statePlayCode = `<script>
+  let todos = \$state([
+    { text: 'Learn \$state', done: false },
+    { text: 'Try deep reactivity', done: false },
+  ]);
+  let newText = \$state('');
+
+  function addTodo() {
+    if (newText.trim()) {
+      todos.push({ text: newText.trim(), done: false });
+      newText = '';
+    }
+  }
+<\/script>
+
+<div style="font-family:sans-serif;padding:1rem">
+  <ul style="padding:0;list-style:none">
+    {#each todos as todo}
+      <li style="margin-bottom:0.5rem">
+        <label>
+          <input type="checkbox" bind:checked={todo.done} />
+          <span style={\`text-decoration:\${todo.done ? 'line-through' : 'none'};margin-left:0.5rem\`}>
+            {todo.text}
+          </span>
+        </label>
+      </li>
+    {/each}
+  </ul>
+  <input bind:value={newText} placeholder="New todo" onkeydown={e => e.key === 'Enter' && addTodo()} />
+  <button onclick={addTodo}>Add</button>
+</div>`;
+
+<SveltePlayground client:visible code={statePlayCode} />
+
+<Diff title="useState vs $state">
+
+- React `useState` returns a `[value, setter]` pair — you always update via `setX(newValue)`. Svelte `$state` returns the variable itself — mutate it directly (`count++`, `user.age = 30`).
+- React state is **shallow**: updating a nested property without spreading won't trigger a re-render. Svelte `$state` is **deeply reactive** via proxies — `user.age++` and `array.push()` both update the DOM.
+- React encourages immutable updates (`[...arr, item]`). Svelte encourages normal mutation (`arr.push(item)`) — the proxy detects the change.
+- Both initialise with a default value: `useState(0)` / `$state(0)`.
+- React state setters accept an updater function (`setCount(c => c + 1)`). With `$state` you just write the expression: `count = count + 1` or `count++`.
+
+</Diff>
+
+export const quizStateRune = [
+  {
+    q: 'How do you increment a $state counter in Svelte 5?',
+    options: [
+      'setCount(count + 1)',
+      'count.set(count + 1)',
+      'count++',
+      '$state.update(count, n => n + 1)',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'You have let user = $state({ name: "Alice" }). How do you update user.name to "Bob"?',
+    options: [
+      'setUser({ ...user, name: "Bob" })',
+      'user = { ...user, name: "Bob" }',
+      'user.name = "Bob"',
+      '$state.patch(user, { name: "Bob" })',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'You call tags.push("new") on a $state array. What happens?',
+    options: [
+      'Nothing — you must replace the array: tags = [...tags, "new"]',
+      'The DOM updates automatically because $state proxies mutation methods',
+      'It throws a runtime error',
+      'You need to call $state.refresh(tags) afterwards',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="reactivity/state-rune" questions={quizStateRune} />
+
+<ProgressTracker client:visible id="reactivity/state-rune" />

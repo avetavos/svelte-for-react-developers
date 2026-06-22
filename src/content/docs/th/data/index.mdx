@@ -1,0 +1,137 @@
+---
+title: 'Data & State — ภาพรวม'
+description: 'แผนที่ primitives ของ Svelte state สำหรับนักพัฒนา React: $state, stores, reactive state ระดับ module, และ async patterns'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React มอบเมนูที่หลากหลายแต่กระจัดกระจาย: `useState`, `useReducer`, `useContext`, `useRef`, Redux, Zustand, react-query, SWR — แต่ละตัวแก้ปัญหา state คนละส่วน Svelte มีโมเดลเป็นชั้นๆ ที่ครอบคลุมพื้นที่เดียวกันด้วยชิ้นส่วนที่น้อยกว่ามาก:
+
+- **`$state`** — reactive state ระดับ component (แทน `useState`)
+- **`$derived`** — ค่าที่คำนวณและอัปเดตอัตโนมัติ (แทน `useMemo`)
+- **`$effect`** — side effects ที่รันซ้ำเมื่อ dependency เปลี่ยน (แทน `useEffect`)
+- **Svelte stores** (`writable`, `readable`, `derived`) — shared state ข้ามคอมโพเนนต์
+- **`.svelte.ts` modules** — reactive state ระดับ module นำเข้าได้เหมือน JS module ทั่วไป
+- **`{#await}`** — async/loading/error state แบบ declarative ใน markup
+
+โมดูลนี้จะพาไปทีละชั้น เริ่มที่นี่เพื่อดูแผนที่ภาพรวม จากนั้นค่อยดำดิ่งสู่บทเรียนเฉพาะเรื่อง
+
+## State ระดับ component: useState → $state
+
+export const indexCounterReact = `function Counter() {
+  const [count, setCount] = React.useState(0);
+  return (
+    <button onClick={() => setCount(c => c + 1)}>
+      Count: {count}
+    </button>
+  );
+}`;
+
+export const indexCounterSvelte = `<script>
+  let count = \$state(0);
+<\/script>
+
+<button onclick={() => count++}>
+  Count: {count}
+</button>`;
+
+<ReactSvelte react={indexCounterReact} svelte={indexCounterSvelte} />
+
+ความต่างสำคัญ: ตัวแปร `$state` คือตัวแปรธรรมดาที่แก้ไขได้โดยตรง ไม่มี setter ไม่ต้องใช้ functional update — แค่ assign ค่าตรงๆ compiler ของ Svelte ติดตามการอ่านและเขียนที่ call site เอง
+
+## ลองเล่น: counter + toggled list
+
+export const indexPlaygroundCode = `<script>
+  let count = \$state(0);
+  let showList = \$state(false);
+  let items = \$state(['Apples', 'Bananas', 'Cherries']);
+  let newItem = \$state('');
+
+  function addItem() {
+    if (newItem.trim()) {
+      items = [...items, newItem.trim()];
+      newItem = '';
+    }
+  }
+<\/script>
+
+<h3>Counter</h3>
+<div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:1rem">
+  <button onclick={() => count--}>-</button>
+  <strong>{count}</strong>
+  <button onclick={() => count++}>+</button>
+  <button onclick={() => count = 0}>Reset</button>
+</div>
+
+<h3>
+  <button onclick={() => showList = !showList}>
+    {showList ? 'Hide' : 'Show'} list ({items.length})
+  </button>
+</h3>
+
+{#if showList}
+  <ul>
+    {#each items as item}
+      <li>{item}</li>
+    {/each}
+  </ul>
+  <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+    <input bind:value={newItem} placeholder="New item" />
+    <button onclick={addItem}>Add</button>
+  </div>
+{/if}`;
+
+<SveltePlayground client:visible code={indexPlaygroundCode} />
+
+<Diff title="React state toolbox vs Svelte state toolbox">
+
+- `useState(initial)` → `$state(initial)` — แก้ไขได้โดยตรง ไม่ต้องมี setter
+- `useMemo(() => expr, [deps])` → `$derived(expr)` — ติดตาม dependencies อัตโนมัติ
+- `useEffect(() => fn, [deps])` → `$effect(() => fn)` — แนวคิดเดิม แต่ compiler ติดตาม deps เอง
+- `useContext` + `createContext` + Provider → `.svelte.ts` module ที่ export `$state`
+- Redux / Zustand global store → Svelte `writable` / `readable` / `derived` stores
+- React Query / SWR data fetching → `onMount` + `fetch` หรือ SvelteKit `load` + `{#await}`
+- `<Suspense>` + error boundary → บล็อก `{#await promise}{:then}{:catch}{/await}`
+
+</Diff>
+
+export const quizIndex = [
+  {
+    q: 'Svelte 5 rune ตัวใดที่แทน useState ของ React ได้โดยตรง?',
+    options: [
+      '$effect',
+      '$derived',
+      '$state',
+      '$props',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Svelte writable store เปรียบได้กับ React pattern ใดมากที่สุด?',
+    options: [
+      'useRef',
+      'global state store อย่าง Zustand หรือ Redux',
+      'useMemo',
+      'React.createPortal',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'บล็อก {#await} ของ Svelte ต่างจากการ track loading state ด้วย useState แบบ manual อย่างไร?',
+    options: [
+      'ช้ากว่าเพราะใช้ Promises',
+      'ต้องใช้ library แยกต่างหาก',
+      'จัดการสถานะ loading, resolved, และ error แบบ declarative ใน markup โดยไม่ต้องใช้ flag manual',
+      'ใช้ได้กับ SvelteKit เท่านั้น',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="data/index" />

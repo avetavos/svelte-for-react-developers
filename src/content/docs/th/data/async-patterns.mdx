@@ -1,0 +1,159 @@
+---
+title: 'Async Patterns'
+description: "บล็อก {#await} ของ Svelte จัดการ loading, resolved, และ error state แบบ declarative ใน markup — เทียบกับ useState manual และ Suspense ของ React"
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+นักพัฒนา React จัดการ loading/error state ด้วย useState แบบ manual หรือใช้ Suspense + react-query เพื่อลด boilerplate Svelte มีทางออกแบบ declarative ในตัว: `{#await promise}...{:then value}...{:catch err}...{/await}` จัดการทั้งสามสถานะ — กำลังโหลด, สำเร็จ, และ error — ใน markup รวดเดียว ไม่ต้องมี flag manual ให้ track
+
+## manual loading/error/data เทียบกับ `{#await}`
+
+export const asyncManualReact = `function PostList() {
+  const [posts, setPosts] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    fetch('/api/posts')
+      .then(r => r.json())
+      .then(data => { setPosts(data); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, []);
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error}</p>;
+  return (
+    <ul>
+      {posts.map(p => <li key={p.id}>{p.title}</li>)}
+    </ul>
+  );
+}`;
+
+export const asyncAwaitSvelte = `<script>
+  const postsPromise = fetch('/api/posts').then(r => r.json());
+<\/script>
+
+{#await postsPromise}
+  <p>Loading...</p>
+{:then posts}
+  <ul>
+    {#each posts as p}
+      <li>{p.title}</li>
+    {/each}
+  </ul>
+{:catch error}
+  <p>Error: {error.message}</p>
+{/await}`;
+
+<ReactSvelte react={asyncManualReact} svelte={asyncAwaitSvelte} />
+
+สังเกตว่าโค้ด Svelte ไม่มี state variables เลย — `{#await}` ติดตามสถานะของ Promise โดยตรงและ render ตาม block ที่ถูกต้องอัตโนมัติ เมื่อ Promise resolve หรือ reject Svelte จะ update UI ให้เอง
+
+## ลองเล่น: simulated Promise + Reload button
+
+export const asyncPlaygroundCode = `<script>
+  function fetchData() {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (Math.random() > 0.3) {
+          resolve([
+            { id: 1, title: 'Svelte 5 Runes Deep Dive' },
+            { id: 2, title: 'Building with SvelteKit' },
+            { id: 3, title: 'Stores vs Module State' },
+          ]);
+        } else {
+          reject(new Error('Network error — try reloading'));
+        }
+      }, 1000);
+    });
+  }
+
+  let promise = \$state(fetchData());
+<\/script>
+
+{#await promise}
+  <p>Fetching posts...</p>
+{:then posts}
+  <ul>
+    {#each posts as post}
+      <li>{post.title}</li>
+    {/each}
+  </ul>
+{:catch error}
+  <p style="color: crimson">{error.message}</p>
+{/await}
+
+<button onclick={() => promise = fetchData()}>Reload</button>
+
+<style>
+  ul { padding-left: 1.2rem; }
+  li { margin: 0.3rem 0; }
+  button { margin-top: 1rem; padding: 0.4rem 1rem; cursor: pointer; }
+</style>`;
+
+<SveltePlayground client:visible code={asyncPlaygroundCode} />
+
+กด Reload หลายๆ ครั้งเพื่อดูทั้งสถานะ loading และ error (มี 30% โอกาสเกิด error แบบสุ่ม) เมื่อ `promise` เปลี่ยน บล็อก `{#await}` จะ reset และเริ่มต้นใหม่อัตโนมัติ
+
+<Diff title="React manual state vs Svelte {#await}">
+
+- React ต้องการ state variables แยก 3 ตัว: `loading`, `error`, `data` — จัดการเองทั้งหมด
+- Svelte `{#await}` ติดตามสถานะ Promise โดยตรง ไม่ต้องมี state flags
+- `{#await promise}` คือสถานะ pending, `{:then value}` คือ resolved, `{:catch err}` คือ rejected
+- เมื่อ Promise variable เปลี่ยน บล็อก `{#await}` จะ re-run อัตโนมัติ — ง่ายสำหรับ "reload" pattern
+- React Suspense + react-query ให้ feature ใกล้เคียงกัน แต่ต้องใช้ library และ setup เพิ่ม
+- `{#await}` ทำงานกับ Promise ธรรมดาทุกตัว — ไม่ต้องมี library พิเศษ
+
+</Diff>
+
+export const quizAsync = [
+  {
+    q: 'บล็อก {#await} ของ Svelte มี block กี่ส่วน?',
+    options: [
+      '1 — แค่ then block',
+      '2 — pending และ then',
+      '3 — pending, then, และ catch',
+      '4 — init, pending, then, และ catch',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'คุณทำให้ {#await} fetch ข้อมูลใหม่อย่างไร?',
+    options: [
+      'เรียก promise.refresh()',
+      'เปลี่ยน Promise variable ให้เป็น Promise ใหม่ — block จะ re-run อัตโนมัติ',
+      'เรียก $invalidate(promise)',
+      'ใช้ onMount ใหม่',
+    ],
+    answer: 1,
+  },
+  {
+    q: '{#await} ต่างจาก useEffect + loading state อย่างไร?',
+    options: [
+      '{#await} เร็วกว่าเสมอ',
+      '{#await} ใช้ได้กับ SvelteKit เท่านั้น',
+      '{#await} ติดตามสถานะ Promise แบบ declarative ใน markup โดยไม่ต้องมี state flags manual',
+      '{#await} cancel Promise อัตโนมัติเมื่อ component unmount',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'syntax ที่ถูกต้องสำหรับ {#await} block ที่มีทั้งสาม state คืออะไร?',
+    options: [
+      '{#await p}{:loading}{:resolve v}{:reject e}{/await}',
+      '{#await p}...{:then v}...{:catch e}{/await}',
+      '{#promise p}...{:then v}...{:error e}{/promise}',
+      '{#async p}...{:success v}...{:fail e}{/async}',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="data/async-patterns" questions={quizAsync} />
+
+<ProgressTracker client:visible id="data/async-patterns" />

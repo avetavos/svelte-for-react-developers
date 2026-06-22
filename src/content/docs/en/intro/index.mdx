@@ -1,0 +1,223 @@
+---
+title: 'Introduction — Why Svelte for React Developers'
+description: 'Svelte is a compiler, not a runtime. Less boilerplate, no virtual DOM, scoped styles built in — here is what that means for React developers.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+You already know React. You understand components, props, state, and the render cycle. Svelte builds on those same ideas but solves them differently — as a **compiler** rather than a runtime library. This course shows you exactly what changes, what stays familiar, and how to carry your React intuition into Svelte 5.
+
+## Svelte is a compiler, not a runtime
+
+React ships a JavaScript runtime (~45 kB gzip for React + ReactDOM) that runs in the browser and manages a virtual DOM tree. Every `setState` call triggers a reconciliation pass: React diffs the new vDOM against the previous one and patches the real DOM.
+
+Svelte works at **build time**. Your `.svelte` files are compiled into tight, framework-free JavaScript that talks directly to the DOM. There is no virtual DOM to diff, no reconciler to ship. The output is plain `document.createElement` and targeted `element.textContent =` assignments — the absolute minimum the browser needs.
+
+Practical consequences:
+
+- **Smaller bundles.** A Svelte app ships almost no framework overhead. A "Hello World" Svelte component compiles to a few hundred bytes.
+- **Faster updates.** Instead of diffing a vDOM tree, compiled Svelte code directly updates only the DOM nodes that actually changed.
+- **No React import needed.** Your components are standalone compiled modules.
+
+## Less boilerplate
+
+React requires explicit state declarations (`useState`) and a separate setter function for every piece of reactive state. In Svelte 5 you declare reactive state with `$state()` and mutate it with plain assignment — the compiler instruments the mutation for you.
+
+export const introGreetReact = `function Greeting() {
+  const [name, setName] = React.useState('World');
+  return (
+    <div>
+      <input value={name} onChange={e => setName(e.target.value)} />
+      <p>Hello, {name}!</p>
+    </div>
+  );
+}`;
+
+export const introGreetSvelte = `<script>
+  let name = \$state('World');
+<\/script>
+
+<input bind:value={name} />
+<p>Hello, {name}!</p>`;
+
+<ReactSvelte react={introGreetReact} svelte={introGreetSvelte} />
+
+Notice what disappears in the Svelte version:
+
+- No `useState` import, no setter function (`setName`).
+- `name` is declared once with `$state()` — assigning to it is enough to trigger a re-render.
+- `bind:value` handles the two-way sync between the input and the variable (no `onChange` wiring).
+
+## Scoped styles built in
+
+React has no opinion on CSS. Teams reach for CSS Modules, styled-components, Tailwind, or some combination. Svelte ships scoped styles as a first-class language feature: a `<style>` block inside a `.svelte` file is **automatically scoped** to that component. No extra tooling, no class name mangling configuration, no runtime overhead.
+
+```svelte
+<style>
+  /* This rule only affects <p> tags inside THIS component */
+  p { color: steelblue; font-size: 1.2rem; }
+</style>
+```
+
+At compile time Svelte generates a unique attribute (e.g. `svelte-abc123`) and rewrites the selector to `p[svelte-abc123]`. Global styles never leak in; your styles never leak out.
+
+## Course overview
+
+| Module | Topics |
+|--------|--------|
+| **Intro** | Compiler model, reactivity basics, scoped styles |
+| **Components** | Props, events, slots/snippets, lifecycle |
+| **Reactivity** | `$state`, `$derived`, `$effect`, stores |
+| **Bindings** | `bind:value`, `bind:checked`, `bind:this` |
+| **Control Flow** | `{#if}`, `{#each}`, `{#await}`, `{#key}` |
+| **Styling** | Scoped styles, global styles, CSS variables, transitions |
+| **Routing** | SvelteKit pages, layouts, load functions |
+| **Advanced** | Context API, actions, custom stores, TypeScript |
+
+## Your first Svelte 5 component
+
+export const introReactCounter = `function App() {
+  const [name, setName] = React.useState('React developer');
+  const [count, setCount] = React.useState(0);
+  return (
+    <div>
+      <input value={name} onChange={e => setName(e.target.value)} />
+      <p>Hello, {name}!</p>
+      <button onClick={() => setCount(c => c + 1)}>
+        Clicked {count} {count === 1 ? 'time' : 'times'}
+      </button>
+    </div>
+  );
+}`;
+
+export const introSvelteCounter = `<script>
+  let name = \$state('Svelte developer');
+  let count = \$state(0);
+<\/script>
+
+<input bind:value={name} />
+<p>Hello, {name}!</p>
+<button onclick={() => count++}>
+  Clicked {count} {count === 1 ? 'time' : 'times'}
+</button>`;
+
+<ReactSvelte react={introReactCounter} svelte={introSvelteCounter} />
+
+## Try it live
+
+The playground below is a complete, editable Svelte 5 component. Change the name, click the button, tweak the styles — everything runs in your browser.
+
+export const indexCode = `<script>
+  let name = \$state('React developer');
+  let count = \$state(0);
+
+  let greeting = \$derived('Hello, ' + name + '!');
+<\/script>
+
+<div class="card">
+  <label>
+    Your name
+    <input bind:value={name} placeholder="Type your name…" />
+  </label>
+
+  <p class="greeting">{greeting}</p>
+
+  <button onclick={() => count++}>
+    You clicked {count} {count === 1 ? 'time' : 'times'}
+  </button>
+</div>
+
+<style>
+  .card {
+    font-family: sans-serif;
+    max-width: 320px;
+    padding: 1.5rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+  input {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+  }
+  .greeting {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #ff3e00;
+    margin: 0;
+  }
+  button {
+    padding: 0.5rem 1rem;
+    background: #ff3e00;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  button:hover { background: #cc3200; }
+</style>`;
+
+<SveltePlayground client:visible code={indexCode} />
+
+<Diff title="React runtime vs Svelte compiler">
+
+- **Runtime model** — React ships a JavaScript runtime library that runs in every user's browser. Svelte compiles components to vanilla JS at build time; no framework code is shipped.
+- **Virtual DOM** — React builds a virtual DOM tree on every render and diffs it to find changes. Svelte generates direct DOM mutations (`element.textContent = value`) with no diffing step.
+- **Boilerplate** — React requires `useState` + a setter for every reactive value. Svelte 5 uses `$state()` assignment; the compiler handles reactivity wiring automatically.
+- **Styles** — React has no built-in scoping; teams add CSS Modules, styled-components, or Tailwind. Svelte scopes `<style>` blocks to the component automatically with zero configuration.
+- **Bundle size** — React + ReactDOM is ~45 kB gzip before your app code. A Svelte component compiles to a few hundred bytes of framework-free JavaScript; total app size grows only with your own code.
+
+</Diff>
+
+export const quizIndex = [
+  {
+    q: 'What makes Svelte fundamentally different from React?',
+    options: [
+      'Svelte uses a faster virtual DOM algorithm',
+      'Svelte is a compiler that outputs vanilla JS with no runtime framework',
+      'Svelte runs on the server only',
+      'Svelte requires TypeScript',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How do you create reactive state in Svelte 5?',
+    options: [
+      'const [x, setX] = useState(0)',
+      'let x = reactive(0)',
+      'let x = $state(0)',
+      'let x = 0 (plain let is always reactive)',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'How are component styles scoped in Svelte?',
+    options: [
+      'You must add a CSS Modules config to your bundler',
+      'Styles are global by default; use :local() to scope them',
+      'You wrap styles in a styled() call like styled-components',
+      'Any <style> block inside a .svelte file is automatically scoped to that component',
+    ],
+    answer: 3,
+  },
+];
+
+<Quiz client:visible id="intro/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="intro/index" />

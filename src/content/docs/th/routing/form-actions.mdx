@@ -1,0 +1,293 @@
+---
+title: 'Form Actions'
+description: 'Form actions ของ SvelteKit พร้อม progressive enhancement ด้วย use:enhance เทียบกับ React form handlers'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React การ submit form มักหมายถึงการดัก `onSubmit` event, เรียก `e.preventDefault()`, และส่ง data ไปยัง API ด้วย `fetch` เอง SvelteKit มีแนวทางที่ต่างออกไปด้วย **form actions** — function ฝั่ง server ที่ผูกติดกับ `+page.server.js` โดยตรง ทำให้ form ทำงานได้โดยไม่ต้องใช้ JavaScript เลย แล้วค่อย enhance ด้วย `use:enhance` เพื่อ UX แบบ SPA
+
+## Form action พื้นฐาน
+
+export const formReact = `// React + API Route
+// app/api/contact/route.ts
+export async function POST(req) {
+  const data = await req.formData();
+  const name = data.get('name');
+  const email = data.get('email');
+  await saveContact({ name, email });
+  return Response.json({ ok: true });
+}
+
+// components/ContactForm.tsx
+function ContactForm() {
+  const [status, setStatus] = React.useState('');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const form = new FormData(e.target);
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      body: form,
+    });
+    if (res.ok) setStatus('Sent!');
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="name" placeholder="Name" required />
+      <input name="email" type="email" placeholder="Email" required />
+      <button type="submit">Send</button>
+      {status && <p>{status}</p>}
+    </form>
+  );
+}`;
+
+export const formSvelte = `<!-- src/routes/contact/+page.server.js -->
+export const actions = {
+  default: async ({ request }) => {
+    const data = await request.formData();
+    const name = data.get('name');
+    const email = data.get('email');
+    await saveContact({ name, email });
+    return { success: true };
+  },
+};
+
+<!-- src/routes/contact/+page.svelte -->
+<script>
+  let { form } = \$props();
+<\/script>
+
+<form method="POST">
+  <input name="name" placeholder="Name" required />
+  <input name="email" type="email" placeholder="Email" required />
+  <button type="submit">Send</button>
+  {#if form?.success}
+    <p>Sent!</p>
+  {/if}
+</form>`;
+
+<ReactSvelte react={formReact} svelte={formSvelte} />
+
+ข้อสังเกตสำคัญ: ไม่มี `onSubmit` handler, ไม่มี `fetch`, ไม่มี `e.preventDefault()` ใน Svelte — form ชี้ไปที่ server action ด้วย `method="POST"` และ server return ข้อมูลกลับมาผ่าน `form` prop โดยอัตโนมัติ
+
+## Named actions
+
+หน้าเดียวสามารถมีหลาย action ได้ เช่น form สำหรับ login และ register อยู่บนหน้าเดียวกัน
+
+```js
+// +page.server.js
+export const actions = {
+  login: async ({ request }) => {
+    const data = await request.formData();
+    // ตรวจสอบ credentials
+    return { success: true };
+  },
+  register: async ({ request }) => {
+    const data = await request.formData();
+    // สร้าง account ใหม่
+    return { success: true };
+  },
+};
+```
+
+```svelte
+<!-- +page.svelte -->
+<form method="POST" action="?/login">
+  <input name="email" type="email" />
+  <input name="password" type="password" />
+  <button>Login</button>
+</form>
+
+<form method="POST" action="?/register">
+  <input name="email" type="email" />
+  <input name="password" type="password" />
+  <button>Register</button>
+</form>
+```
+
+## Progressive enhancement ด้วย use:enhance
+
+Form actions ทำงานได้แม้ไม่มี JavaScript (เหมือน HTML form ธรรมดา) เพิ่ม `use:enhance` เพื่ออัปเกรดเป็น client-side experience โดยไม่ต้องเขียน fetch logic เอง
+
+export const enhanceReact = `// React: ต้องจัดการทุกอย่างเอง
+function LoginForm() {
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        body: new FormData(e.target),
+      });
+      const json = await res.json();
+      if (!json.ok) setError(json.message);
+    } catch {
+      setError('Network error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="email" type="email" />
+      <input name="password" type="password" />
+      <button disabled={loading}>
+        {loading ? 'Logging in...' : 'Login'}
+      </button>
+      {error && <p className="error">{error}</p>}
+    </form>
+  );
+}`;
+
+export const enhanceSvelte = `<!-- +page.server.js -->
+export const actions = {
+  default: async ({ request, cookies }) => {
+    const data = await request.formData();
+    const user = await authenticate(
+      data.get('email'),
+      data.get('password')
+    );
+    if (!user) {
+      return fail(400, { message: 'Invalid credentials' });
+    }
+    cookies.set('session', user.token, { path: '/' });
+    redirect(303, '/dashboard');
+  },
+};
+
+<!-- +page.svelte -->
+<script>
+  import { enhance } from '\$app/forms';
+  let { form } = \$props();
+  let loading = \$state(false);
+<\/script>
+
+<form method="POST" use:enhance={() => {
+  loading = true;
+  return async ({ update }) => {
+    await update();
+    loading = false;
+  };
+}}>
+  <input name="email" type="email" />
+  <input name="password" type="password" />
+  <button disabled={loading}>
+    {loading ? 'Logging in...' : 'Login'}
+  </button>
+  {#if form?.message}
+    <p class="error">{form.message}</p>
+  {/if}
+</form>`;
+
+<ReactSvelte react={enhanceReact} svelte={enhanceSvelte} />
+
+`use:enhance` จัดการ fetch, อัปเดต `form` prop, และ invalidate data ให้อัตโนมัติ คุณแค่เพิ่ม callback เพื่อจัดการ loading state เท่านั้น
+
+## Return ข้อมูลและ validation errors
+
+ใช้ `fail()` เพื่อส่ง validation errors กลับมาพร้อม status code ที่เหมาะสม
+
+```js
+// +page.server.js
+import { fail } from '@sveltejs/kit';
+
+export const actions = {
+  default: async ({ request }) => {
+    const data = await request.formData();
+    const email = data.get('email');
+
+    if (!email || !email.includes('@')) {
+      return fail(422, {
+        email,
+        errors: { email: 'กรุณากรอก email ที่ถูกต้อง' },
+      });
+    }
+
+    await subscribe(email);
+    return { success: true };
+  },
+};
+```
+
+```svelte
+<!-- +page.svelte -->
+<script>
+  let { form } = $props();
+</script>
+
+<form method="POST">
+  <input
+    name="email"
+    type="email"
+    value={form?.email ?? ''}
+  />
+  {#if form?.errors?.email}
+    <p class="error">{form.errors.email}</p>
+  {/if}
+  <button>Subscribe</button>
+  {#if form?.success}
+    <p>สมัครสำเร็จแล้ว!</p>
+  {/if}
+</form>
+```
+
+SvelteKit จะ repopulate ค่าใน field อัตโนมัติผ่าน `form` prop เมื่อ validation ล้มเหลว ไม่ต้องเขียน logic นี้เอง
+
+<Diff title="React form handlers เทียบกับ SvelteKit form actions">
+
+- React: จัดการ submit ด้วย `onSubmit` + `e.preventDefault()` + `fetch` ด้วยตนเอง — ทุก step ต้องเขียนเอง
+- SvelteKit: ประกาศ `actions` object ใน `+page.server.js` — form ชี้ไปหา action ด้วย `method="POST"` เท่านั้น
+- Progressive enhancement: React ต้องการ JavaScript เสมอ — SvelteKit form actions ทำงานได้แม้ปิด JS, เพิ่ม `use:enhance` เพื่ออัปเกรดเป็น SPA experience
+- Validation errors: React ต้องจัดการ state เอง — SvelteKit ใช้ `fail()` แล้ว `form` prop จะมีข้อมูล error พร้อม repopulate field ให้
+- Loading state: ใน React ต้องสร้าง `isLoading` state เอง — ใน SvelteKit จัดการใน `use:enhance` callback
+- Type safety: action return value สามารถ type ด้วย TypeScript ได้ผ่าน `PageData` และ `ActionData`
+- Named actions: SvelteKit รองรับหลาย action ต่อ page ด้วย `action="?/actionName"` — React ต้องแยก API route เอง
+
+</Diff>
+
+export const quizFormActions = [
+  {
+    q: 'คุณกำหนด SvelteKit form actions ไว้ที่ไหน?',
+    options: [
+      '+page.svelte ภายใน <script server> block',
+      '+page.server.js เป็น exported actions object',
+      '+server.js เป็น POST handler',
+      'svelte.config.js ภายใต้ actions key',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณชี้ form ไปหา named action ชื่อ "create" อย่างไร?',
+    options: [
+      '<form method="POST" action="/create">',
+      '<form method="POST" action="#create">',
+      '<form method="POST" action="?/create">',
+      '<form method="POST" name="create">',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'use:enhance ทำอะไรกับ SvelteKit form?',
+    options: [
+      'validate ทุก input ฝั่ง client ก่อน submit',
+      'แทนที่ form ด้วย controlled component แบบ React',
+      'intercept การ submit และใช้ fetch ขณะที่ยังรักษา fallback แบบไม่มี JS ไว้',
+      'ปิดการใช้งาน native form submission ทั้งหมด',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="routing/form-actions" questions={quizFormActions} />
+
+<ProgressTracker client:visible id="routing/form-actions" />

@@ -1,0 +1,164 @@
+---
+title: 'File-based Routing'
+description: 'Nested routes, dynamic [param] segments, and the +page.svelte convention — mapped from react-router and Next.js.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In react-router you declare routes in JavaScript. In Next.js you create files in a `pages/` or `app/` directory. SvelteKit works like Next.js App Router: **create a folder, add `+page.svelte`, and you have a route.** No imports, no route config, no wrapping component needed.
+
+> Run this in a SvelteKit project (`npx sv create`).
+
+## Basic routes
+
+The simplest case: a static path maps directly to a folder + `+page.svelte`.
+
+export const basicReact = `// react-router v6
+import { createBrowserRouter } from 'react-router-dom';
+import About from './pages/About';
+
+const router = createBrowserRouter([
+  { path: '/about', element: <About /> },
+]);`;
+
+export const basicSvelte = `<!-- src/routes/about/+page.svelte -->
+<!-- This file IS the /about route. No config needed. -->
+
+<h1>About</h1>
+<p>Welcome to the about page.</p>`;
+
+<ReactSvelte react={basicReact} svelte={basicSvelte} reactTitle='React (react-router)' svelteTitle='SvelteKit' />
+
+## Dynamic routes: `[param]`
+
+react-router uses `:id` in the path string. Next.js uses `[id]` in the filename. SvelteKit uses `[param]` as a **folder name** — the folder name (without brackets) becomes the parameter key.
+
+export const dynReact = `// react-router v6
+{ path: '/posts/:id', element: <PostPage /> }
+
+// Next.js Pages Router
+// pages/posts/[id].tsx
+
+// Next.js App Router
+// app/posts/[id]/page.tsx`;
+
+export const dynSvelte = `<!-- src/routes/posts/[id]/+page.svelte -->
+<!-- Matches /posts/1, /posts/hello, /posts/anything -->
+
+<h1>Post detail page</h1>`;
+
+<ReactSvelte react={dynReact} svelte={dynSvelte} reactTitle='React / Next.js' svelteTitle='SvelteKit' />
+
+## Route file-tree walkthrough
+
+A realistic SvelteKit `src/routes/` structure:
+
+```
+src/routes/
+├── +page.svelte          ← /
+├── about/
+│   └── +page.svelte      ← /about
+├── blog/
+│   ├── +page.svelte      ← /blog
+│   └── [slug]/
+│       └── +page.svelte  ← /blog/:slug
+└── dashboard/
+    ├── +layout.svelte    ← shared layout
+    ├── +page.svelte      ← /dashboard
+    └── settings/
+        └── +page.svelte  ← /dashboard/settings
+```
+
+Every `+page.svelte` is a route. The `+layout.svelte` inside `dashboard/` wraps all pages in that folder and its subfolders — equivalent to a `<Outlet>` layout route in react-router or a `layout.tsx` in Next.js App Router.
+
+## Accessing route params
+
+### Via the `load` function (recommended)
+
+The cleanest approach is to read params inside `+page.js` or `+page.server.js` and pass them to the component as `data`. The component stays param-agnostic.
+
+```js
+// src/routes/blog/[slug]/+page.js
+export async function load({ params }) {
+  const post = await fetchPost(params.slug);
+  return { post };
+}
+```
+
+```svelte
+<!-- src/routes/blog/[slug]/+page.svelte -->
+<script>
+  let { data } = \$props();
+  // data.post is what load() returned
+<\/script>
+
+<h1>{data.post.title}</h1>
+<article>{@html data.post.content}</article>
+```
+
+### Via the `$page` store (direct access)
+
+You can also read params directly in the component using the `$page` store from `$app/state`:
+
+```svelte
+<!-- src/routes/blog/[slug]/+page.svelte -->
+<script>
+  import { page } from '\$app/state';
+  // page.params.slug is the current [slug] value
+<\/script>
+
+<p>Viewing slug: {page.params.slug}</p>
+```
+
+The `load` function approach is preferred — it keeps data fetching co-located and typed, and it works well with server-side rendering.
+
+<Diff title="react-router / Next.js params vs SvelteKit params">
+
+- react-router: dynamic segment syntax is `:id` in the path string. Access via `useParams()` hook.
+- Next.js Pages Router: filename `[id].tsx`. Access via `useRouter().query.id`.
+- Next.js App Router: folder `[id]/page.tsx`. Access via `props.params.id` (async in Next 15+).
+- SvelteKit: folder `[id]/+page.svelte`. Access via `params.id` in `load()`, or `page.params.id` from `$app/state`.
+- SvelteKit param folders use `[square-brackets]` just like Next.js, not `:colons` like react-router.
+- SvelteKit layouts (`+layout.svelte`) auto-wrap child routes — no `<Outlet />` needed inside the layout.
+
+</Diff>
+
+export const quizFileBased = [
+  {
+    q: 'How do you create a dynamic route for /posts/:id in SvelteKit?',
+    options: [
+      'Name the file +page[id].svelte',
+      'Create the folder src/routes/posts/[id]/ and add +page.svelte inside it',
+      'Add { path: "/posts/:id" } to svelte.config.js',
+      'Use a [param] comment in +page.svelte',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the SvelteKit equivalent of a react-router layout route with <Outlet />?',
+    options: [
+      '+layout.svelte in the route folder — children render where <slot /> appears',
+      'A wrapper component imported into every +page.svelte',
+      'A _layout.tsx file at the root',
+      'app.svelte',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'What syntax does SvelteKit use for dynamic route segments — and how does it differ from react-router?',
+    options: [
+      'SvelteKit uses :param (same as react-router)',
+      'SvelteKit uses {param} in the folder name',
+      'SvelteKit uses [param] folder names; react-router uses :param in path strings',
+      'They are identical — both use [param]',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="routing/file-based-routing" questions={quizFileBased} />
+
+<ProgressTracker client:visible id="routing/file-based-routing" />

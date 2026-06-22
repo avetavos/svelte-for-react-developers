@@ -1,0 +1,189 @@
+---
+title: '$effect — Side Effects'
+description: '$effect เทียบกับ useEffect ใน Svelte 5 — ติดตาม dependencies อัตโนมัติ ไม่มี dependency array cleanup ผ่าน return'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+`useEffect` มี footgun ที่เป็นที่รู้จักดี: ลืมตัวแปรใน dependency array และ effect ของคุณจะรันด้วยค่าเก่า ใส่มากเกินไปและมันจะรันบ่อยเกินไป `$effect` ของ Svelte 5 แก้ปัญหานี้โดยสิ้นเชิง — **ไม่มี dependency array** effect รันครั้งแรก จากนั้นรันใหม่อัตโนมัติทุกครั้งที่ reactive value ที่มันอ่านในการรันก่อนหน้าเปลี่ยน คอมไพเลอร์ track dependencies แทนคุณ
+
+## Side effect พื้นฐาน
+
+export const effectBasicReact = `function TitleSync() {
+  const [count, setCount] = React.useState(0);
+
+  React.useEffect(() => {
+    document.title = 'Count: ' + count;
+  }, [count]);  // <-- must list count here
+
+  return <button onClick={() => setCount(c => c + 1)}>+1 (count: {count})</button>;
+}`;
+
+export const effectBasicSvelte = `<script>
+  let count = \$state(0);
+
+  \$effect(() => {
+    document.title = 'Count: ' + count;
+    // count ถูกอ่านที่นี่ จึงถูก track อัตโนมัติ
+  });
+<\/script>
+
+<button onclick={() => count++}>+1 (count: {count})</button>`;
+
+<ReactSvelte react={effectBasicReact} svelte={effectBasicSvelte} />
+
+ไม่มี `[count]` effect อ่าน `count` ดังนั้น Svelte รู้ว่าต้องรันใหม่เมื่อ `count` เปลี่ยน
+
+## $effect รันเมื่อไหร่?
+
+- **การรันแรก:** หลัง component mount (เหมือน `useEffect` ที่ไม่มี deps)
+- **รันใหม่:** synchronously หลัง reactive dependency ที่มันอ่านในการรันก่อนหน้าเปลี่ยน
+- **ไม่รันระหว่าง render:** ต่างจาก `useMemo`, `$effect` ไม่รันในขั้นตอน rendering แบบ synchronous
+
+## Cleanup
+
+Return function จาก `$effect` เพื่อ cleanup ก่อนการรันครั้งถัดไปหรือเมื่อ component ถูกทำลาย — เหมือนรูปแบบ cleanup ของ `useEffect` ทุกประการ
+
+export const effectCleanupReact = `function Timer() {
+  const [seconds, setSeconds] = React.useState(0);
+
+  React.useEffect(() => {
+    const id = setInterval(() => setSeconds(s => s + 1), 1000);
+    return () => clearInterval(id);  // cleanup
+  }, []);
+
+  return <p>Elapsed: {seconds}s</p>;
+}`;
+
+export const effectCleanupSvelte = `<script>
+  import { onMount } from 'svelte';
+  let seconds = \$state(0);
+
+  onMount(() => {
+    const id = setInterval(() => seconds++, 1000);
+    return () => clearInterval(id);  // cleanup
+  });
+<\/script>
+
+<p>Elapsed: {seconds}s</p>`;
+
+<ReactSvelte react={effectCleanupReact} svelte={effectCleanupSvelte} />
+
+สำหรับรูปแบบ "รันครั้งเดียวเมื่อ mount + cleanup เมื่อ destroy", `onMount` ใช้งานง่ายกว่า `$effect` ดูเพิ่มเติมในบทเรียน Lifecycle
+
+## $effect สำหรับ localStorage sync
+
+กรณีการใช้งาน `useEffect` ที่พบบ่อย — sync state กับ localStorage — map ตรงกัน:
+
+export const effectStorageReact = `function ThemeToggle() {
+  const [theme, setTheme] = React.useState(
+    () => localStorage.getItem('theme') ?? 'light'
+  );
+
+  React.useEffect(() => {
+    localStorage.setItem('theme', theme);
+    document.body.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  return (
+    <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
+      Theme: {theme}
+    </button>
+  );
+}`;
+
+export const effectStorageSvelte = `<script>
+  let theme = \$state(
+    typeof localStorage !== 'undefined'
+      ? (localStorage.getItem('theme') ?? 'light')
+      : 'light'
+  );
+
+  \$effect(() => {
+    localStorage.setItem('theme', theme);
+    document.body.setAttribute('data-theme', theme);
+  });
+<\/script>
+
+<button onclick={() => theme = theme === 'light' ? 'dark' : 'light'}>
+  Theme: {theme}
+</button>`;
+
+<ReactSvelte react={effectStorageReact} svelte={effectStorageSvelte} />
+
+## ทดลองได้เลย: live logger
+
+export const effectPlayCode = `<script>
+  let name = \$state('World');
+  let log = \$state([]);
+
+  \$effect(() => {
+    log = [...log, 'name changed to: ' + name];
+  });
+<\/script>
+
+<div style="font-family:sans-serif;padding:1rem">
+  <label>
+    Name:
+    <input bind:value={name} style="margin-left:0.5rem" />
+  </label>
+  <ul style="margin-top:1rem;font-size:0.85rem;color:#555">
+    {#each log as entry}
+      <li>{entry}</li>
+    {/each}
+  </ul>
+</div>`;
+
+<SveltePlayground client:visible code={effectPlayCode} />
+
+<Diff title="useEffect vs $effect">
+
+- React `useEffect(fn, [deps])` — dependency array **จำเป็นสำหรับความถูกต้อง** ลืม dep แล้ว effect รันด้วยค่าเก่า Svelte `$effect(fn)` — **ไม่มี dependency array เลย** คอมไพเลอร์ track reactive value ทุกตัวที่ function อ่าน
+- React effects รัน **หลังทุก render** เว้นแต่จะระบุ deps Svelte effects รันหลัง mount แล้ว **รันเฉพาะเมื่อ tracked dependencies เปลี่ยน**
+- Cleanup: ทั้งคู่ใช้ `return () => cleanup()` ภายใน effect function
+- React `useEffect(fn, [])` รันครั้งเดียวหลัง mount ใน Svelte ใช้ `onMount` สำหรับรูปแบบนั้น — `$effect` ที่ไม่มี reactive reads ก็รันครั้งเดียวเช่นกัน แต่ `onMount` แสดงความตั้งใจชัดเจนกว่า
+- ใน Svelte ไม่สามารถเรียก `$effect` แบบ conditional ได้ (เหมือน rules of hooks ของ React) เรียก `$effect` ที่ top level ของ component หรือ module เสมอ
+- React effects เป็น asynchronous (ต่อคิวหลัง paint) Svelte `$effect` รัน synchronous ใน microtask queue หลัง reactive update ถูก flush
+
+</Diff>
+
+export const quizEffectRune = [
+  {
+    q: '$effect รู้ได้อย่างไรว่าจะ re-run บน reactive values ไหน?',
+    options: [
+      'ต้องระบุใน dependency array',
+      'คอมไพเลอร์ track reactive value ทุกตัวที่ effect อ่านในการรันก่อนหน้า',
+      'รันใหม่ทุกครั้งที่ state ใด ๆ ใน component เปลี่ยน',
+      'เรียก $effect.track(dep) เพื่อ register แต่ละ dependency',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'จะ cleanup $effect ยังไง (เช่น clear interval)?',
+    options: [
+      'เรียก $effect.cleanup(() => clearInterval(id))',
+      'ใช้ onDestroy แทน — $effect ไม่มี cleanup',
+      'Return cleanup function จากภายใน $effect callback',
+      'ส่ง argument ที่สอง: $effect(fn, cleanup)',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ต้องการให้ effect รันครั้งเดียวหลัง mount วิธีการ idiomatic ของ Svelte คืออะไร?',
+    options: [
+      '$effect(() => { ... }, [])',
+      '$effect.once(() => { ... })',
+      'onMount(() => { ... })',
+      '$effect พร้อม boolean guard variable',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="reactivity/effect-rune" questions={quizEffectRune} />
+
+<ProgressTracker client:visible id="reactivity/effect-rune" />

@@ -1,0 +1,157 @@
+---
+title: 'Scoped Styles'
+description: 'Svelte auto-scope <style> ทุก block ให้กับ component ของตัวเอง — ไม่ต้องใช้ CSS Modules ไม่มี class-name collision'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React คุณต้อง opt in เพื่อ scope style — CSS Modules, styled-components, Emotion, Tailwind หรือ mechanism อื่น ๆ ใน Svelte การ scope เป็น **default** ทุก `<style>` block จะถูก scope อัตโนมัติไปยัง component ของตัวเองตอน compile time คุณเขียน class name ธรรมดาเช่น `.card` และมันไม่สามารถรั่วออกไปหรือ conflict กับ component อื่นได้
+
+## แนวทางของ React: CSS Modules
+
+export const scopedReact = `// Card.jsx
+import styles from './Card.module.css';
+// .card in Card.module.css becomes .card_abc123 at build time
+
+export default function Card({ title, body }) {
+  return (
+    <article className={styles.card}>
+      <h2 className={styles.title}>{title}</h2>
+      <p>{body}</p>
+    </article>
+  );
+}`;
+
+export const scopedSvelte = `<!-- Card.svelte -->
+<script>
+  let { title, body } = \$props();
+<\/script>
+
+<article class="card">
+  <h2 class="title">{title}</h2>
+  <p>{body}</p>
+</article>
+
+<style>
+  /* These class names are scoped to Card.svelte automatically */
+  .card { border: 1px solid #e2e2e2; border-radius: 8px; padding: 1rem; }
+  .title { margin: 0 0 0.5rem; font-size: 1.25rem; color: #FF3E00; }
+</style>`;
+
+<ReactSvelte react={scopedReact} svelte={scopedSvelte} />
+
+ภายใต้ hood Svelte compile `<style>` block โดยเพิ่ม unique attribute (เช่น `data-v-abc123`) ลงในทุก element และ qualify แต่ละ selector: `.card[data-v-abc123]` ผลลัพธ์ที่ compile ออกมาปลอดภัยจาก collision เหมือน CSS Modules — แต่คุณเขียน boilerplate เป็นศูนย์
+
+## Directive class:
+
+Svelte มี shorthand สำหรับการ toggle class ตาม condition — directive `class:`:
+
+export const scopedClassReact = `function Alert({ message, isError }) {
+  return (
+    <div className={\`alert \${isError ? 'alert--error' : ''}\`}>
+      {message}
+    </div>
+  );
+}`;
+
+export const scopedClassSvelte = `<script>
+  let { message, isError } = \$props();
+<\/script>
+
+<!-- class:error is added when isError is truthy -->
+<div class="alert" class:error={isError}>
+  {message}
+</div>
+
+<style>
+  .alert { padding: 0.75rem 1rem; border-radius: 6px; background: #f0f0f0; }
+  .error { background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; }
+</style>`;
+
+<ReactSvelte react={scopedClassReact} svelte={scopedClassSvelte} />
+
+Directive `class:name={condition}` ทำให้ template ของคุณสะอาด — ไม่มี template literal ไม่ต้องใช้ library `clsx`/`classnames` สำหรับ case ธรรมดา
+
+## ลองเล่น: themed card component
+
+export const scopedCode = `<script>
+  let variant = \$state('default');
+<\/script>
+
+<div class="card" class:success={variant === 'success'} class:danger={variant === 'danger'}>
+  <p>Current variant: <strong>{variant}</strong></p>
+  <div class="buttons">
+    <button onclick={() => (variant = 'default')}>Default</button>
+    <button onclick={() => (variant = 'success')}>Success</button>
+    <button onclick={() => (variant = 'danger')}>Danger</button>
+  </div>
+</div>
+
+<style>
+  .card {
+    padding: 1.25rem;
+    border-radius: 8px;
+    border: 2px solid #ccc;
+    background: #f9f9f9;
+    font-family: sans-serif;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .card.success { background: #f0fdf4; border-color: #22c55e; color: #15803d; }
+  .card.danger  { background: #fef2f2; border-color: #ef4444; color: #b91c1c; }
+  .buttons { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+  button { padding: 0.3rem 0.75rem; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; }
+</style>`;
+
+<SveltePlayground client:visible code={scopedCode} />
+
+<Diff title="React CSS Modules / styled-components vs Svelte scoped style">
+
+- React ไม่มี style scoping แบบ built-in — คุณต้องเลือก CSS Modules, CSS-in-JS หรือ Tailwind Svelte scope `<style>` block โดยอัตโนมัติด้วย zero config
+- React CSS Modules: `import styles from './Foo.module.css'` แล้ว `className={styles.foo}` Svelte: `class="foo"` — ไม่มี import ไม่มี object property access
+- React conditional class: template literal หรือ library `clsx`/`classnames` Svelte: directive `class:name={condition}` มีให้ใช้ built-in
+- ทั้งสองแนวทางสร้าง selector ที่ unique และปลอดภัยจาก collision ตอน build time — ผลลัพธ์ที่ผู้ใช้เห็นเหมือนกัน
+- Global override ใน Svelte: ใช้ `:global(.selector)` ภายใน `<style>` block เมื่อคุณตั้งใจต้องการเข้าถึงนอก scope ของ component
+- Dynamic style ที่ขึ้นกับค่า runtime (เช่น ตำแหน่ง drag) ยังคงใช้ `style="..."` หรือ CSS custom property ทั้งใน React และ Svelte
+
+</Diff>
+
+export const quizScopedStyles = [
+  {
+    q: 'ใน Svelte เกิดอะไรขึ้นกับ CSS class name เช่น .card ที่กำหนดไว้ใน <style> block?',
+    options: [
+      'มันกลายเป็น global class ที่เข้าถึงได้จาก component ใด ๆ',
+      'มัน scope อยู่กับ component ปัจจุบัน — ไม่สามารถ affect component อื่นได้',
+      'ต้อง import เข้า component อื่นเพื่อใช้',
+      'มันถูกละเลยเว้นแต่คุณจะเพิ่ม attribute scoped="true"',
+    ],
+    answer: 1,
+  },
+  {
+    q: '"class:error={isError}" ใน Svelte template หมายความว่าอะไร?',
+    options: [
+      'มันตั้งค่า class attribute ของ element เป็น string "error={isError}"',
+      'มันเพิ่ม CSS class "error" ให้กับ element เฉพาะเมื่อ isError เป็น truthy',
+      'มัน import error class จาก CSS Module',
+      'มันทำให้เกิด error ตอน build time — syntax นี้ไม่ valid',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'React developer ที่คุ้นเคยกับ "import styles from \'./Card.module.css\'" จะใช้ equivalent ใน Svelte อย่างไร?',
+    options: [
+      'import styles from "./Card.css";',
+      'ไม่มี equivalent — ต้องใช้ Tailwind',
+      'เขียน <style> block ภายใน Card.svelte — ไม่ต้อง import',
+      'เพิ่ม styleUrls array ใน component config',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="mental-model/scoped-styles" questions={quizScopedStyles} />
+
+<ProgressTracker client:visible id="mental-model/scoped-styles" />

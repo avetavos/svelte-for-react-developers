@@ -1,0 +1,133 @@
+---
+title: 'Stores'
+description: 'writable, readable, และ derived stores ของ Svelte สำหรับ shared state — เทียบกับ Zustand และ Context ของ React'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+นักพัฒนา React มักใช้ Context + useReducer, Redux หรือ Zustand เพื่อจัดการ shared state ข้ามคอมโพเนนต์ Svelte มี stores ในตัว: `writable` (อ่านและเขียนได้), `readable` (อ่านได้อย่างเดียว), และ `derived` (คำนวณค่าจาก stores อื่น) ใน markup ให้ใส่เครื่องหมาย `$` นำหน้าชื่อ store เพื่อ auto-subscribe — Svelte จะ subscribe และ unsubscribe ให้อัตโนมัติ
+
+## writable store เทียบกับ Zustand
+
+export const storesWritableReact = `// store.js (Zustand)
+import { create } from 'zustand';
+
+export const useCountStore = create(set => ({
+  count: 0,
+  increment: () => set(s => ({ count: s.count + 1 })),
+  reset: () => set({ count: 0 }),
+}));
+
+// Component.jsx
+function Counter() {
+  const { count, increment } = useCountStore();
+  return <button onClick={increment}>Count: {count}</button>;
+}`;
+
+export const storesWritableSvelte = `<!-- store.js -->
+<script context="module">
+  import { writable } from 'svelte/store';
+  export const count = writable(0);
+<\/script>
+
+<!-- Counter.svelte -->
+<script>
+  import { count } from './store.js';
+<\/script>
+
+<button onclick={() => count.update(n => n + 1)}>
+  Count: {\$count}
+</button>`;
+
+<ReactSvelte react={storesWritableReact} svelte={storesWritableSvelte} />
+
+## derived store เทียบกับ useSelector
+
+export const storesDerivedReact = `// Zustand selector
+const double = useCountStore(s => s.count * 2);`;
+
+export const storesDerivedSvelte = `<script>
+  import { derived } from 'svelte/store';
+  import { count } from './store.js';
+
+  const doubleCount = derived(count, \$count => \$count * 2);
+<\/script>
+
+<p>Double: {\$doubleCount}</p>`;
+
+<ReactSvelte react={storesDerivedReact} svelte={storesDerivedSvelte} />
+
+## ลองเล่น: writable count store + derived doubleCount
+
+export const storesPlaygroundCode = `<script>
+  import { writable, derived } from 'svelte/store';
+
+  const count = writable(0);
+  const doubleCount = derived(count, \$count => \$count * 2);
+<\/script>
+
+<button onclick={() => count.update(n => n - 1)}>-</button>
+<strong>{\$count}</strong>
+<button onclick={() => count.update(n => n + 1)}>+</button>
+<button onclick={() => count.set(0)}>Reset</button>
+
+<p>Double: {\$doubleCount}</p>
+
+<style>
+  button { margin: 0 0.25rem; padding: 0.3rem 0.7rem; }
+  strong { font-size: 1.5rem; margin: 0 0.5rem; }
+</style>`;
+
+<SveltePlayground client:visible code={storesPlaygroundCode} />
+
+<Diff title="Zustand / Context vs Svelte stores">
+
+- Zustand/Redux ต้องติดตั้ง package เพิ่ม — Svelte stores มาพร้อมกับ `svelte/store` เลย
+- Zustand ใช้ hook `useCountStore()` ใน component — Svelte ใช้ `$storeName` เพื่อ auto-subscribe
+- `derived` ใน Svelte ทำงานเหมือน selector ของ Zustand แต่เป็น reactive store ในตัวเอง
+- `writable` มี `.set(val)`, `.update(fn)`, และ `.subscribe(fn)` — API เรียบง่ายและสม่ำเสมอ
+- `readable` เหมาะกับ stores ที่อัปเดตจากแหล่งภายนอก เช่น timer หรือ WebSocket
+- เครื่องหมาย `$` นำหน้าใน markup จะ subscribe อัตโนมัติและ cleanup เมื่อ component ถูก destroy
+
+</Diff>
+
+export const quizStores = [
+  {
+    q: 'คุณอ่านค่า writable store ชื่อ `count` ใน Svelte markup อย่างไร?',
+    options: [
+      '{count.value}',
+      '{get(count)}',
+      '{$count}',
+      '{count()}',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ความแตกต่างระหว่าง writable กับ readable store คืออะไร?',
+    options: [
+      'readable เร็วกว่า writable',
+      'writable ให้ทั้ง .set() และ .update() ส่วน readable อัปเดตได้จากภายใน store เท่านั้น',
+      'readable ใช้ได้กับ SvelteKit เท่านั้น',
+      'ไม่มีความแตกต่าง — ทั้งสองทำงานเหมือนกัน',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณสร้าง derived store ที่คำนวณ count * 2 จาก store `count` อย่างไร?',
+    options: [
+      'const double = count.map(n => n * 2)',
+      'const double = writable(count * 2)',
+      'const double = derived(count, $count => $count * 2)',
+      'const double = computed(() => $count * 2)',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/stores" questions={quizStores} />
+
+<ProgressTracker client:visible id="data/stores" />

@@ -1,0 +1,116 @@
+---
+title: 'React สู่ Svelte: Mental Model'
+description: 'การเปลี่ยนแปลงสำคัญเมื่อย้ายจาก React ไป Svelte 5 — และสัญชาตญาณของ React ที่ยังใช้ได้เหมือนเดิม'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+คุณรู้วิธีคิดเรื่อง component, จัดการ state, handle event และประกอบ UI อยู่แล้ว ทักษะเหล่านี้ถ่ายทอดไปยัง Svelte ได้แทบทั้งหมด โมดูลนี้เน้นไปที่จุดที่ mental model เปลี่ยนจริง ๆ — และทำให้การเปลี่ยนแปลงเหล่านั้นรู้สึกชัดเจนแทนที่จะน่าแปลกใจ
+
+## สิ่งที่ยังใช้ได้เหมือนเดิม
+
+- **Component boundaries** — หนึ่งไฟล์ หนึ่ง component ประกอบกันด้วยการ nest เหมือน React ทุกประการ
+- **Props ไหลลงมา** — parent ส่งข้อมูลให้ child แนวคิดเหมือนกัน syntax ต่างกันเล็กน้อย
+- **Event handler** — ผูกฟังก์ชันกับ element แนวคิดเหมือนกัน ชื่อ event เป็น lowercase ใน Svelte
+- **Conditional rendering** — แสดง/ซ่อน UI ตาม state แนวคิดเดียวกัน syntax ต่างกัน
+- **List rendering** — วนลูปข้อมูลเพื่อสร้าง markup แนวคิดเดียวกัน Svelte ใช้ `{#each}` แทน `.map()`
+- **Component lifecycle** — logic สำหรับ setup และ teardown `$effect` แทน `useEffect`
+- **Scoped styles** — CSS ที่เป็นของ component นั้น ๆ React ต้องใช้ CSS Modules ส่วน Svelte ให้มาฟรี
+
+## การเปลี่ยนแปลงจริง 4 ข้อ
+
+| แนวคิด React | แนวคิด Svelte 5 |
+|---|---|
+| State เป็น immutable — ต้องเรียก setter เพื่ออัปเดต | State เป็น mutable — กำหนดค่าตรง ๆ Svelte จะตรวจจับการเปลี่ยนแปลง |
+| Logic อยู่ใน JS; JSX คือ return value | Logic และ markup อยู่ในไฟล์ `.svelte` เดียว; ไม่มี `return` |
+| React reconcile virtual DOM ที่ runtime | Svelte compile เป็น DOM update โดยตรงตอน build time |
+| Children คือ `children` prop พิเศษ | Children คือ **snippet** — template fragment ที่ type-safe และ callable |
+
+การเปลี่ยนแปลงทั้งสี่นี้ครอบคลุม 90% ของปัญหา "ทำไมมันไม่ทำงาน?" ที่คุณจะเจอในฐานะ React developer แต่ละ lesson ในโมดูลนี้เน้นไปที่ประเด็นใดประเด็นหนึ่ง
+
+## บทเรียนในโมดูลนี้
+
+| บทเรียน | แนวคิด |
+|---|---|
+| หน้านี้ | ภาพรวมของสิ่งที่เปลี่ยนและสิ่งที่ยังเหมือนเดิม |
+| Single-file components | โครงสร้าง `.svelte` vs JSX + CSS Modules |
+| Compiler vs runtime | Svelte กำจัด virtual DOM ได้อย่างไร |
+| Reactivity overview | Reactivity แบบ assignment vs `setState` |
+| Scoped styles | Auto-scoped `<style>` vs CSS Modules |
+| Same vs different | ตารางอ้างอิงแบบ side-by-side |
+
+## การเปรียบเทียบแรกที่ให้กำลังใจ
+
+export const overviewReact = `// Counter.jsx
+import { useState } from 'react';
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <button onClick={() => setCount(c => c + 1)}>
+      Count: {count}
+    </button>
+  );
+}`;
+
+export const overviewSvelte = `<!-- Counter.svelte -->
+<script>
+  let count = \$state(0);
+<\/script>
+
+<button onclick={() => count++}>
+  Count: {count}
+</button>`;
+
+<ReactSvelte react={overviewReact} svelte={overviewSvelte} />
+
+ทุกแนวคิดใน counter นั้น — state, event handler, การแสดงค่า — มีอยู่ทั้งสองฝั่ง syntax เพียงแค่ต่างกันเล็กน้อย รูปแบบนี้เกิดขึ้นซ้ำทั่วทั้งโมดูล
+
+<Diff title="React mental model vs Svelte 5 mental model">
+
+- React state เป็น **immutable** — คุณเรียก `setCount(n + 1)` และ React จัดตาราง re-render Svelte state เป็น **mutable** — คุณเขียน `count++` และ reactivity ที่ compiler ใส่ไว้จะจัดการเอง
+- React component คือ **ฟังก์ชันที่ return JSX** Svelte component คือ **ไฟล์** — markup คือ body ของไฟล์ ไม่มี `return`
+- React ส่ง **runtime** ไปยังทุกเบราว์เซอร์เพื่อ diff และ reconcile Svelte **compile ออกไป** — output คือโค้ด DOM manipulation ธรรมดา ไม่มี framework ใน bundle
+- `children` ใน React คือ prop (renderable value ใด ๆ) Svelte **snippet** คือ typed template fragment ที่เรียกด้วย `{@render children()}`
+
+</Diff>
+
+export const quizMentalModelIndex = [
+  {
+    q: 'แนวคิดใดของ React ที่ไม่ถ่ายทอดไปยัง Svelte?',
+    options: [
+      'Component composition',
+      'Props ไหลจาก parent ไป child',
+      'การเรียก setter function เพื่ออัปเดต state',
+      'Conditional rendering',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Svelte กำจัด virtual DOM ได้อย่างไร?',
+    options: [
+      'ใช้ diffing algorithm ที่เร็วกว่า',
+      'Compile component เป็นโค้ด DOM update โดยตรงตอน build time',
+      'Batch DOM write ทั้งหมดลงใน single frame',
+      'มอบหมาย reconciliation ให้กับเบราว์เซอร์',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ใน Svelte 5 คุณอัปเดต state variable ชื่อ "score" ได้อย่างไร?',
+    options: [
+      'setScore(score + 1)',
+      'this.setState({ score: score + 1 })',
+      'score += 1',
+      'dispatch("update", score + 1)',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="mental-model/index" questions={quizMentalModelIndex} />
+
+<ProgressTracker client:visible id="mental-model/index" />

@@ -1,0 +1,143 @@
+---
+title: 'Same vs Different: Reference Table'
+description: 'Side-by-side mapping of every major React concept to its Svelte 5 equivalent.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+This page is your cheat sheet. Every major React concept maps to a Svelte equivalent — many are nearly identical in intent, different only in syntax. A handful require a genuine mental-model shift. Both kinds are listed here.
+
+## Full concept mapping
+
+| React | Svelte 5 | Notes |
+|---|---|---|
+| `function Component()` | `.svelte` file | The file is the component — no function wrapper |
+| JSX `return (...)` | Markup body | No `return`, no parens — the template is the file body |
+| `export default function` | File is the export | Nothing to export manually |
+| `className="foo"` | `class="foo"` | Real HTML attributes — no renaming |
+| Function prop arguments `({ name })` | `let { name } = $props()` | Rune-based prop declaration |
+| `useState(init)` | `$state(init)` | Direct mutation replaces setter functions |
+| `useMemo(() => x, [deps])` | `$derived(x)` | Auto-tracked, no dependency array |
+| `useEffect(() => {}, [deps])` | `$effect(() => {})` | Auto-tracked, cleanup via return function |
+| `useCallback(fn, [deps])` | Plain function (no equivalent needed) | Functions are not re-created on each update |
+| `useRef(null)` | `let el = $state(null)` / `bind:this={el}` | `bind:this` binds to the DOM element |
+| `useContext` / `createContext` | Svelte stores / `setContext` / `getContext` | Context API exists; stores preferred for reactivity |
+| `children` prop | `{@render children()}` snippet | Snippets are typed template fragments, not values |
+| Named slot / render prop | `{#snippet name()}` / `{@render name()}` | More explicit and type-safe than render props |
+| `onClick` | `onclick` | Lowercase, plain HTML event attributes |
+| `onChange` | `oninput` | `oninput` fires on every keystroke; `onchange` fires on blur |
+| `onKeyDown` | `onkeydown` | All event names are lowercase in Svelte 5 |
+| `<input value={x} onChange={fn}` | `bind:value={x}` | Two-way binding replaces the controlled-input pattern |
+| CSS Modules / styled-components | `<style>` block | Auto-scoped, zero config |
+| `clsx(a, { b: cond })` | `class:b={cond}` | Built-in conditional class directive |
+| `React Router` / `next/link` | SvelteKit `<a href>` / `goto()` | SvelteKit handles routing; plain anchors work |
+| `useNavigate` | `import { goto } from '$app/navigation'` | SvelteKit navigation API |
+| `useSearchParams` | `import { page } from '$app/stores'` | `$page.url.searchParams` |
+| `<Suspense>` / lazy | `{#await}` block | Built into the template language |
+| `React.memo` | Not needed | Svelte does not re-run the whole component on updates |
+| Create React App | Vite (+ `@sveltejs/vite-plugin-svelte`) | CRA is deprecated; Vite is the standard |
+| Next.js | SvelteKit | Full-stack framework: SSR, routing, API routes |
+
+## The biggest surprises
+
+### 1. Mutation is fine
+
+export const sameReact = `// React — must be immutable
+const [items, setItems] = React.useState([]);
+function addItem(item) {
+  setItems([...items, item]); // spread, never push
+}`;
+
+export const sameSvelte = `<script>
+  // Svelte — direct mutation is tracked
+  let items = \$state([]);
+  function addItem(item) {
+    items.push(item); // push is fine — Svelte detects it
+  }
+<\/script>`;
+
+<ReactSvelte react={sameReact} svelte={sameSvelte} />
+
+### 2. No hook rules
+
+React hooks have strict rules: call at the top level, never inside conditions or loops, always in the same order. Svelte runes have none of these restrictions — you can call `$state` inside a condition or inside a loop. They are compiler directives, not function calls tracked by call order.
+
+export const sameHooksReact = `// React — hooks must be at the top level, always called
+function Conditional({ show }) {
+  // RULE: can't put hooks inside an if — even though it's unused
+  const [x, setX] = React.useState(0);
+  if (!show) return null;
+  return <button onClick={() => setX(x + 1)}>{x}</button>;
+}`;
+
+export const sameHooksSvelte = `<script>
+  let { show } = \$props();
+  // Runes can be declared anywhere — no ordering rules
+  let x = \$state(0);
+<\/script>
+
+{#if show}
+  <button onclick={() => x++}>{x}</button>
+{/if}`;
+
+<ReactSvelte react={sameHooksReact} svelte={sameHooksSvelte} />
+
+<Diff title="The five biggest React → Svelte surprises">
+
+- **Mutation is fine.** `array.push()`, `object.key = value` — Svelte's compiler instruments `$state` so direct mutations are tracked. React immutability rules do not apply.
+- **No hook rules.** Runes (`$state`, `$derived`, `$effect`) are compiler directives, not runtime function calls. No call-order rules, no "must be at the top level" restriction.
+- **No virtual DOM.** There is no reconciler, no fiber, no "batched re-render". Updates are surgical direct DOM writes. You cannot call `forceUpdate()` or trigger a full re-render — it is not a concept that exists.
+- **`on:click` is dead.** Svelte 4 used the `on:event` directive. Svelte 5 uses lowercase HTML event attributes (`onclick`, `oninput`, `onkeydown`). The old syntax is removed.
+- **Children are snippets, not values.** `{@render children()}` calls a snippet function. You cannot spread children, map over them, or pass them as arbitrary values the way React lets you treat `children` as a node tree.
+
+</Diff>
+
+export const quizSameVsDifferent = [
+  {
+    q: 'What is the Svelte 5 equivalent of React\'s useState?',
+    options: [
+      '$effect',
+      '$derived',
+      '$state',
+      '$props',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which React pattern does Svelte\'s "bind:value" replace?',
+    options: [
+      'useReducer',
+      'Controlled input with value + onChange',
+      'useRef for DOM access',
+      'React.memo for memoization',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Can you call a Svelte $state rune inside an if-block or loop?',
+    options: [
+      'No — rune rules are the same as React hook rules',
+      'Yes — runes are compiler directives, not runtime function calls with ordering rules',
+      'Only if you wrap it in a $effect first',
+      'Only in TypeScript mode',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the Svelte equivalent of Next.js?',
+    options: [
+      'Vite',
+      'SvelteKit',
+      'Astro',
+      'Nuxt',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="mental-model/same-vs-different" questions={quizSameVsDifferent} />
+
+<ProgressTracker client:visible id="mental-model/same-vs-different" />

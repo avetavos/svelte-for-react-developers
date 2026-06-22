@@ -1,0 +1,162 @@
+---
+title: '$props and $bindable — Component Props'
+description: '$props() destructuring พร้อม defaults และ $bindable() สำหรับ two-way props เทียบกับ React props และ lifting state'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React component ประกาศ props ผ่าน function parameters (หรือ TypeScript interface) Props เป็น **one-way, read-only** เสมอ — child เรียก callback เพื่อขอให้ parent อัปเดต Svelte 5 แนะนำ `$props()` สำหรับ one-way model เดียวกัน บวก `$bindable()` สำหรับ **two-way binding** แบบ opt-in ที่ขจัด callback boilerplate
+
+## $props() — ประกาศ props พร้อม defaults
+
+export const propsBasicReact = `// Child
+function Greeting({ name = 'World', color = 'black' }) {
+  return <p style={{ color }}>Hello, {name}!</p>;
+}
+
+// Parent
+function App() {
+  return <Greeting name="Alice" color="steelblue" />;
+}`;
+
+export const propsBasicSvelte = `<script>
+  let { name = 'World', color = 'black' } = \$props();
+<\/script>
+
+<p style="color: {color}">Hello, {name}!</p>`;
+
+<ReactSvelte react={propsBasicReact} svelte={propsBasicSvelte} />
+
+`$props()` คืน object ที่คุณ destructure แบบปกติ Default values ใช้ JS destructuring defaults มาตรฐาน ไม่ต้องใช้ `propTypes` ไม่ต้องสร้าง TypeScript interface แยก (แม้จะเพิ่ม `interface Props` และ annotate `$props<Props>()` ก็ได้)
+
+## Rest props / forwarding
+
+export const propsRestReact = `function Button({ children, variant = 'primary', ...rest }) {
+  return (
+    <button className={'btn btn-' + variant} {...rest}>
+      {children}
+    </button>
+  );
+}`;
+
+export const propsRestSvelte = `<script>
+  let { children, variant = 'primary', ...rest } = \$props();
+<\/script>
+
+<button class="btn btn-{variant}" {...rest}>
+  {@render children?.()}
+</button>`;
+
+<ReactSvelte react={propsRestReact} svelte={propsRestSvelte} />
+
+`...rest` spread ส่ง attribute พิเศษไปยัง element ที่อยู่ภายใน — เหมือน React ทุกประการ
+
+## $bindable() — two-way props (ไม่ต้องใช้ callback)
+
+React ต้องใช้ "lifting state": parent เป็นเจ้าของค่า child รับเป็น prop และ setter callback `$bindable()` ของ Svelte ให้ parent ใช้ `bind:propName` บน child ทำให้ child สามารถเขียนกลับไปยังตัวแปรของ parent ได้โดยไม่ต้องมี callback ชัดเจน
+
+export const bindableReact = `// React: parent must own state + pass setter down
+function TextInput({ value, onChange }) {
+  return <input value={value} onChange={e => onChange(e.target.value)} />;
+}
+
+function App() {
+  const [text, setText] = React.useState('');
+  return (
+    <div>
+      <TextInput value={text} onChange={setText} />
+      <p>You typed: {text}</p>
+    </div>
+  );
+}`;
+
+export const bindableSvelte = `<script>
+  // Child: TextInput.svelte
+  let { value = \$bindable('') } = \$props();
+<\/script>
+
+<input bind:value />
+
+<!-- Parent usage: <TextInput bind:value={text} /> -->`;
+
+<ReactSvelte react={bindableReact} svelte={bindableSvelte} />
+
+## ทดลองได้เลย: bindable counter ในไฟล์เดียว
+
+export const propsPlayCode = `<script>
+  import { mount } from 'svelte';
+
+  // Simulate a parent + child in one file using snippets
+  let count = \$state(10);
+  let step = \$state(1);
+
+  function inc() { count += step; }
+  function dec() { count -= step; }
+<\/script>
+
+<div style="font-family:sans-serif;padding:1rem">
+  <h3>Parent owns count</h3>
+  <p>count = <strong>{count}</strong></p>
+  <label>
+    Step: <input type="number" bind:value={step} style="width:4rem;margin-left:0.5rem" min="1" />
+  </label>
+
+  <div style="margin-top:1rem">
+    <h4>Child-like controls (bind:step, bind:count)</h4>
+    <button onclick={dec}>- {step}</button>
+    <button onclick={inc} style="margin-left:0.5rem">+ {step}</button>
+  </div>
+</div>`;
+
+<SveltePlayground client:visible code={propsPlayCode} />
+
+<Diff title="React props vs $props / $bindable">
+
+- React props: destructured function parameters Svelte 5: `let { a, b = default } = $props()` — destructuring เดิม ต่างที่ declaration site
+- React props เป็น **one-way read-only เสมอ** ให้ child อัปเดต state ของ parent ต้องส่ง callback (`onChange`, `onSubmit` ฯลฯ) `$bindable()` ของ Svelte ข้าม callback และใช้ `bind:propName` ฝั่ง parent สำหรับ two-way binding
+- React `...rest` spread สำหรับ forward attributes: `{...rest}` บน JSX element Svelte: `{...rest}` เหมือนกันบน element — syntax เดียวกัน
+- TypeScript types: React ใช้ `interface Props` หรือ inline destructuring types Svelte ใช้ `$props<Props>()` generic — interface เดียวกัน ต่างที่ call site
+- `$bindable()` เป็น **opt-in** — เฉพาะ props ที่ประกาศด้วย `$bindable()` เท่านั้นที่ใช้กับ `bind:` ได้ props อื่นยังคง read-only ใน child
+
+</Diff>
+
+export const quizPropsBindable = [
+  {
+    q: 'ประกาศ prop พร้อม default value ใน Svelte 5 ยังไง?',
+    options: [
+      'export let name = "World";',
+      'let { name = "World" } = $props();',
+      'const name = $state("World");',
+      'props.name ?? "World"',
+    ],
+    answer: 1,
+  },
+  {
+    q: '$bindable() ให้สิ่งที่ $props() ธรรมดาทำไม่ได้คืออะไร?',
+    options: [
+      'ทำให้ prop เป็น reactive ภายใน child',
+      'ให้ child เขียนกลับไปยังตัวแปรของ parent ผ่าน bind:propName',
+      'ให้ setter function เหมือน useState',
+      'ทำให้ prop เป็น optional โดยไม่มี default',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'จะ forward HTML attribute พิเศษไปยัง root element ใน Svelte 5 component ยังไง?',
+    options: [
+      'ใช้ $attrs() แทน $props()',
+      'Destructure ด้วย ...rest จาก $props() แล้ว spread {...rest} บน element',
+      'เรียก forwardRef() เหมือน React',
+      'Svelte ไม่รองรับ attribute forwarding',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="reactivity/props-bindable" questions={quizPropsBindable} />
+
+<ProgressTracker client:visible id="reactivity/props-bindable" />

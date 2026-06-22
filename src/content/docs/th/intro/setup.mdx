@@ -1,0 +1,154 @@
+---
+title: 'การตั้งค่าโปรเจกต์ Svelte'
+description: 'ย้ายจาก CRA, Vite React หรือ Next.js มาใช้ Svelte และ SvelteKit — คำสั่ง scaffold และโครงสร้างโปรเจกต์'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React มีจุดเริ่มต้นหลักสามแบบ ได้แก่ Create React App (เลิกใช้งานแล้ว), Vite กับ React plugin และ Next.js สำหรับงาน full-stack/SSR Svelte แบ่งแบบเดียวกันแทบทุกอย่าง — **Vite + Svelte plugin** สำหรับ SPA และ **SvelteKit** สำหรับ full-stack/SSR ถ้าคุณคุ้นเคยกับ toolchain ของ React คุณก็เข้าใจ shape ของ Svelte อยู่แล้ว เปลี่ยนแค่ชื่อเท่านั้น
+
+## คำสั่ง scaffold
+
+| React | Svelte |
+|---|---|
+| `npm create vite@latest my-app -- --template react-ts` | `npm create vite@latest my-app -- --template svelte-ts` |
+| `npx create-next-app my-app` | `npx sv create my-app` |
+
+- คำสั่ง Vite เหมือนกันทุกอย่าง ต่างกันแค่ชื่อ template: `react-ts` → `svelte-ts`
+- `npx sv create` คือ scaffolder อย่างเป็นทางการของ SvelteKit — เทียบเท่ากับ `create-next-app` โดยตรง จะถามว่าต้องการ TypeScript, ESLint, Prettier, Vitest และอื่นๆ หรือไม่
+
+### สร้าง Svelte SPA ด้วย Vite
+
+```bash
+npm create vite@latest my-app -- --template svelte-ts
+cd my-app
+npm install
+npm run dev
+```
+
+### สร้าง SvelteKit (เทียบเท่า Next.js)
+
+```bash
+npx sv create my-app
+cd my-app
+npm install
+npm run dev
+```
+
+## scripts ใน package.json — เกือบเหมือนกันทุกอย่าง
+
+เนื่องจากทั้งสอง ecosystem ใช้ Vite เป็น base scripts จึงดูเกือบเหมือนกัน ความต่างเพียงอย่างเดียวคือ template ของ React/Vite รัน `tsc` ก่อน `vite build` เพื่อตรวจ type
+
+export const setupReact = `{
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  }
+}`;
+
+export const setupSvelte = `{
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+}`;
+
+<ReactSvelte react={setupReact} svelte={setupSvelte} />
+
+> **หมายเหตุ Playground:** บทนี้เป็นเรื่องการ scaffold โปรเจกต์ — ไม่มี snippet ที่รันใน browser ได้ รันคำสั่งด้านบนใน terminal ของคุณเพื่อสร้างโปรเจกต์จริง
+
+ประเด็นสำคัญ:
+- `dev`, `build` และ `preview` มีในทั้งสองฝั่ง — ความจำมือถ่ายทอดได้ทันที
+- Vite plugin ของ Svelte รัน Svelte compiler และตรวจ TypeScript พร้อมกันผ่าน `svelte-check` จึงไม่ต้องมี prefix `tsc &&` แยกต่างหาก
+- SvelteKit เพิ่ม script `check` (`svelte-kit sync && svelte-check`) และ script `test` ที่เป็น optional เพิ่มมาจาก basics นี้
+
+## โครงสร้างโปรเจกต์
+
+ทั้ง Vite+Svelte SPA และ SvelteKit ต่างเป็น thin wrapper รอบ pattern ที่คุ้นเคย:
+
+**Vite + Svelte SPA** (เทียบเท่ากับ Vite + React):
+
+```
+src/
+  main.ts          ← entry point (เดิมคือ main.tsx)
+  App.svelte       ← root component (เดิมคือ App.tsx)
+  lib/             ← shared components และ utilities
+index.html
+vite.config.ts
+```
+
+**SvelteKit** (เทียบเท่ากับ Next.js):
+
+```
+src/
+  routes/          ← file-based routing (เดิมคือ app/ หรือ pages/ ใน Next.js)
+    +page.svelte   ← UI ของแต่ละ route
+    +layout.svelte ← shared layout wrapper
+  lib/             ← shared utilities และ components
+static/            ← public assets (เดิมคือ public/)
+svelte.config.js
+vite.config.ts
+```
+
+mental model แมปได้ชัดเจน: `src/routes/` ใน SvelteKit ทำหน้าที่เหมือน `app/` (หรือ `pages/`) ใน Next.js naming convention `+page.svelte` เป็นของ SvelteKit เฉพาะ — prefix `+` บอกให้รู้ว่าเป็น framework file ไม่ใช่ helper file ของคุณเอง
+
+## vite.config.ts — เปลี่ยนแค่ plugin
+
+React และ Svelte ต่างตั้งค่า Vite ด้วย single plugin import:
+
+```ts
+// React
+import react from '@vitejs/plugin-react';
+export default { plugins: [react()] };
+
+// Svelte
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+export default { plugins: [svelte()] };
+```
+
+ส่วนอื่นทั้งหมด ไม่ว่าจะเป็น aliases, server options, build targets — เป็น Vite config เหมือนกันทุกอย่าง
+
+<Diff title="React setup vs Svelte setup">
+
+- **SPA scaffold:** `npm create vite@latest -- --template react-ts` → `npm create vite@latest -- --template svelte-ts` คำสั่ง Vite เหมือนกัน ต่างแค่ชื่อ template
+- **Full-stack/SSR:** `npx create-next-app` → `npx sv create` SvelteKit คือ Next.js equivalent โดยตรง
+- **Entry point:** `src/main.tsx` + `src/App.tsx` → `src/main.ts` + `src/App.svelte`
+- **Routing (full-stack):** Next.js ใช้ `app/` หรือ `pages/` สำหรับ file-based routing SvelteKit ใช้ `src/routes/` กับ convention `+page.svelte` และ `+layout.svelte`
+- **Vite plugin:** `@vitejs/plugin-react` → `@sveltejs/vite-plugin-svelte` เปลี่ยนแค่หนึ่งบรรทัดใน vite.config.ts
+- **TypeScript:** รองรับทั้งสองฝั่ง out of the box SvelteKit สร้าง `tsconfig.json` อัตโนมัติผ่าน `svelte-kit sync`
+- **Scripts:** `dev` / `build` / `preview` เหมือนกัน React/Vite ใส่ prefix build ด้วย `tsc &&`; Svelte ใช้ `svelte-check` แทน
+- **CRA:** Create React App เลิกใช้งานแล้วและไม่มี Svelte equivalent — Vite คือจุดเริ่มต้นที่ถูกต้องสำหรับทั้งสอง ecosystem ในปัจจุบัน
+
+</Diff>
+
+export const quizSetup = [
+  {
+    q: 'SvelteKit เทียบเท่ากับอะไรใน React ecosystem?',
+    options: ['Nuxt', 'SvelteKit', 'Astro', 'Remix'],
+    answer: 1,
+  },
+  {
+    q: 'คำสั่งใดที่ใช้สร้าง Svelte SPA ด้วย Vite?',
+    options: [
+      'npm create vite@latest -- --template svelte-ts',
+      'npx create-svelte-app my-app',
+      'npm init svelte@latest',
+      'npx create-react-app --template svelte',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'routes ของ SvelteKit อยู่ที่ไหน?',
+    options: ['src/pages/', 'src/routes/', 'src/views/', 'pages/'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="intro/setup" questions={quizSetup} />
+
+<ProgressTracker client:visible id="intro/setup" />

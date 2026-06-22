@@ -1,0 +1,205 @@
+---
+title: 'SSR, CSR และ Prerendering'
+description: 'เปรียบเทียบ rendering modes ของ SvelteKit กับ Next.js รวมถึง adapters'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+Next.js กำหนด rendering mode ผ่านฟังก์ชัน `getServerSideProps`, `getStaticProps`, หรือ React Server Components SvelteKit ใช้แนวทางที่สม่ำเสมอกว่า: ทุก page มีค่า default เป็น **SSR** และคุณ opt out ได้ต่อ page ผ่าน page options ที่ export ออกมาจาก `+page.js` หรือ `+layout.js`
+
+## SSR คือค่า default
+
+เมื่อ user เปิดหน้าเว็บเป็นครั้งแรก SvelteKit จะ render บนฝั่ง server แล้วส่ง HTML ไปพร้อมกับ JavaScript สำหรับ hydration — เหมือนกับ Next.js SSR ทุกประการ แต่คุณไม่ต้องเลือก mode ใด ๆ มันเป็น default อยู่แล้ว
+
+export const ssrNextjs = `// Next.js App Router — SSR คือ default สำหรับ Server Components
+// app/products/page.tsx
+async function ProductsPage() {
+  const products = await fetchProducts(); // รันบน server
+  return (
+    <ul>
+      {products.map(p => (
+        <li key={p.id}>{p.name}</li>
+      ))}
+    </ul>
+  );
+}
+export default ProductsPage;`;
+
+export const ssrSveltekit = `<!-- src/routes/products/+page.server.js -->
+export async function load() {
+  const products = await fetchProducts(); // รันบน server
+  return { products };
+}
+
+<!-- src/routes/products/+page.svelte -->
+<script>
+  let { data } = \$props();
+<\/script>
+
+<ul>
+  {#each data.products as product}
+    <li>{product.name}</li>
+  {/each}
+</ul>`;
+
+<ReactSvelte react={ssrNextjs} svelte={ssrSveltekit} />
+
+`+page.server.js` ไม่เคยส่งโค้ดไปยัง browser เลย — ปลอดภัยสำหรับ database queries, API keys, และ secrets ทุกอย่าง
+
+## ปิด SSR: CSR เท่านั้น
+
+บาง page ไม่จำเป็นต้องใช้ SSR เช่น dashboard ที่ต้องการ authentication หรือ page ที่ข้อมูลทั้งหมดโหลดจาก client-side ส่ง `ssr = false` เพื่อบอก SvelteKit ให้ skip server render
+
+```js
+// +page.js
+export const ssr = false;
+
+export async function load({ fetch }) {
+  // โหลดข้อมูลบน client เท่านั้น
+  const res = await fetch('/api/user-data');
+  return { userData: await res.json() };
+}
+```
+
+เทียบได้กับการใช้ `'use client'` directive ใน Next.js App Router หรือใช้ Pages Router โดยไม่มี `getServerSideProps`
+
+## Prerendering: Static Site Generation
+
+สำหรับหน้าที่ข้อมูลไม่เปลี่ยนบ่อย เช่น หน้า about, blog posts, หรือ marketing pages ให้ prerender ตอน build time เทียบได้กับ `getStaticProps` ของ Next.js
+
+export const prerenderNextjs = `// Next.js Pages Router — Static Generation
+// pages/about.tsx
+export async function getStaticProps() {
+  return {
+    props: { buildTime: new Date().toISOString() },
+  };
+}
+
+export default function About({ buildTime }) {
+  return <p>Built at: {buildTime}</p>;
+}`;
+
+export const prerenderSveltekit = `<!-- +page.js -->
+export const prerender = true;
+
+export async function load() {
+  return {
+    buildTime: new Date().toISOString(),
+  };
+}
+
+<!-- +page.svelte -->
+<script>
+  let { data } = \$props();
+<\/script>
+
+<p>Built at: {data.buildTime}</p>`;
+
+<ReactSvelte react={prerenderNextjs} svelte={prerenderSveltekit} />
+
+ตั้งค่า `export const prerender = true` ใน `+layout.js` ของ root เพื่อ prerender ทั้ง site (Static Site Generation) หรือตั้งค่าต่อ page ก็ได้
+
+## Page options สรุปทั้งหมด
+
+```js
+// +page.js หรือ +layout.js
+export const ssr = true;        // default: true — render บน server ก่อน
+export const csr = true;        // default: true — hydrate บน client
+export const prerender = false; // default: false — render ตอน build time
+export const trailingSlash = 'never'; // 'always' | 'never' | 'ignore'
+```
+
+ตัวเลือกเหล่านี้ **inherit** จาก layout ลงมา ถ้าตั้งค่า `prerender = true` ใน root layout ทุก page จะถูก prerender ยกเว้นจะ override ต่อ page
+
+## Adapters: deploy ที่ไหนก็ได้
+
+SvelteKit ใช้ **adapters** เพื่อ compile app สำหรับ deployment target ต่าง ๆ แนวคิดนี้ไม่มีใน Next.js (Next.js ผูกกับ Vercel) แต่ SvelteKit ออกแบบมาให้ portable ตั้งแต่แรก
+
+| Adapter | ใช้เมื่อ |
+|---|---|
+| `@sveltejs/adapter-auto` | detect environment อัตโนมัติ (Vercel, Netlify, Cloudflare) |
+| `@sveltejs/adapter-node` | Node.js server (self-hosted, Docker) |
+| `@sveltejs/adapter-static` | Static files เท่านั้น (ต้อง prerender ทั้งหมด) |
+| `@sveltejs/adapter-cloudflare` | Cloudflare Workers + Pages |
+| `@sveltejs/adapter-vercel` | Vercel Edge Functions |
+
+```js
+// svelte.config.js
+import adapter from '@sveltejs/adapter-node';
+
+export default {
+  kit: {
+    adapter: adapter({ out: 'build' }),
+  },
+};
+```
+
+เทียบกับ Next.js: Next.js ทำงานได้ดีที่สุดบน Vercel แต่ต้องการ workaround สำหรับ host อื่น SvelteKit สลับ adapter แล้ว build ได้ทันที ไม่ต้องแก้โค้ด
+
+## การผสม rendering modes
+
+SvelteKit ให้ผสม mode ในแต่ละ route ได้:
+
+```
+src/routes/
+├── +layout.js          → ssr: true (default)
+├── +page.svelte        → SSR (home page)
+├── about/
+│   ├── +page.js        → prerender: true
+│   └── +page.svelte    → static (prerendered)
+└── dashboard/
+    ├── +layout.js      → ssr: false
+    └── +page.svelte    → CSR only (protected page)
+```
+
+<Diff title="Next.js rendering modes เทียบกับ SvelteKit">
+
+- Next.js Pages Router: `getServerSideProps` = SSR, `getStaticProps` = SSG, ไม่มีทั้งสอง = CSR
+- Next.js App Router: Server Components = SSR by default, `'use client'` = CSR
+- SvelteKit: SSR คือ default เสมอ, opt out ด้วย `export const ssr = false` (CSR) หรือ `export const prerender = true` (SSG)
+- Page options ใน SvelteKit inherit ลง hierarchy — ตั้งค่าครั้งเดียวใน layout ใช้ได้ทั้ง subtree
+- Adapters: Next.js ผูกกับ Vercel — SvelteKit ใช้ adapter system เพื่อ deploy บน Node, Cloudflare, Vercel, static hosting ได้ทุกที่
+- Data loading: Next.js ใช้ special functions ต่าง convention ต่อ mode — SvelteKit ใช้ `load()` เสมอ, mode เปลี่ยนตาม options ไม่ใช่ชื่อ function
+- Streaming: ทั้ง Next.js (Suspense) และ SvelteKit รองรับ streaming SSR เพื่อส่ง HTML ไปแบบ chunk
+
+</Diff>
+
+export const quizSsrCsr = [
+  {
+    q: 'Rendering mode เริ่มต้นของ SvelteKit page คืออะไร?',
+    options: [
+      'Client-side rendering (CSR เท่านั้น)',
+      'Static prerendering (SSG)',
+      'Server-side rendering (SSR)',
+      'ไม่มี rendering — ต้อง opt in เอง',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Page option ตัวไหนทำให้ SvelteKit สร้าง static HTML ตอน build time?',
+    options: [
+      'export const ssr = false',
+      'export const prerender = true',
+      'export const csr = false',
+      'export const static = true',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณต้องการ deploy ไปยัง Node.js server ควรใช้ adapter ตัวไหน?',
+    options: [
+      '@sveltejs/adapter-auto',
+      '@sveltejs/adapter-static',
+      '@sveltejs/adapter-node',
+      '@sveltejs/adapter-cloudflare',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="routing/ssr-csr" questions={quizSsrCsr} />
+
+<ProgressTracker client:visible id="routing/ssr-csr" />

@@ -1,0 +1,198 @@
+---
+title: 'Forms'
+description: "bind:value แทน controlled components ของ React — และ SvelteKit form actions สำหรับ server-side form submission แบบ Remix"
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+นักพัฒนา React ใช้ controlled components โดยผูก `value` กับ state และ `onChange` สำหรับ update หรือใช้ react-hook-form เพื่อลด boilerplate Svelte ใช้ `bind:value` แทนทั้ง `value=` และ `onChange=` ด้วย directive เดียว — Svelte sync ค่า state กับ input ให้สองทางโดยอัตโนมัติ สำหรับการส่ง form แบบ full-page SvelteKit form actions จัดการ POST server-side เหมือน Remix `action` ไม่ต้องเขียน API route แยก
+
+## controlled input เทียบกับ bind:value
+
+export const formsControlledReact = `function LoginForm() {
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    console.log({ email, password });
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        placeholder="Email"
+      />
+      <input
+        type="password"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
+        placeholder="Password"
+      />
+      <button type="submit">Log in</button>
+    </form>
+  );
+}`;
+
+export const formsControlledSvelte = `<script>
+  let email = \$state('');
+  let password = \$state('');
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    console.log({ email, password });
+  }
+<\/script>
+
+<form onsubmit={handleSubmit}>
+  <input type="email" bind:value={email} placeholder="Email" />
+  <input type="password" bind:value={password} placeholder="Password" />
+  <button type="submit">Log in</button>
+</form>`;
+
+<ReactSvelte react={formsControlledReact} svelte={formsControlledSvelte} />
+
+## SvelteKit form actions เทียบกับ onSubmit handler
+
+export const formsActionsReact = `// pages/login.tsx (Next.js — API route แยก)
+// pages/api/login.ts
+export default function handler(req, res) {
+  const { email, password } = req.body;
+  // ... authenticate
+  res.json({ ok: true });
+}`;
+
+export const formsActionsSvelte = `// +page.server.ts (SvelteKit)
+export const actions = {
+  default: async ({ request }) => {
+    const data = await request.formData();
+    const email = data.get('email');
+    const password = data.get('password');
+    // ... authenticate
+    return { success: true };
+  }
+};
+
+<!-- +page.svelte -->
+<form method="POST">
+  <input type="email" name="email" />
+  <input type="password" name="password" />
+  <button type="submit">Log in</button>
+</form>`;
+
+<ReactSvelte react={formsActionsReact} svelte={formsActionsSvelte} />
+
+## ลองเล่น: full form พร้อม bind:value/bind:checked
+
+export const formsPlaygroundCode = `<script>
+  let name = \$state('');
+  let email = \$state('');
+  let role = \$state('developer');
+  let subscribe = \$state(true);
+  let submitted = \$state(null);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    submitted = { name, email, role, subscribe };
+  }
+<\/script>
+
+{#if submitted}
+  <div style="background:#f0fdf4;padding:1rem;border-radius:6px;margin-bottom:1rem">
+    <strong>Submitted:</strong>
+    <pre style="margin:0.5rem 0 0">{JSON.stringify(submitted, null, 2)}</pre>
+    <button onclick={() => submitted = null} style="margin-top:0.5rem">Reset</button>
+  </div>
+{/if}
+
+<form onsubmit={handleSubmit} style="display:flex;flex-direction:column;gap:0.75rem;max-width:320px">
+  <label>
+    Name
+    <input type="text" bind:value={name} placeholder="Your name" />
+  </label>
+
+  <label>
+    Email
+    <input type="email" bind:value={email} placeholder="you@example.com" />
+  </label>
+
+  <label>
+    Role
+    <select bind:value={role}>
+      <option value="developer">Developer</option>
+      <option value="designer">Designer</option>
+      <option value="manager">Manager</option>
+    </select>
+  </label>
+
+  <label style="flex-direction:row;align-items:center;gap:0.5rem">
+    <input type="checkbox" bind:checked={subscribe} />
+    Subscribe to newsletter
+  </label>
+
+  <button type="submit" disabled={!name || !email}>Submit</button>
+</form>
+
+<style>
+  label { display:flex; flex-direction:column; gap:0.25rem; font-size:0.9rem; }
+  input, select { padding:0.4rem 0.6rem; border:1px solid #ccc; border-radius:4px; }
+  button[type=submit] { padding:0.5rem; background:#FF3E00; color:white; border:none; border-radius:4px; cursor:pointer; }
+  button[type=submit]:disabled { opacity:0.5; cursor:not-allowed; }
+</style>`;
+
+<SveltePlayground client:visible code={formsPlaygroundCode} />
+
+<Diff title="React controlled inputs vs Svelte bind:">
+
+- React ต้องการคู่ `value` + `onChange` สำหรับทุก input — Svelte ใช้ `bind:value` directive เดียว
+- `bind:checked` ใช้สำหรับ checkbox — เทียบกับ `checked` + `onChange` ของ React
+- `bind:value` บน `<select>` sync ตัวเลือกที่เลือกอัตโนมัติ — ไม่ต้อง map option values เอง
+- SvelteKit form actions รับ POST แบบ native HTML form — ทำงานได้แม้ JavaScript ปิดอยู่
+- form actions อยู่ใน `+page.server.ts` ติดกับ page — ไม่ต้องสร้าง API routes แยก
+- `enhance` action ของ SvelteKit เพิ่ม progressive enhancement ด้วย JavaScript โดยไม่เขียนโค้ดเพิ่ม
+
+</Diff>
+
+export const quizForms = [
+  {
+    q: 'directive ใดของ Svelte ที่แทน value + onChange pattern ของ React ได้?',
+    options: [
+      'on:input={handler}',
+      'bind:value={variable}',
+      'use:form',
+      'sync:value={variable}',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณ bind checkbox ใน Svelte อย่างไร?',
+    options: [
+      'bind:value={checked}',
+      'onchange={e => checked = e.target.checked}',
+      'bind:checked={variable}',
+      'checked={variable} oninput={handler}',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'SvelteKit form actions ต่างจาก React onSubmit handler อย่างไร?',
+    options: [
+      'form actions เร็วกว่าเสมอ',
+      'form actions รันบน server รับ native FormData และทำงานได้แม้ JavaScript ปิดอยู่',
+      'form actions ใช้ได้กับ POST request เท่านั้น',
+      'form actions require react-hook-form',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="data/forms" questions={quizForms} />
+
+<ProgressTracker client:visible id="data/forms" />

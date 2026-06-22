@@ -1,0 +1,189 @@
+---
+title: '$effect — Side Effects'
+description: '$effect vs useEffect in Svelte 5 — auto-tracked dependencies, no dependency array, cleanup via return.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+`useEffect` has a well-known footgun: forget a variable in the dependency array and your effect runs with a stale value. Add too many and it runs too often. Svelte 5's `$effect` solves this completely — there is **no dependency array**. The effect runs once, then re-runs automatically every time any reactive value it read during the previous run changes. The compiler tracks dependencies; you don't.
+
+## Basic side effect
+
+export const effectBasicReact = `function TitleSync() {
+  const [count, setCount] = React.useState(0);
+
+  React.useEffect(() => {
+    document.title = 'Count: ' + count;
+  }, [count]);  // <-- must list count here
+
+  return <button onClick={() => setCount(c => c + 1)}>+1 (count: {count})</button>;
+}`;
+
+export const effectBasicSvelte = `<script>
+  let count = \$state(0);
+
+  \$effect(() => {
+    document.title = 'Count: ' + count;
+    // count is read here, so it is tracked automatically
+  });
+<\/script>
+
+<button onclick={() => count++}>+1 (count: {count})</button>`;
+
+<ReactSvelte react={effectBasicReact} svelte={effectBasicSvelte} />
+
+No `[count]`. The effect reads `count`, so Svelte knows to re-run it whenever `count` changes.
+
+## When does $effect run?
+
+- **First run:** after the component mounts (same as `useEffect` with no deps).
+- **Re-runs:** synchronously after any reactive dependency it read on the previous run changes.
+- **Not during render:** unlike `useMemo`, `$effect` never runs during the synchronous rendering phase.
+
+## Cleanup
+
+Return a function from `$effect` to clean up before the next run or when the component is destroyed — identical to `useEffect`'s cleanup pattern.
+
+export const effectCleanupReact = `function Timer() {
+  const [seconds, setSeconds] = React.useState(0);
+
+  React.useEffect(() => {
+    const id = setInterval(() => setSeconds(s => s + 1), 1000);
+    return () => clearInterval(id);  // cleanup
+  }, []);
+
+  return <p>Elapsed: {seconds}s</p>;
+}`;
+
+export const effectCleanupSvelte = `<script>
+  import { onMount } from 'svelte';
+  let seconds = \$state(0);
+
+  onMount(() => {
+    const id = setInterval(() => seconds++, 1000);
+    return () => clearInterval(id);  // cleanup
+  });
+<\/script>
+
+<p>Elapsed: {seconds}s</p>`;
+
+<ReactSvelte react={effectCleanupReact} svelte={effectCleanupSvelte} />
+
+For a "run once on mount + cleanup on destroy" pattern, `onMount` is cleaner than `$effect`. More on that in the Lifecycle lesson.
+
+## $effect for localStorage sync
+
+A common `useEffect` use case — syncing state to localStorage — maps directly:
+
+export const effectStorageReact = `function ThemeToggle() {
+  const [theme, setTheme] = React.useState(
+    () => localStorage.getItem('theme') ?? 'light'
+  );
+
+  React.useEffect(() => {
+    localStorage.setItem('theme', theme);
+    document.body.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  return (
+    <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
+      Theme: {theme}
+    </button>
+  );
+}`;
+
+export const effectStorageSvelte = `<script>
+  let theme = \$state(
+    typeof localStorage !== 'undefined'
+      ? (localStorage.getItem('theme') ?? 'light')
+      : 'light'
+  );
+
+  \$effect(() => {
+    localStorage.setItem('theme', theme);
+    document.body.setAttribute('data-theme', theme);
+  });
+<\/script>
+
+<button onclick={() => theme = theme === 'light' ? 'dark' : 'light'}>
+  Theme: {theme}
+</button>`;
+
+<ReactSvelte react={effectStorageReact} svelte={effectStorageSvelte} />
+
+## Try it: live logger
+
+export const effectPlayCode = `<script>
+  let name = \$state('World');
+  let log = \$state([]);
+
+  \$effect(() => {
+    log = [...log, 'name changed to: ' + name];
+  });
+<\/script>
+
+<div style="font-family:sans-serif;padding:1rem">
+  <label>
+    Name:
+    <input bind:value={name} style="margin-left:0.5rem" />
+  </label>
+  <ul style="margin-top:1rem;font-size:0.85rem;color:#555">
+    {#each log as entry}
+      <li>{entry}</li>
+    {/each}
+  </ul>
+</div>`;
+
+<SveltePlayground client:visible code={effectPlayCode} />
+
+<Diff title="useEffect vs $effect">
+
+- React `useEffect(fn, [deps])` — dependency array is **required for correctness**. Miss a dep and the effect runs with a stale value. Svelte `$effect(fn)` — **no dependency array at all**. The compiler tracks every reactive value the function reads.
+- React effects run **after every render** unless deps are provided. Svelte effects run after mount and then **only when their tracked dependencies change**.
+- Cleanup: both use `return () => cleanup()` inside the effect function.
+- React `useEffect(fn, [])` runs once after mount. In Svelte use `onMount` for that pattern — `$effect` with no reactive reads would also run once, but `onMount` signals intent more clearly.
+- In Svelte you cannot conditionally call `$effect` (same as React's rules of hooks). Always call `$effect` at the top level of a component or module.
+- React effects are asynchronous (queued after paint). Svelte `$effect` runs synchronously in the microtask queue after the reactive update is flushed.
+
+</Diff>
+
+export const quizEffectRune = [
+  {
+    q: 'How does $effect know which reactive values to re-run on?',
+    options: [
+      'You must list them in a dependency array',
+      'The compiler tracks every reactive value the effect reads during its previous run',
+      'It re-runs on every state change in the component',
+      'You call $effect.track(dep) to register each dependency',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How do you clean up a $effect (e.g. clear an interval)?',
+    options: [
+      'Call $effect.cleanup(() => clearInterval(id))',
+      'Use onDestroy instead — $effect has no cleanup',
+      'Return a cleanup function from inside the $effect callback',
+      'Pass a second argument: $effect(fn, cleanup)',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'You want an effect to run exactly once after mount. What is the idiomatic Svelte approach?',
+    options: [
+      '$effect(() => { ... }, [])',
+      '$effect.once(() => { ... })',
+      'onMount(() => { ... })',
+      '$effect with a boolean guard variable',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="reactivity/effect-rune" questions={quizEffectRune} />
+
+<ProgressTracker client:visible id="reactivity/effect-rune" />

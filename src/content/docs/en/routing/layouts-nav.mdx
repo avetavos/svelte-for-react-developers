@@ -1,0 +1,215 @@
+---
+title: 'Layouts and Navigation'
+description: "How +layout.svelte replaces React Router's Outlet, and how SvelteKit handles active-link state with $app/state."
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React Router you compose layouts by nesting `<Outlet />` inside a parent route component — any child route renders where you place the outlet. SvelteKit takes a file-system approach instead: a `+layout.svelte` file automatically wraps every route in the same directory. You get the same nesting behaviour, but without any explicit route configuration.
+
+> Run this in a SvelteKit project (`npx sv create`).
+
+## Layout with nested routes
+
+In React Router you mark where children render by placing `<Outlet />`. In SvelteKit Svelte 5, layouts use the snippet syntax `{@render children()}` — there is no `<slot />` in Svelte 5 layouts.
+
+export const layoutReact = `// src/layouts/RootLayout.jsx  (React Router v6)
+import { Outlet, Link } from 'react-router-dom';
+
+export default function RootLayout() {
+  return (
+    <div>
+      <nav>
+        <Link to="/">Home</Link>
+        <Link to="/about">About</Link>
+        <Link to="/blog">Blog</Link>
+      </nav>
+      <main>
+        <Outlet />
+      </main>
+    </div>
+  );
+}`;
+
+export const layoutSvelte = `<!-- src/routes/+layout.svelte -->
+<script>
+  let { children } = \$props();
+<\/script>
+
+<nav>
+  <a href="/">Home</a>
+  <a href="/about">About</a>
+  <a href="/blog">Blog</a>
+</nav>
+
+<main>
+  {@render children()}
+</main>`;
+
+<ReactSvelte react={layoutReact} svelte={layoutSvelte} />
+
+`{@render children()}` is where the matched child route renders. The `children` snippet is provided automatically by SvelteKit — you just destructure it from `$props()`.
+
+## Active link highlighting
+
+React Router gives you `useLocation()` to read the current URL and derive active styles. SvelteKit exposes the same information through the `page` object imported from `$app/state`.
+
+export const activeLinkReact = `// React Router — active link with useLocation
+import { Link, useLocation } from 'react-router-dom';
+
+const links = [
+  { to: '/', label: 'Home' },
+  { to: '/about', label: 'About' },
+  { to: '/blog', label: 'Blog' },
+];
+
+export default function Nav() {
+  const { pathname } = useLocation();
+
+  return (
+    <nav>
+      {links.map(({ to, label }) => (
+        <Link
+          key={to}
+          to={to}
+          className={pathname === to ? 'active' : ''}
+        >
+          {label}
+        </Link>
+      ))}
+    </nav>
+  );
+}`;
+
+export const activeLinkSvelte = `<!-- +layout.svelte (Svelte 5) -->
+<script>
+  import { page } from '\$app/state';
+  let { children } = \$props();
+
+  const links = [
+    { href: '/', label: 'Home' },
+    { href: '/about', label: 'About' },
+    { href: '/blog', label: 'Blog' },
+  ];
+<\/script>
+
+<nav>
+  {#each links as { href, label }}
+    <a {href} class:active={page.url.pathname === href}>
+      {label}
+    </a>
+  {/each}
+</nav>
+
+<main>
+  {@render children()}
+</main>
+
+<style>
+  a { margin-right: 1rem; text-decoration: none; color: inherit; }
+  a.active { font-weight: bold; border-bottom: 2px solid currentColor; }
+<\/style>`;
+
+<ReactSvelte react={activeLinkReact} svelte={activeLinkSvelte} />
+
+`page` from `$app/state` is a reactive object — it updates on every navigation automatically. No `useEffect`, no subscription setup.
+
+## Full +layout.svelte with active-link navigation
+
+Here is a complete layout you can drop into any SvelteKit project:
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<script>
+  import { page } from '$app/state';
+  let { children } = $props();
+</script>
+
+<header>
+  <a href="/" class="logo">MySite</a>
+  <nav>
+    <a href="/"      class:active={page.url.pathname === '/'}>Home</a>
+    <a href="/about" class:active={page.url.pathname === '/about'}>About</a>
+    <a href="/blog"  class:active={page.url.pathname.startsWith('/blog')}>Blog</a>
+  </nav>
+</header>
+
+<main>
+  {@render children()}
+</main>
+
+<footer>© 2026 MySite</footer>
+
+<style>
+  header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .logo { font-weight: 700; text-decoration: none; }
+  nav { display: flex; gap: 1rem; margin-left: auto; }
+  nav a { text-decoration: none; color: inherit; }
+  nav a.active { font-weight: 600; color: #FF3E00; }
+</style>
+```
+
+## Key points
+
+- `+layout.svelte` wraps all routes in the same directory — and nested directories inherit it automatically.
+- Children render at `{@render children()}` (Svelte 5 snippet syntax). There is no `<slot />` in Svelte 5 layouts.
+- Layouts **nest**: `dashboard/+layout.svelte` wraps all routes under `/dashboard`, inside the root layout.
+- Use plain `<a href="/about">` — no `<Link>` component needed. SvelteKit intercepts `<a>` clicks and performs client-side navigation automatically.
+- `page` from `$app/state` provides `url`, `params`, `data`, `route.id`, and more — all reactive.
+- `page.url.pathname` is the idiomatic way to implement active-link logic.
+
+<Diff title="React Router → SvelteKit layouts">
+
+- React Router requires an explicit `<Outlet />` in a layout component registered in a route config. SvelteKit infers layouts from the file system — place `+layout.svelte` next to your routes.
+- React Router uses `<Link to="...">` for client-side navigation to avoid full page reloads. SvelteKit enhances plain `<a href="...">` — no import needed.
+- React Router exposes `useLocation()` hook to read the current URL. SvelteKit exposes the reactive `page` object from `$app/state` — same data, no hook call required.
+- Both support nested layouts: React Router via nested `<Route>` trees; SvelteKit via nested `+layout.svelte` files in subdirectories.
+- In Svelte 5, child content renders at `{@render children()}` after destructuring `let { children } = $props()`. In React Router it renders at `<Outlet />`.
+
+</Diff>
+
+export const quizLayoutsNav = [
+  {
+    q: 'Where does a child route render in a SvelteKit Svelte 5 layout?',
+    options: [
+      '<slot />',
+      '<Outlet />',
+      '{@render children()}',
+      '<children />',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'How do you get the current pathname in a SvelteKit component?',
+    options: [
+      "import { useLocation } from '$app/navigation'",
+      "import { page } from '$app/state'; then page.url.pathname",
+      "import { pathname } from '$app/state'",
+      "Astro.url.pathname",
+    ],
+    answer: 1,
+  },
+  {
+    q: 'You want client-side navigation to /dashboard in SvelteKit. What do you write?',
+    options: [
+      '<Link to="/dashboard">Dashboard</Link>',
+      '<navigate href="/dashboard">Dashboard</navigate>',
+      '<a href="/dashboard">Dashboard</a>',
+      "goto('/dashboard') inside an onclick handler only",
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="routing/layouts-nav" questions={quizLayoutsNav} />
+
+<ProgressTracker client:visible id="routing/layouts-nav" />

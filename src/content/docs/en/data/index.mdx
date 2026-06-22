@@ -1,0 +1,137 @@
+---
+title: 'Data & State — Overview'
+description: 'A map of Svelte state primitives for React developers: $state, stores, module-level reactive state, and async patterns.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React gives you a rich but fragmented menu: `useState`, `useReducer`, `useContext`, `useRef`, Redux, Zustand, react-query, SWR — each solving a different slice of the state problem. Svelte has a layered model that covers the same ground with fewer moving parts:
+
+- **`$state`** — component-local reactive state (replaces `useState`)
+- **`$derived`** — computed values that update automatically (replaces `useMemo`)
+- **`$effect`** — side effects that re-run on dependency change (replaces `useEffect`)
+- **Svelte stores** (`writable`, `readable`, `derived`) — shared state across components
+- **`.svelte.ts` modules** — module-level reactive state, imported like any JS module
+- **`{#await}`** — declarative async/loading/error state in markup
+
+This module walks through each layer. Start here for a map, then dive into the dedicated lessons.
+
+## Component-local state: useState → $state
+
+export const indexCounterReact = `function Counter() {
+  const [count, setCount] = React.useState(0);
+  return (
+    <button onClick={() => setCount(c => c + 1)}>
+      Count: {count}
+    </button>
+  );
+}`;
+
+export const indexCounterSvelte = `<script>
+  let count = \$state(0);
+<\/script>
+
+<button onclick={() => count++}>
+  Count: {count}
+</button>`;
+
+<ReactSvelte react={indexCounterReact} svelte={indexCounterSvelte} />
+
+The key difference: `$state` variables are plain mutable variables. No setter, no functional update — just assign. Svelte's compiler tracks reads and writes at the call site.
+
+## Try it: counter + toggled list
+
+export const indexPlaygroundCode = `<script>
+  let count = \$state(0);
+  let showList = \$state(false);
+  let items = \$state(['Apples', 'Bananas', 'Cherries']);
+  let newItem = \$state('');
+
+  function addItem() {
+    if (newItem.trim()) {
+      items = [...items, newItem.trim()];
+      newItem = '';
+    }
+  }
+<\/script>
+
+<h3>Counter</h3>
+<div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:1rem">
+  <button onclick={() => count--}>-</button>
+  <strong>{count}</strong>
+  <button onclick={() => count++}>+</button>
+  <button onclick={() => count = 0}>Reset</button>
+</div>
+
+<h3>
+  <button onclick={() => showList = !showList}>
+    {showList ? 'Hide' : 'Show'} list ({items.length})
+  </button>
+</h3>
+
+{#if showList}
+  <ul>
+    {#each items as item}
+      <li>{item}</li>
+    {/each}
+  </ul>
+  <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+    <input bind:value={newItem} placeholder="New item" />
+    <button onclick={addItem}>Add</button>
+  </div>
+{/if}`;
+
+<SveltePlayground client:visible code={indexPlaygroundCode} />
+
+<Diff title="React state toolbox vs Svelte state toolbox">
+
+- `useState(initial)` → `$state(initial)` — mutable, no setter needed
+- `useMemo(() => expr, [deps])` → `$derived(expr)` — dependencies tracked automatically
+- `useEffect(() => fn, [deps])` → `$effect(() => fn)` — same idea, compiler-tracked deps
+- `useContext` + `createContext` + Provider → `.svelte.ts` module with exported `$state`
+- Redux / Zustand global store → Svelte `writable` / `readable` / `derived` stores
+- React Query / SWR data fetching → `onMount` + `fetch` or SvelteKit `load` + `{#await}`
+- `<Suspense>` + error boundary → `{#await promise}{:then}{:catch}{/await}` block
+
+</Diff>
+
+export const quizIndex = [
+  {
+    q: 'Which Svelte 5 rune directly replaces React\'s useState?',
+    options: [
+      '$effect',
+      '$derived',
+      '$state',
+      '$props',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'A Svelte writable store is most analogous to which React pattern?',
+    options: [
+      'useRef',
+      'A global state store like Zustand or Redux',
+      'useMemo',
+      'React.createPortal',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How does Svelte\'s {#await} block differ from manually tracking loading state with useState?',
+    options: [
+      'It is slower because it uses Promises',
+      'It requires a separate library',
+      'It declaratively handles loading, resolved, and error states in markup without manual flags',
+      'It only works with SvelteKit',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="data/index" />

@@ -1,6 +1,6 @@
 ---
 title: 'Bindings'
-description: 'Svelte bind:value and bind:checked for two-way data binding vs React controlled inputs.'
+description: 'bind:value และ bind:checked ของ Svelte สำหรับ two-way data binding เทียบกับ controlled input ของ React'
 ---
 
 import ReactSvelte from '../../../../components/ReactSvelte.tsx';
@@ -9,9 +9,9 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-React uses **controlled inputs**: you set `value={state}` and update it yourself in `onChange`. This is deliberate — one-way data flow keeps state changes explicit. Svelte offers `bind:value` for **two-way binding**, which wires the input and the variable together automatically. There is no direct React equivalent — it is a genuine Svelte superpower.
+React ใช้ **controlled input**: คุณตั้งค่า `value={state}` แล้วอัปเดตมันเองใน `onChange` นี่เป็นความตั้งใจ — one-way data flow ทำให้การเปลี่ยน state ชัดเจน ส่วน Svelte มี `bind:value` สำหรับ **two-way binding** ที่เชื่อม input กับตัวแปรเข้าด้วยกันโดยอัตโนมัติ ไม่มีอะไรใน React ที่เทียบได้ตรง ๆ — มันเป็น superpower ของ Svelte จริง ๆ
 
-## Text input: controlled vs `bind:value`
+## Text input: controlled เทียบกับ `bind:value`
 
 export const bindingsTextReact = `function NameForm() {
   const [name, setName] = React.useState('');
@@ -36,7 +36,7 @@ export const bindingsTextSvelte = `<script>
 
 <ReactSvelte react={bindingsTextReact} svelte={bindingsTextSvelte} />
 
-`bind:value` replaces both `value={name}` and `onChange={e => setName(e.target.value)}` in a single directive.
+`bind:value` แทนที่ทั้ง `value={name}` และ `onChange={e => setName(e.target.value)}` ด้วย directive เดียว
 
 ## Checkbox: `bind:checked`
 
@@ -92,7 +92,7 @@ export const bindingsSelectSvelte = `<script>
 
 <ReactSvelte react={bindingsSelectReact} svelte={bindingsSelectSvelte} />
 
-## Try it: a mini form
+## ลองเล่น: form ขนาดเล็ก
 
 export const bindingsCode = `<script>
   let name = \$state('');
@@ -144,38 +144,38 @@ export const bindingsCode = `<script>
 
 <Diff title="React controlled inputs vs Svelte bind:">
 
-- React controlled input requires `value={state}` + `onChange={e => setState(e.target.value)}` — two pieces.
-- Svelte `bind:value={state}` does both in one directive — two-way binding with no handler needed.
-- `bind:checked` for checkboxes, `bind:value` for text/number/email/select/textarea.
-- React philosophy: **one-way data flow** (explicit). Svelte: **two-way binding is opt-in** (convenient).
-- `bind:` is a Svelte directive. It only works on DOM elements or components that expose a `$bindable()` prop — not arbitrary JS values.
-- React has no direct equivalent. The closest is a custom hook (`useInput`) that returns `{ value, onChange }`.
+- controlled input ของ React ต้องมี `value={state}` + `onChange={e => setState(e.target.value)}` — สองชิ้น
+- Svelte `bind:value={state}` ทำทั้งสองอย่างใน directive เดียว — two-way binding โดยไม่ต้องมี handler
+- `bind:checked` สำหรับ checkbox, `bind:value` สำหรับ text/number/email/select/textarea
+- ปรัชญาของ React: **one-way data flow** (ชัดเจน) ส่วน Svelte: **two-way binding เป็นแบบ opt-in** (สะดวก)
+- `bind:` เป็น directive ของ Svelte มันใช้ได้แค่กับ DOM element หรือ component ที่เปิดเผย prop แบบ `$bindable()` — ใช้กับค่า JS ทั่วไปไม่ได้
+- React ไม่มีอะไรเทียบได้ตรง ๆ ที่ใกล้เคียงที่สุดคือ custom hook (`useInput`) ที่ return `{ value, onChange }`
 
 </Diff>
 
 export const quizBindings = [
   {
-    q: 'What does bind:value do in Svelte?',
+    q: 'bind:value ใน Svelte ทำอะไร?',
     options: [
-      'It sets a read-only value on the input',
-      'It creates two-way binding — input changes update the variable and vice versa',
-      'It is equivalent to React defaultValue',
-      'It prevents the user from typing',
+      'ตั้งค่า value แบบ read-only ให้กับ input',
+      'สร้าง two-way binding — เมื่อ input เปลี่ยน ตัวแปรจะอัปเดต และในทางกลับกันด้วย',
+      'มันเทียบเท่ากับ defaultValue ของ React',
+      'มันกันไม่ให้ผู้ใช้พิมพ์',
     ],
     answer: 1,
   },
   {
-    q: 'Which directive do you use to bind a checkbox in Svelte?',
+    q: 'คุณใช้ directive ไหน bind checkbox ใน Svelte?',
     options: ['bind:value', 'bind:checked', 'bind:selected', 'bind:input'],
     answer: 1,
   },
   {
-    q: 'How do you replicate Svelte bind:value in React?',
+    q: 'คุณจะทำแบบ bind:value ของ Svelte ให้ได้เหมือนกันใน React อย่างไร?',
     options: [
-      'Use the bind attribute on the input',
-      'Use defaultValue',
-      'Set value={state} and onChange={e => setState(e.target.value)}',
-      'React has a built-in bind() helper',
+      'ใช้ attribute bind บน input',
+      'ใช้ defaultValue',
+      'ตั้งค่า value={state} และ onChange={e => setState(e.target.value)}',
+      'React มี helper bind() มาให้ในตัว',
     ],
     answer: 2,
   },

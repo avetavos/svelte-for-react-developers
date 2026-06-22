@@ -1,0 +1,178 @@
+---
+title: 'Layouts และ Navigation'
+description: '+layout.svelte, การนำทางด้วย <a href>, และ page store เทียบกับ Outlet, Link, useLocation'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React Router คุณสร้าง layout ด้วย component ที่ render `<Outlet />` เพื่อให้ child routes แสดงผลตรงนั้น ส่วน Next.js App Router ใช้ไฟล์ `layout.tsx` ที่ wrap `{children}` ให้อัตโนมัติ SvelteKit ใช้แนวคิดเดียวกันผ่านไฟล์ `+layout.svelte` — วาง `<slot />` ไว้ตรงไหน child pages ก็จะแสดงผลตรงนั้น และ layout จะ **persist** ข้ามการนำทางโดยไม่ unmount
+
+## +layout.svelte กับ Outlet / layout.tsx
+
+export const layoutReact = `// src/routes/_layout.tsx (Remix) หรือ app/layout.tsx (Next.js)
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <nav>
+          <a href="/">Home</a>
+          <a href="/about">About</a>
+          <a href="/blog">Blog</a>
+        </nav>
+        <main>{children}</main>
+      </body>
+    </html>
+  );
+}`;
+
+export const layoutSvelte = `<!-- src/routes/+layout.svelte -->
+<nav>
+  <a href="/">Home</a>
+  <a href="/about">About</a>
+  <a href="/blog">Blog</a>
+</nav>
+
+<main>
+  <slot />
+</main>`;
+
+<ReactSvelte react={layoutReact} svelte={layoutSvelte} />
+
+จุดสำคัญ: `<slot />` ของ SvelteKit ทำหน้าที่เหมือน `{children}` ของ Next.js และ `<Outlet />` ของ React Router — เป็นที่ที่ child page จะถูก inject เข้ามา ไฟล์ `+layout.svelte` ใดก็ตามที่วางอยู่ใน `src/routes/` จะ wrap **ทุก** page ภายใต้ directory นั้น
+
+## การนำทางด้วย `<a href>` ธรรมดา
+
+ใน React คุณต้องใช้ `<Link>` component จาก react-router หรือ Next.js เพื่อ client-side navigation การใช้ `<a>` ธรรมดาจะทำให้ full-page reload SvelteKit จัดการสิ่งนี้ให้คุณ — **ใช้ `<a href>` ธรรมดาได้เลย** โดย SvelteKit จะ intercept การคลิกแล้วทำ client-side navigation ให้อัตโนมัติ
+
+export const navReact = `// React Router / Next.js
+import { Link, useLocation } from 'react-router-dom';
+// หรือ import Link from 'next/link';
+// หรือ import { usePathname } from 'next/navigation';
+
+function Nav() {
+  const location = useLocation();
+  return (
+    <nav>
+      <Link to="/" className={location.pathname === '/' ? 'active' : ''}>
+        Home
+      </Link>
+      <Link to="/about" className={location.pathname === '/about' ? 'active' : ''}>
+        About
+      </Link>
+    </nav>
+  );
+}`;
+
+export const navSvelte = `<script>
+  import { page } from '\$app/state';
+<\/script>
+
+<nav>
+  <a href="/" class:active={\$page.url.pathname === '/'}>
+    Home
+  </a>
+  <a href="/about" class:active={\$page.url.pathname === '/about'}>
+    About
+  </a>
+</nav>
+
+<style>
+  .active { font-weight: bold; }
+</style>`;
+
+<ReactSvelte react={navReact} svelte={navSvelte} />
+
+ไม่มี `<Link>` component ไม่มี `useLocation` hook — แค่ `<a>` ธรรมดาพร้อม `$app/state` สำหรับอ่าน URL ปัจจุบัน
+
+## $app/state และ page store
+
+`$page` จาก `$app/state` คือ reactive object ที่ให้ข้อมูล route ปัจจุบัน เทียบได้กับ `useLocation()` + `useParams()` ใน React Router หรือ `usePathname()` + `useSearchParams()` ใน Next.js
+
+```svelte
+<script>
+  import { page } from '$app/state';
+</script>
+
+<p>เส้นทางปัจจุบัน: {$page.url.pathname}</p>
+<p>URL params: {JSON.stringify($page.params)}</p>
+<p>Search: {$page.url.search}</p>
+```
+
+ข้อมูลสำคัญที่ `$page` ให้:
+
+| Property | เทียบเท่าใน React |
+|---|---|
+| `$page.url.pathname` | `useLocation().pathname` / `usePathname()` |
+| `$page.params` | `useParams()` |
+| `$page.url.searchParams` | `useSearchParams()` |
+| `$page.data` | ข้อมูลที่ load function ส่งกลับมา |
+| `$page.status` | HTTP status code ของหน้านี้ |
+
+## Nested layouts
+
+Layout ซ้อนกันได้ตามลำดับชั้น directory — เหมือนกับ Next.js App Router ทุกประการ
+
+```
+src/routes/
+├── +layout.svelte        ← root layout (nav + footer)
+├── +page.svelte          ← /
+└── dashboard/
+    ├── +layout.svelte    ← dashboard layout (sidebar)
+    ├── +page.svelte      ← /dashboard
+    └── settings/
+        └── +page.svelte  ← /dashboard/settings
+```
+
+`/dashboard/settings` จะได้รับทั้ง root layout และ dashboard layout ซ้อนกัน โดยไม่ต้องกำหนด config ใด ๆ เพิ่มเติม
+
+<Diff title="React Router / Next.js vs SvelteKit layouts และ navigation">
+
+- React Router: ใช้ `<Outlet />` ใน layout component เพื่อ render child routes — ต้อง wrap ด้วย `<Routes>` และ `<Route>` config
+- Next.js App Router: ไฟล์ `layout.tsx` wrap `{children}` — ใกล้เคียงกับ SvelteKit มากที่สุด
+- SvelteKit: ไฟล์ `+layout.svelte` วาง `<slot />` ไว้ — ทำงานเหมือน `{children}` ของ Next.js โดยไม่ต้องมี config เพิ่ม
+- การนำทาง: React ต้องใช้ `<Link>` component เพื่อหลีกเลี่ยง full reload — SvelteKit intercept `<a href>` ธรรมดาให้อัตโนมัติ
+- อ่าน URL ปัจจุบัน: `useLocation()` / `usePathname()` ใน React → `$page.url.pathname` จาก `$app/state` ใน SvelteKit
+- อ่าน route params: `useParams()` ใน React → `$page.params` ใน SvelteKit
+- Layout จะ persist ข้ามการนำทาง (ไม่ unmount) เหมือนกันทั้ง Next.js App Router และ SvelteKit
+
+</Diff>
+
+export const quizLayoutsNav = [
+  {
+    q: 'ใน SvelteKit Svelte 5 layout child route render ที่ไหน?',
+    options: [
+      '<slot />',
+      '<Outlet />',
+      '{@render children()}',
+      '<children />',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'คุณอ่าน pathname ปัจจุบันใน SvelteKit component ได้อย่างไร?',
+    options: [
+      "import { useLocation } from '\$app/navigation'",
+      "import { page } from '\$app/state'; แล้วใช้ page.url.pathname",
+      "import { pathname } from '\$app/state'",
+      'Astro.url.pathname',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณต้องการ client-side navigation ไปหน้า /dashboard ใน SvelteKit ควรเขียนอย่างไร?',
+    options: [
+      '<Link to="/dashboard">Dashboard</Link>',
+      '<navigate href="/dashboard">Dashboard</navigate>',
+      '<a href="/dashboard">Dashboard</a>',
+      "goto('/dashboard') ภายใน onclick handler เท่านั้น",
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="routing/layouts-nav" questions={quizLayoutsNav} />
+
+<ProgressTracker client:visible id="routing/layouts-nav" />

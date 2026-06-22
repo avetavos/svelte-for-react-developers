@@ -1,0 +1,98 @@
+---
+title: 'Tooling Overview'
+description: 'Svelte/SvelteKit toolchain vs React/Next — mapping CRA, tsc, Jest, and React DevTools to their Svelte equivalents.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+If you come from React, you already have a mental map of the toolchain: **Create React App** or Vite to scaffold, **tsc** to type-check, **Jest + React Testing Library** to test, and **React DevTools** to inspect components at runtime. SvelteKit has a matching tool for every one of these — and in most cases the Svelte version is simpler to configure.
+
+This lesson maps each React tool to its Svelte counterpart so you can hit the ground running.
+
+## package.json scripts comparison
+
+The most visible difference day-to-day is the `package.json` scripts. Here is a typical React Vite project side-by-side with a SvelteKit project:
+
+export const toolingScriptsReact = `// package.json (React + Vite)
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "jest"
+  }
+}`;
+
+export const toolingScriptsSvelte = `// package.json (SvelteKit)
+{
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run"
+  }
+}`;
+
+<ReactSvelte react={toolingScriptsReact} svelte={toolingScriptsSvelte} />
+
+Notice that `tsc && vite build` becomes just `vite build` — SvelteKit's build step already runs `svelte-check` as a separate `check` script, keeping type-checking and bundling decoupled.
+
+## Tool mapping
+
+<Diff title="React toolchain → Svelte/SvelteKit equivalent">
+
+- **Scaffolding:** Create React App / `npm create vite@latest` (React template) → `npm create svelte@latest` (SvelteKit) or `npm create vite@latest` (Svelte template for standalone apps)
+- **Type checking:** `tsc --noEmit` → `svelte-check --tsconfig ./tsconfig.json` (understands `.svelte` template syntax)
+- **Unit + component testing:** Jest + React Testing Library → Vitest + `@testing-library/svelte`
+- **End-to-end testing:** Playwright — **identical in both**, no change needed
+- **Browser devtools extension:** React DevTools → Svelte DevTools (Chrome / Firefox extension)
+- **Production build:** `next build` / `vite build` → `npm run build` (SvelteKit adapter determines output format)
+- **Framework config:** `next.config.js` → `svelte.config.js`
+- **Vite plugin:** `@vitejs/plugin-react` → `@sveltejs/vite-plugin-svelte` (standalone) or `@sveltejs/kit/vite` (SvelteKit)
+
+</Diff>
+
+## Key takeaway
+
+The tools are different names but the same jobs. You do not need to learn a new mental model for the toolchain — just substitute each tool with its Svelte counterpart. The biggest shift is that `svelte-check` replaces `tsc` for template-aware type checking, and Vitest replaces Jest (with nearly identical APIs).
+
+export const quizIndex = [
+  {
+    q: 'Which tool replaces tsc for type-checking .svelte files?',
+    options: [
+      'svelte-lint',
+      'svelte-check',
+      'vite-types',
+      'eslint-svelte',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the SvelteKit equivalent of Jest + React Testing Library?',
+    options: [
+      'Mocha + @testing-library/svelte',
+      'Vitest + @testing-library/svelte',
+      'Jasmine + Svelte Test Utils',
+      'Cypress + @sveltejs/testing',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'For end-to-end testing, which tool do React and SvelteKit projects both use?',
+    options: [
+      'Cypress',
+      'Selenium',
+      'Playwright',
+      'Puppeteer',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="tooling/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="tooling/index" />

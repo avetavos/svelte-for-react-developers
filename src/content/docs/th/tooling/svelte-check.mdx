@@ -1,0 +1,143 @@
+---
+title: 'svelte-check & TypeScript'
+description: 'svelte-check มาแทน tsc ในการตรวจสอบ type ของ template .svelte อย่างไร — รวมถึง $props, $state และ lang="ts"'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ในโปรเจกต์ React คุณรัน `tsc --noEmit` เพื่อจับ type error ในไฟล์ `.tsx` ทั้งหมด มันทำงานได้เพราะ TypeScript เข้าใจ JSX โดยกำเนิด แต่ template ของ Svelte ไม่ใช่ JSX — มันเป็น syntax เฉพาะตัวที่ `tsc` ไม่สามารถ parse ได้ จึงเป็นที่มาของ **svelte-check**: เครื่องมือ CLI ที่เข้าใจโครงสร้างไฟล์ `.svelte` รัน TypeScript compiler บนบล็อก `<script lang="ts">` และยังตรวจสอบ type ของ expression ใน template เช่น การอ้างอิงตัวแปร reactive และการ destructure `$props` ด้วย
+
+## เปรียบเทียบ component แบบ TypeScript
+
+export const svelteCheckReact = `// Counter.tsx
+import React from 'react';
+
+interface Props {
+  initialCount: number;
+}
+
+export function Counter({ initialCount }: Props) {
+  const [count, setCount] = React.useState(initialCount);
+  return (
+    <button onClick={() => setCount(c => c + 1)}>
+      Count: {count}
+    </button>
+  );
+}`;
+
+export const svelteCheckSvelte = `<!-- Counter.svelte -->
+<script lang="ts">
+  interface Props {
+    initialCount: number;
+  }
+  let { initialCount }: Props = \$props();
+  let count = \$state(initialCount);
+<\/script>
+
+<button onclick={() => count++}>Count: {count}</button>`;
+
+<ReactSvelte react={svelteCheckReact} svelte={svelteCheckSvelte} />
+
+attribute `lang="ts"` บน `<script>` เป็นการเลือกให้บล็อกนั้นใช้ TypeScript คุณกำหนด interface `Props` ไว้ภายในบล็อก script โดยตรง (หรือ import มาจากไฟล์ที่ใช้ร่วมกัน) แล้ว destructure `$props()` ด้วย type นั้น
+
+## การรันตัวตรวจสอบ type
+
+React/tsc:
+
+```bash
+npx tsc --noEmit
+```
+
+Svelte:
+
+```bash
+npx svelte-check --tsconfig ./tsconfig.json
+```
+
+ทั้งสองคำสั่งจะแสดง error และ exit ด้วย code ที่ไม่ใช่ศูนย์หากมีปัญหาเรื่อง type ทำให้ใช้แทนกันได้ตรง ๆ ใน CI scripts
+
+## การเชื่อมต่อกับ IDE
+
+`svelte-check` เป็นพลังเบื้องหลังของส่วนขยาย **Svelte for VS Code** (และ language server อย่างเป็นทางการ) นี่คือเหตุผลที่คุณเห็น type error แบบ inline ใน template `.svelte` ในเอดิเตอร์ของคุณ — เอนจินตัวเดียวกันรันทั้งใน terminal และใน IDE
+
+ติดตั้งส่วนขยายของ VS Code:
+
+```bash
+# Search in VS Code extensions panel:
+# "Svelte for VS Code" by the Svelte team
+```
+
+เพิ่ม `svelte-check` ลงในโปรเจกต์ของคุณ:
+
+```bash
+npm install --save-dev svelte-check typescript
+```
+
+`tsconfig.json` ทั่วไปสำหรับโปรเจกต์ SvelteKit (สร้างโดย `npm create svelte@latest`):
+
+```json
+{
+  "extends": "./.svelte-kit/tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true
+  }
+}
+```
+
+<Diff title="tsc vs svelte-check">
+
+- `tsc --noEmit`: ตรวจสอบ type ของไฟล์ `.ts` และ `.tsx` — **ไม่สามารถ** parse ไฟล์ `.svelte` ได้
+- `svelte-check`: ตรวจสอบ type ของไฟล์ `.ts`, `.js` และ `.svelte` รวมถึง expression ใน template
+- `svelte-check` เข้าใจ syntax เฉพาะของ Svelte: `\$props()`, `\$state()`, `\$derived()`, `{#if}`, `{#each}`
+- ทั้งคู่ใช้ `tsconfig.json` สำหรับ compiler options
+- ทั้งคู่เชื่อมต่อกับ VS Code ผ่าน language server ของแต่ละตัว
+- ใน CI: ทั้งคู่ exit ด้วย code ที่ไม่ใช่ศูนย์เมื่อมี error — ใช้ `npm run check` (svelte-check) แทน `tsc` ในโปรเจกต์ SvelteKit
+
+</Diff>
+
+export const quizSvelteCheck = [
+  {
+    q: 'ทำไมคุณถึงใช้ tsc เพียงอย่างเดียวตรวจสอบ type ของไฟล์ .svelte ไม่ได้?',
+    options: [
+      'tsc ไม่รองรับ TypeScript ในโปรเจกต์ Svelte',
+      'TypeScript ไม่ได้รับการรองรับใน Svelte 5',
+      'tsc ไม่สามารถ parse syntax ของ template .svelte ได้ — มันเข้าใจแค่ .ts และ .tsx',
+      'คุณต้อง eject โปรเจกต์ก่อน',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'คุณเปิดใช้งาน TypeScript ภายในบล็อก script ของ Svelte component อย่างไร?',
+    options: [
+      'เพิ่ม // @ts-check ที่ด้านบนของไฟล์',
+      'ใช้ <script lang="ts">',
+      'เปลี่ยนชื่อไฟล์เป็น .svelte.ts',
+      'ตั้งค่า typescript: true ใน svelte.config.js',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'npm script ใดที่รัน svelte-check ในโปรเจกต์ SvelteKit ทั่วไป?',
+    options: [
+      'npm run typecheck',
+      'npm run tsc',
+      'npm run check',
+      'npm run lint',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="tooling/svelte-check" questions={quizSvelteCheck} />
+
+<ProgressTracker client:visible id="tooling/svelte-check" />

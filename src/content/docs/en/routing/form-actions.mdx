@@ -1,0 +1,262 @@
+---
+title: 'Form Actions'
+description: "SvelteKit form actions in +page.server.js and progressive enhancement via use:enhance — compared to React controlled forms and Next.js Server Actions."
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React forms are almost always handled with JavaScript: controlled inputs feed state into a `fetch` call on submit. SvelteKit takes a different approach — form actions are server-side handlers that work with native HTML form submission, so they function even without JavaScript. Adding `use:enhance` then layers in the fetch-based experience progressively.
+
+> Run this in a SvelteKit project (`npx sv create`).
+
+## Basic form handler
+
+React requires you to wire up controlled inputs, prevent the default submit, and fire a `fetch` manually. SvelteKit lets you export an `actions` object from `+page.server.js` and point the form's `action` attribute at it.
+
+export const formBasicReact = `// React — controlled form with fetch
+import { useState } from 'react';
+
+export default function CreatePost() {
+  const [title, setTitle] = useState('');
+  const [error, setError] = useState(null);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const res = await fetch('/api/posts', {
+      method: 'POST',
+      body: JSON.stringify({ title }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const { message } = await res.json();
+      setError(message);
+    } else {
+      setTitle('');
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {error && <p className="error">{error}</p>}
+      <input
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        placeholder="Post title"
+      />
+      <button type="submit">Create</button>
+    </form>
+  );
+}`;
+
+export const formBasicSvelte = `<!-- +page.svelte -->
+<script>
+  let { form } = \$props();
+<\/script>
+
+{#if form?.error}
+  <p class="error">{form.error}</p>
+{/if}
+
+<form method="POST" action="?/create">
+  <input name="title" placeholder="Post title" />
+  <button type="submit">Create</button>
+</form>
+
+<!-- +page.server.js -->
+<!--
+import { fail } from '@sveltejs/kit';
+
+export const actions = {
+  create: async ({ request }) => {
+    const data = await request.formData();
+    const title = data.get('title');
+
+    if (!title) {
+      return fail(400, { error: 'Title is required' });
+    }
+
+    await db.post.create({ data: { title } });
+  },
+};
+-->`;
+
+<ReactSvelte react={formBasicReact} svelte={formBasicSvelte} />
+
+The `form` prop is automatically populated with whatever the action returns — including validation errors from `fail()`. Without JavaScript the page reloads; with JS it works the same way.
+
+## Progressive enhancement with use:enhance
+
+React forms require JavaScript to do anything useful. SvelteKit's `use:enhance` upgrades a native form to use `fetch` — giving you a SPA feel while keeping the no-JS fallback.
+
+export const enhanceReact = `// React — onSubmit is the only way to intercept
+import { useState } from 'react';
+
+export default function ContactForm() {
+  const [status, setStatus] = useState('idle');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setStatus('submitting');
+    const formData = new FormData(e.currentTarget);
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      body: formData,
+    });
+    setStatus(res.ok ? 'done' : 'error');
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="email" type="email" placeholder="Email" />
+      <button type="submit" disabled={status === 'submitting'}>
+        {status === 'submitting' ? 'Sending…' : 'Send'}
+      </button>
+      {status === 'done' && <p>Sent!</p>}
+    </form>
+  );
+}`;
+
+export const enhanceSvelte = `<!-- +page.svelte -->
+<script>
+  import { enhance } from '\$app/forms';
+  let { form } = \$props();
+  let submitting = \$state(false);
+<\/script>
+
+<form
+  method="POST"
+  action="?/contact"
+  use:enhance={() => {
+    submitting = true;
+    return async ({ update }) => {
+      submitting = false;
+      await update();
+    };
+  }}
+>
+  <input name="email" type="email" placeholder="Email" />
+  <button type="submit" disabled={submitting}>
+    {submitting ? 'Sending…' : 'Send'}
+  </button>
+  {#if form?.success}
+    <p>Sent!</p>
+  {/if}
+</form>`;
+
+<ReactSvelte react={enhanceReact} svelte={enhanceSvelte} />
+
+`use:enhance` intercepts submission, fires the action via `fetch`, and updates the `form` prop with the returned data — all without a full page reload. Without JavaScript the form still submits and works normally.
+
+## Named actions in +page.server.js
+
+A single page can have multiple form actions. Name them in the `actions` export and reference them with `?/actionName` in the form's `action` attribute.
+
+```js
+// src/routes/posts/+page.server.js
+import { fail, redirect } from '@sveltejs/kit';
+
+export const actions = {
+  // default action — triggered by action="" or no action attribute
+  default: async ({ request }) => {
+    const data = await request.formData();
+    console.log(data.get('query'));
+  },
+
+  // named action — triggered by action="?/create"
+  create: async ({ request, locals }) => {
+    const data = await request.formData();
+    const title = String(data.get('title') ?? '').trim();
+
+    if (title.length < 3) {
+      return fail(400, { error: 'Title must be at least 3 characters', title });
+    }
+
+    await locals.db.post.create({ data: { title } });
+    redirect(303, '/posts');
+  },
+
+  // another named action — triggered by action="?/delete"
+  delete: async ({ request, locals }) => {
+    const data = await request.formData();
+    const id = data.get('id');
+    await locals.db.post.delete({ where: { id } });
+  },
+};
+```
+
+Point each form at its action:
+
+```svelte
+<!-- create form -->
+<form method="POST" action="?/create">
+  <input name="title" />
+  <button>Create</button>
+</form>
+
+<!-- delete form -->
+<form method="POST" action="?/delete">
+  <input type="hidden" name="id" value={post.id} />
+  <button>Delete</button>
+</form>
+```
+
+## Key points
+
+- Form actions are defined in `+page.server.js` as an exported `actions` object — each key is an action name.
+- Default action: `export const actions = { default: async ({ request }) => { ... } }` — no `?/name` needed.
+- Named actions use `?/actionName` in the form's `action` attribute.
+- `use:enhance` from `$app/forms` upgrades forms to use `fetch` without removing the no-JS fallback.
+- Return `fail(statusCode, data)` for validation errors — the data lands in the `form` prop.
+- Data returned from an action is available in the page via `let { form } = $props()`.
+- Unlike React, the form works with zero JavaScript — progressive enhancement is built in.
+
+<Diff title="React Server Actions (Next.js) → SvelteKit form actions">
+
+- Next.js Server Actions use `'use server'` functions passed to `action` prop on a form element. SvelteKit uses an `actions` export object in a `+page.server.js` file — no special directive needed.
+- Both run server-side and receive form data. SvelteKit provides a `request.formData()` helper; Next.js passes `FormData` directly to the action function.
+- Next.js Server Actions can be called imperatively from client code. SvelteKit actions are tied to form submission and cannot be called as plain async functions from the client.
+- SvelteKit's `use:enhance` is the built-in progressive enhancement primitive — no third-party library required. Next.js relies on React transitions or `useFormState`/`useActionState` for a similar effect.
+- SvelteKit validation errors use `fail(status, data)` — the data appears in the `form` prop. Next.js uses `useActionState` and returned error objects.
+- SvelteKit forms work without JavaScript by default. Next.js Server Actions require a JavaScript runtime.
+
+</Diff>
+
+export const quizFormActions = [
+  {
+    q: 'Where do you define SvelteKit form actions?',
+    options: [
+      '+page.svelte inside a <script server> block',
+      '+page.server.js as an exported actions object',
+      '+server.js as a POST handler',
+      'svelte.config.js under the actions key',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How do you point a form to a named action called "create"?',
+    options: [
+      '<form method="POST" action="/create">',
+      '<form method="POST" action="#create">',
+      '<form method="POST" action="?/create">',
+      '<form method="POST" name="create">',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What does use:enhance do to a SvelteKit form?',
+    options: [
+      'It validates all inputs client-side before submission',
+      'It replaces the form with a React-style controlled component',
+      'It intercepts submission and uses fetch, while keeping the no-JS fallback',
+      'It disables native form submission entirely',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="routing/form-actions" questions={quizFormActions} />
+
+<ProgressTracker client:visible id="routing/form-actions" />

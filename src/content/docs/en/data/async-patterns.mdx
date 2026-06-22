@@ -1,0 +1,200 @@
+---
+title: 'Async Patterns'
+description: 'The {#await} block — Svelte''s declarative loading/error/data state machine, analogous to React Suspense + error boundaries.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React developers track async state manually: three `useState` calls for `loading`, `data`, and `error`, then an `if/else` chain in JSX. React 18 introduced `<Suspense>` and error boundaries to make this declarative, but they require additional setup and a data library that throws Promises.
+
+Svelte has a single, elegant answer baked into the template syntax:
+
+```
+{#await promise}
+  <!-- loading -->
+{:then value}
+  <!-- resolved -->
+{:catch err}
+  <!-- rejected -->
+{/await}
+```
+
+One block. Three states. No hooks, no error boundary components, no thrown Promises. If the `promise` variable is replaced with a new Promise (for example, when the user clicks "Reload"), Svelte automatically re-enters the loading state.
+
+## Manual useState vs `{#await}`
+
+export const asyncManualReact = `function UserCard({ userId }) {
+  const [user, setUser] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    setLoading(true);
+    fetch(\`/api/users/\${userId}\`)
+      .then(r => r.json())
+      .then(data => { setUser(data); setLoading(false); })
+      .catch(err => { setError(err.message); setLoading(false); });
+  }, [userId]);
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+  return <div><h2>{user.name}</h2><p>{user.email}</p></div>;
+}`;
+
+export const asyncAwaitSvelte = `<script>
+  let { userId } = \$props();
+
+  async function loadUser(id) {
+    const res = await fetch(\`/api/users/\${id}\`);
+    if (!res.ok) throw new Error('Not found');
+    return res.json();
+  }
+
+  let userPromise = \$derived(loadUser(userId));
+<\/script>
+
+{#await userPromise}
+  <p>Loading...</p>
+{:then user}
+  <div>
+    <h2>{user.name}</h2>
+    <p>{user.email}</p>
+  </div>
+{:catch err}
+  <p style="color:red">Error: {err.message}</p>
+{/await}`;
+
+<ReactSvelte react={asyncManualReact} svelte={asyncAwaitSvelte} />
+
+When `userId` changes, `$derived` creates a new Promise, and `{#await}` immediately re-enters the pending state. No manual state resets needed.
+
+## React Suspense reference vs `{#await}`
+
+export const asyncSuspenseReact = `// React — requires library support (react-query, SWR, Relay)
+// The library must throw a Promise for Suspense to catch
+<Suspense fallback={<Spinner />}>
+  <ErrorBoundary fallback={<ErrorUI />}>
+    <UserCard userId={1} />
+  </ErrorBoundary>
+</Suspense>`;
+
+export const asyncSuspenseSvelte = `<!-- Svelte — no extra library, no boundary components -->
+{#await userPromise}
+  <Spinner />
+{:then user}
+  <UserCard {user} />
+{:catch err}
+  <ErrorUI message={err.message} />
+{/await}`;
+
+<ReactSvelte react={asyncSuspenseReact} svelte={asyncSuspenseSvelte} />
+
+## Try it: simulated async with reload
+
+This demo uses `setTimeout` to simulate a 500 ms network call that occasionally rejects. Click "Load" to trigger a new Promise — `{#await}` handles all three states automatically.
+
+export const asyncPlaygroundCode = `<script>
+  const MOCK_DATA = [
+    { id: 1, name: 'Ada Lovelace', role: 'Mathematician' },
+    { id: 2, name: 'Grace Hopper', role: 'Computer Scientist' },
+    { id: 3, name: 'Alan Turing', role: 'Mathematician' },
+  ];
+
+  function fakeApi() {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (Math.random() < 0.3) {
+          reject(new Error('Server error (simulated — try again)'));
+        } else {
+          const item = MOCK_DATA[Math.floor(Math.random() * MOCK_DATA.length)];
+          resolve(item);
+        }
+      }, 500);
+    });
+  }
+
+  let personPromise = \$state(fakeApi());
+
+  function reload() {
+    personPromise = fakeApi();
+  }
+<\/script>
+
+<h3>Person Lookup</h3>
+
+{#await personPromise}
+  <p>⏳ Fetching...</p>
+{:then person}
+  <div style="padding:1rem;border:1px solid #ccc;border-radius:6px;margin-bottom:0.75rem">
+    <strong>{person.name}</strong>
+    <p style="margin:0.25rem 0 0;color:#666">{person.role}</p>
+  </div>
+{:catch err}
+  <p style="color:red">❌ {err.message}</p>
+{/await}
+
+<button onclick={reload}>Reload (random result)</button>`;
+
+<SveltePlayground client:visible code={asyncPlaygroundCode} />
+
+<Diff title="Declarative {#await} vs imperative useState loading state">
+
+- React: three `useState` variables (`loading`, `data`, `error`) + `useEffect` + conditional JSX — the state machine lives in JavaScript logic.
+- Svelte: the `{#await}` block **encodes the state machine in markup** — pending, resolved, and rejected are structural template sections, not boolean flags.
+- When the promise variable is replaced with a new promise, Svelte automatically transitions back to the pending state. React requires manually resetting `loading = true` and `error = null`.
+- React `<Suspense>` requires a compatible data library that throws Promises. `{#await}` works with any native `Promise` — no library needed.
+- The `{:catch}` block is optional. If omitted, rejections are silently ignored (show it while developing; omit only when you are certain the promise never rejects).
+- You can use `{#await promise then value}` as a shorthand that skips the loading state entirely.
+
+</Diff>
+
+export const quizAsync = [
+  {
+    q: 'What is the correct syntax for the three sections of an {#await} block?',
+    options: [
+      '{#await p}{:loading}{:resolved value}{:rejected err}{/await}',
+      '{#await p} loading {:then value} resolved {:catch err} error {/await}',
+      '{#async p}{:then value}{:catch err}{/async}',
+      '{#promise p}{:then}{:catch}{/promise}',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What happens in Svelte when you assign a new Promise to the variable used in {#await}?',
+    options: [
+      'Nothing — {#await} only reads the promise once on mount',
+      'Svelte throws a compile error',
+      'The block immediately re-enters the pending (loading) state',
+      'The resolved value from the old promise is kept until the new one resolves',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'How is {#await} most similar to React\'s Suspense approach?',
+    options: [
+      'Both require a data-fetching library that throws Promises',
+      'Both declare loading and error states in markup rather than imperative useState flags',
+      'Both require wrapping in an error boundary component',
+      'They are not similar — Svelte uses callbacks, React uses Promises',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'You want to skip showing a loading state and only show the resolved value. Which shorthand works?',
+    options: [
+      '{#await promise skip loading}{:then value}{/await}',
+      '{#await promise then value} ... {/await}',
+      '{#resolve promise as value} ... {/resolve}',
+      '{:then promise value} ... {/then}',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="data/async-patterns" questions={quizAsync} />
+
+<ProgressTracker client:visible id="data/async-patterns" />

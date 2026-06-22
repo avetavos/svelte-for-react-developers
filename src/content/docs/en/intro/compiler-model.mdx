@@ -1,0 +1,178 @@
+---
+title: 'The Compiler Model'
+description: 'Svelte compiles your components at build time into vanilla JS — no virtual DOM, no runtime framework, just surgical DOM updates.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React ships a JavaScript **runtime** to every user's browser — roughly 45 kB gzip for React + ReactDOM. That runtime maintains a virtual DOM tree, diffs it on every state change, and patches the real DOM. Svelte takes a fundamentally different approach: it is a **compiler**. Your `.svelte` files are transformed into plain, framework-free JavaScript at build time. By the time your code reaches the browser there is no Svelte runtime to speak of — just the direct DOM instructions the compiler emitted.
+
+## How the mental models differ
+
+export const compilerModelReact = `// React: ships a runtime
+// 1. render() builds a virtual DOM tree
+// 2. diffing algorithm compares old vs new vDOM
+// 3. React patches only the changed real DOM nodes
+//
+// Every user downloads React + ReactDOM (~45 kB gzip)
+// before your app code even runs.
+
+function Counter() {
+  const [count, setCount] = React.useState(0);
+  // On every click React re-runs this function,
+  // builds a new vDOM, diffs, then patches.
+  return <button onClick={() => setCount(c => c + 1)}>{count}</button>;
+}`;
+
+export const compilerModelSvelte = `// Svelte: compiles at build time
+// Your .svelte file → plain JS at npm run build
+//
+// The compiler sees:  let count = \$state(0)
+// and emits something like:
+//   element.textContent = count   (direct DOM update)
+//
+// No runtime framework is shipped to the browser.
+
+<script>
+  let count = \$state(0);
+<\/script>
+
+<!-- The compiler turns this into a targeted DOM update -->
+<button onclick={() => count++}>{count}</button>`;
+
+<ReactSvelte react={compilerModelReact} svelte={compilerModelSvelte} />
+
+The key insight: React's mental model is **render → diff → patch** happening at runtime in the browser. Svelte's mental model is **compile → direct DOM update** — the "diffing" is done statically by the compiler before your code ever ships.
+
+## Try it: a compiled counter
+
+The component below demonstrates the compiler model in practice. Notice that there is no `useState`, no setter function, and no reconciler. The compiler analyses which DOM nodes depend on `count` and emits targeted updates — only those nodes change when you click a button.
+
+export const compilerModelCode = `<script>
+  let count = \$state(0);
+
+  function increment() { count++; }
+  function decrement() { count--; }
+<\/script>
+
+<div class="card">
+  <p class="explanation">
+    Svelte compiled this component to <strong>direct DOM updates</strong>.
+    No virtual DOM. No runtime framework. Just vanilla JS.
+  </p>
+
+  <div class="counter">
+    <button onclick={decrement}>−</button>
+    <span class="value">{count}</span>
+    <button onclick={increment}>+</button>
+  </div>
+
+  <p class="hint">
+    Current count: <strong>{count}</strong>
+    {#if count === 0}
+      — try clicking the buttons!
+    {:else if count > 0}
+      — the compiler emitted: <code>span.textContent = count</code>
+    {:else}
+      — going negative, no problem
+    {/if}
+  </p>
+</div>
+
+<style>
+  .card {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    max-width: 380px;
+    font-family: sans-serif;
+  }
+  .explanation {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-bottom: 1.25rem;
+  }
+  .counter {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    min-width: 3rem;
+    text-align: center;
+  }
+  button {
+    font-size: 1.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    border: 2px solid #6366f1;
+    background: white;
+    color: #6366f1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  button:hover { background: #6366f1; color: white; }
+  .hint { font-size: 0.85rem; color: #475569; }
+  code { background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 0.25rem; }
+</style>`;
+
+<SveltePlayground client:visible code={compilerModelCode} />
+
+<Diff title="React runtime vs Svelte compiler">
+
+- React ships its runtime library (~45 kB gzip React + ReactDOM) to every user on every page load.
+- Svelte runs as a compiler at build time; zero framework code is included in the browser output.
+- React creates a virtual DOM tree on every render and then diffs it against the previous tree.
+- Svelte's compiler generates `element.textContent = value` style targeted updates — no diffing at runtime.
+- React re-executes the entire component function when state changes, producing a new vDOM subtree.
+- Svelte updates only the exact DOM nodes that depend on the changed piece of state.
+- Bundle impact: a Svelte counter is ~1 kB of output JS; the React equivalent ships the full React runtime before any app code.
+
+</Diff>
+
+export const quizCompilerModel = [
+  {
+    q: 'When does Svelte do its work?',
+    options: [
+      'At runtime like React',
+      'At build time as a compiler',
+      'In the browser on first load',
+      'Via a service worker',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does Svelte send to the browser instead of a framework runtime?',
+    options: [
+      'A minified copy of React',
+      'A virtual DOM engine',
+      'Compiled plain JavaScript that updates the DOM directly',
+      'WebAssembly',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Why are Svelte bundles typically smaller than React bundles?',
+    options: [
+      'Svelte uses a CDN',
+      'React has unused features',
+      'Svelte compiles away the framework — no runtime is shipped',
+      'Svelte uses lazy loading by default',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/compiler-model" questions={quizCompilerModel} />
+
+<ProgressTracker client:visible id="intro/compiler-model" />

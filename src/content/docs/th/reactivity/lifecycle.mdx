@@ -1,0 +1,218 @@
+---
+title: 'Lifecycle — onMount, onDestroy, tick'
+description: 'onMount, onDestroy และ tick เทียบกับ useEffect ใน Svelte 5 พร้อมตารางเปรียบเทียบ React hook กับ Svelte rune แบบครบสมบูรณ์'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React ใช้ `useEffect` เดียวสำหรับทุกอย่าง: mount, update และ cleanup Svelte 5 แยกความรับผิดชอบชัดเจนกว่า `$effect` จัดการ reactive updates (ครอบคลุมในบทเรียนก่อนหน้า) `onMount` และ `onDestroy` จัดการ setup และ teardown ที่รันครั้งเดียว `tick` เป็น utility สำหรับ flush pending DOM updates ก่อนอ่าน layout
+
+## ตารางเปรียบเทียบ React hooks ↔ Svelte 5 แบบครบสมบูรณ์
+
+| React | Svelte 5 | หมายเหตุ |
+|---|---|---|
+| `useState(init)` | `$state(init)` | Mutate ตรงได้เลย ไม่มี setter |
+| `useMemo(() => expr, deps)` | `$derived(expr)` | ไม่มี deps array — compiler track |
+| `useMemo(() => fn(), deps)` | `$derived.by(() => fn())` | Multi-statement derived |
+| `useEffect(fn, deps)` | `$effect(fn)` | ไม่มี deps array — auto-tracked |
+| `useEffect(fn, [])` | `onMount(fn)` | รันครั้งเดียวหลัง mount |
+| `useEffect(() => cleanup, [])` | `onDestroy(fn)` | รันครั้งเดียวเมื่อ destroy |
+| `useRef(init)` | `let variable` | `let` ธรรมดาสำหรับ mutable non-reactive ref |
+| `useRef(null)` + `ref={el}` | `bind:this={el}` | DOM element reference |
+| `useContext(Ctx)` | `getContext(key)` | อ่านจาก ancestor provider ที่ใกล้ที่สุด |
+| `createContext()` + Provider | `setContext(key, value)` | Provide context |
+| Component props | `$props()` | Destructure พร้อม defaults |
+| Callback props (lifting state) | `$bindable()` + `bind:` | Two-way โดยไม่มี explicit callback |
+
+## onMount — รันครั้งเดียวหลัง mount
+
+export const lifecycleMountReact = `function Clock() {
+  const [time, setTime] = React.useState(new Date());
+
+  React.useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return <p>{time.toLocaleTimeString()}</p>;
+}`;
+
+export const lifecycleMountSvelte = `<script>
+  import { onMount } from 'svelte';
+  let time = \$state(new Date());
+
+  onMount(() => {
+    const id = setInterval(() => { time = new Date(); }, 1000);
+    return () => clearInterval(id);
+  });
+<\/script>
+
+<p>{time.toLocaleTimeString()}</p>`;
+
+<ReactSvelte react={lifecycleMountReact} svelte={lifecycleMountSvelte} />
+
+`onMount` รับ setup function และ optional return cleanup function ซึ่งรันเมื่อ destroy — semantics เดียวกับ `useEffect(fn, [])` ทุกอย่าง
+
+## onDestroy — รันครั้งเดียวเมื่อ destroy
+
+export const lifecycleDestroyReact = `function Analytics() {
+  React.useEffect(() => {
+    trackPageView('/dashboard');
+    return () => {
+      trackPageLeave('/dashboard');
+    };
+  }, []);
+  return <div>Dashboard</div>;
+}`;
+
+export const lifecycleDestroySvelte = `<script>
+  import { onMount, onDestroy } from 'svelte';
+
+  onMount(() => trackPageView('/dashboard'));
+  onDestroy(() => trackPageLeave('/dashboard'));
+<\/script>
+
+<div>Dashboard</div>`;
+
+<ReactSvelte react={lifecycleDestroyReact} svelte={lifecycleDestroySvelte} />
+
+การแยก mount และ destroy เป็นสอง call อ่านง่ายกว่าเมื่อ setup และ teardown ไม่เกี่ยวข้องกัน
+
+## tick — await DOM flush
+
+`tick()` คืน promise ที่ resolve หลัง Svelte อัปเดต DOM เสร็จ ใช้เมื่อต้องอ่าน layout (เช่น ขนาด element, focus) ทันทีหลัง reactive change — เทียบเท่ากับ `await flushSync` + `requestAnimationFrame` ใน React
+
+export const lifecycleTickReact = `function AutoScroll() {
+  const ref = React.useRef(null);
+  const [items, setItems] = React.useState(['a', 'b', 'c']);
+
+  function addItem() {
+    setItems(prev => [...prev, String.fromCharCode(97 + prev.length)]);
+    // Must use useEffect to scroll after render
+  }
+
+  React.useEffect(() => {
+    ref.current?.scrollIntoView({ block: 'end' });
+  }, [items]);
+
+  return (
+    <ul>
+      {items.map(i => <li key={i}>{i}</li>)}
+      <li ref={ref} />
+    </ul>
+  );
+}`;
+
+export const lifecycleTickSvelte = `<script>
+  import { tick } from 'svelte';
+  let items = \$state(['a', 'b', 'c']);
+  let endEl;
+
+  async function addItem() {
+    items.push(String.fromCharCode(97 + items.length));
+    await tick();
+    endEl?.scrollIntoView({ block: 'end' });
+  }
+<\/script>
+
+<ul>
+  {#each items as item}
+    <li>{item}</li>
+  {/each}
+  <li bind:this={endEl}></li>
+</ul>
+<button onclick={addItem}>Add</button>`;
+
+<ReactSvelte react={lifecycleTickReact} svelte={lifecycleTickSvelte} />
+
+## ทดลองได้เลย: onMount clock
+
+export const lifecyclePlayCode = `<script>
+  import { onMount, onDestroy } from 'svelte';
+
+  let time = \$state('--:--:--');
+  let mounted = \$state(false);
+  let id;
+
+  onMount(() => {
+    mounted = true;
+    id = setInterval(() => {
+      time = new Date().toLocaleTimeString();
+    }, 1000);
+    time = new Date().toLocaleTimeString();
+  });
+
+  onDestroy(() => clearInterval(id));
+<\/script>
+
+<div style="font-family:monospace;font-size:2rem;padding:1rem;text-align:center">
+  {#if mounted}
+    {time}
+  {:else}
+    Loading...
+  {/if}
+</div>`;
+
+<SveltePlayground client:visible code={lifecyclePlayCode} />
+
+<Diff title="React useEffect lifecycle patterns vs Svelte lifecycle">
+
+- **Mount:** React `useEffect(fn, [])` Svelte: `onMount(fn)` ทั้งคู่รันครั้งเดียวหลัง component ถูก render เข้า DOM ครั้งแรก
+- **Destroy / unmount cleanup:** React `return cleanup` ภายใน `useEffect(fn, [])` Svelte: `onDestroy(fn)` (หรือ return cleanup จาก `onMount`)
+- **Reactive updates:** React `useEffect(fn, [dep1, dep2])` Svelte: `$effect(fn)` — ไม่มี list, auto-tracked
+- **DOM element ref:** React `useRef(null)` + `ref={el}` prop Svelte: `let el; ... bind:this={el}`
+- **Context read:** React `useContext(MyContext)` Svelte: `getContext('myKey')` — string keys ไม่ต้องมี Provider JSX นอกจาก `setContext`
+- **`tick()`** ไม่มี React equivalent ตรง ๆ ที่ใกล้เคียงที่สุดคือ `flushSync` (synchronous) หรือ `await new Promise(requestAnimationFrame)` (async post-paint)
+
+</Diff>
+
+export const quizLifecycle = [
+  {
+    q: 'อะไรคือ Svelte 5 ที่เทียบเท่า useEffect(fn, []) — รันครั้งเดียวหลัง mount?',
+    options: [
+      '$effect(fn)',
+      'onMount(fn)',
+      '$state.once(fn)',
+      'onLoad(fn)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ต้องการ reference ไปยัง DOM element ใน Svelte 5 ใช้อะไร?',
+    options: [
+      'useRef(null) กับ ref={el}',
+      'let el; แล้ว bind:this={el} บน element',
+      '$ref(null)',
+      'document.querySelector ภายใน onMount',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'tick() มีประโยชน์เมื่อไหร่?',
+    options: [
+      'เพื่อ delay side effect หนึ่งวินาที',
+      'เพื่ออ่าน DOM layout ทันทีหลัง reactive change ถูก flush',
+      'เพื่อ throttle $effect runs',
+      'เพื่อ force re-render component ทั้งหมด',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'อะไรคือ Svelte 5 ที่เทียบเท่า useContext(MyContext)?',
+    options: [
+      '$context(MyContext)',
+      'getContext("myKey")',
+      'import context from "svelte/store"',
+      'onMount(() => readContext(MyContext))',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="reactivity/lifecycle" questions={quizLifecycle} />
+
+<ProgressTracker client:visible id="reactivity/lifecycle" />

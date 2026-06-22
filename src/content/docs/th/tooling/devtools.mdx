@@ -1,0 +1,109 @@
+---
+title: 'Svelte DevTools'
+description: 'ส่วนขยาย browser Svelte DevTools — การตรวจสอบ reactive state และ props เทียบกับ component tree และ hooks viewer ของ React DevTools'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+นักพัฒนา React พึ่งพาส่วนขยาย browser **React DevTools** ในการตรวจสอบ component tree, ดู props และ state, และทำ profile การ render ส่วน Svelte ก็มีตัวเทียบเท่าของตัวเอง: ส่วนขยาย **Svelte DevTools** (มีให้ใช้ทั้ง Chrome และ Firefox) ขั้นตอนการทำงานโดยรวมคุ้นเคย — เปิด DevTools, หา component ของคุณ, ตรวจสอบข้อมูลของมัน — แต่ panel ต่าง ๆ สะท้อน reactivity model ของ Svelte แทนที่จะเป็นแบบ hook ของ React
+
+## การติดตั้ง
+
+ส่วนขยายทั้งสองติดตั้งด้วยวิธีเดียวกัน:
+
+- **React DevTools**: ค้นหา "React Developer Tools" ใน Chrome Web Store หรือ Firefox Add-ons
+- **Svelte DevTools**: ค้นหา "Svelte DevTools" ใน Chrome Web Store หรือ Firefox Add-ons
+
+ส่วนขยายทั้งสองจะเพิ่ม tab ใหม่ลงใน panel ของ browser DevTools และเปิดใช้งานอัตโนมัติเมื่อคุณเปิดหน้าเว็บที่รัน React หรือ Svelte ตามลำดับ
+
+## สิ่งที่คุณเห็นในแต่ละ panel
+
+export const devtoolsPanelReact = `// React DevTools — what you inspect:
+//
+// Components panel:
+//   ▸ App
+//     ▸ Header
+//     ▸ Counter           ← selected
+//         Props
+//           initialCount: 5
+//         Hooks
+//           State: 5      ← useState value
+//           Effect        ← useEffect registered
+//
+// Profiler panel:
+//   Flame chart of render times
+//   "Why did this render?" annotation`;
+
+export const devtoolsPanelSvelte = `// Svelte DevTools — what you inspect:
+//
+// Components panel:
+//   ▸ App
+//     ▸ Header
+//     ▸ Counter           ← selected
+//         Props
+//           initialCount: 5
+//         State
+//           count: 5      ← \$state variable (live)
+//
+// No flame chart — use browser Performance tab
+// Render count shown per component`;
+
+<ReactSvelte react={devtoolsPanelReact} svelte={devtoolsPanelSvelte} reactTitle="React DevTools" svelteTitle="Svelte DevTools" />
+
+## ความต่างสำคัญ
+
+**React DevTools** แสดงลำดับการเรียก hook คุณจะเห็น `useState`, `useEffect` และ custom hook แต่ละตัวเรียงตามลำดับ หากคุณเพิ่ม hook แบบมีเงื่อนไข (ซึ่ง React ห้าม) panel จะเผยให้เห็นความไม่ตรงกัน ดีไซน์นี้สะท้อนความจริงที่ว่า hook ของ React เป็นทางเดียวในการเก็บ state ของ component
+
+**Svelte DevTools** แสดงชื่อตัวแปร reactive โดยตรง — ชื่อเดียวกับที่คุณเขียนใน `<script>` ตัวแปร `$state` ที่ชื่อ `count` จะปรากฏเป็น `count` ใน panel State ไม่มีแนวคิดเรื่อง "ลำดับการเรียก hook" เพราะ state ของ Svelte ถูกประกาศด้วย rune ไม่ใช่การเรียก hook panel จึงสะท้อนตัวแปรในซอร์สของคุณตรง ๆ
+
+## การทำ Profiling
+
+React มี tab **Profiler** ในตัวอยู่ใน DevTools ที่บันทึก flame chart ของเวลา render component, ช่วง commit, และเหตุผลของการ re-render สิ่งนี้มีประโยชน์ในการระบุการ render ที่สูญเปล่า
+
+Svelte DevTools แสดง **จำนวนครั้งของการ render** ต่อ component แต่ไม่มี flame chart สำหรับการทำ profiling ประสิทธิภาพใน Svelte ให้ใช้ tab **Performance** ดั้งเดิมของ browser — บันทึก trace แล้วมองหา task ที่ใช้เวลานาน เนื่องจาก Svelte คอมไพล์ reactivity ไปเป็นการอัปเดต DOM แบบละเอียด (ไม่มีการ diff virtual DOM) การ re-render ทั้ง component จึงเกิดขึ้นน้อย ทำให้ความจำเป็นในการ profile ระดับ flame chart มีน้อยลง
+
+## ใช้งานได้เฉพาะตอนพัฒนา
+
+ส่วนขยายทั้งสองทำงานเฉพาะใน development build เท่านั้น พวกมันพึ่งพา metadata สำหรับ debug ที่ Svelte และ React ตัดออกจาก production bundle หาก DevTools ไม่แสดง component บน production deployment นั่นเป็นพฤติกรรมที่คาดไว้
+
+<Diff title="React DevTools vs Svelte DevTools">
+
+- ทั้งคู่: ส่วนขยาย browser (Chrome + Firefox), การนำทาง component tree, คลิกเพื่อเลือก
+- React: แสดงรายการการเรียก hook (ค่าของ useState, การลงทะเบียน useEffect, custom hooks)
+- Svelte: แสดงชื่อตัวแปร reactive โดยตรงจากซอร์ส (ตัวแปร `\$state` ปรากฏตามชื่อ)
+- React: tab Profiler ในตัวพร้อม flame chart และคำอธิบาย "why did this render?"
+- Svelte: แสดงจำนวนครั้งของการ render แต่ไม่มี flame chart — ใช้ tab Performance ของ browser สำหรับการ profile
+- ทั้งคู่: ทำงานเฉพาะใน development build เท่านั้น; ไม่แสดงข้อมูลใน production
+- Svelte DevTools สะท้อน rune model — ไม่มีแนวคิด "hooks" ใน panel
+
+</Diff>
+
+export const quizDevtools = [
+  {
+    q: 'Svelte DevTools แสดงอะไรใน panel State?',
+    options: [
+      'ลำดับการเรียก hook เหมือน React DevTools',
+      'เฉพาะ props เท่านั้น — Svelte ไม่มี state ที่มองเห็นได้',
+      'ชื่อตัวแปร reactive และค่าที่อัปเดตสด ๆ จากซอร์สของคุณ',
+      'flame chart ของเวลา render',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Svelte DevTools ไม่มี flame chart profiler คุณควรใช้อะไรแทน?',
+    options: [
+      'tab Profiler ของ React DevTools',
+      'tab Performance ดั้งเดิมของ browser',
+      'svelte-check --profile',
+      'โหมด bench ของ Vitest',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="tooling/devtools" questions={quizDevtools} />
+
+<ProgressTracker client:visible id="tooling/devtools" />

@@ -1,0 +1,173 @@
+---
+title: 'การทดสอบด้วย Vitest และ Testing Library'
+description: 'Vitest + @testing-library/svelte เทียบกับ Jest + React Testing Library — การทดสอบ component, การอัปเดตแบบ async และ Playwright e2e'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+นักพัฒนา React มักจะหยิบ **Jest** มาใช้ร่วมกับ **React Testing Library** (RTL) สำหรับการทดสอบ component ตัวเทียบเท่าของ Svelte คือ **Vitest** + **`@testing-library/svelte`** ปรัชญาของ Testing Library นั้นเหมือนกัน — query DOM ในแบบที่ผู้ใช้ทำ, ยิง event, และ assert ผลลัพธ์ที่มองเห็นได้ API แทบจะเหมือนกันแบบ byte-for-byte ความต่างหลักอยู่ที่ test runner (Vitest เทียบกับ Jest) และวิธีการ import component (ไฟล์ `.svelte` เทียบกับ `.tsx`)
+
+## เปรียบเทียบการทดสอบ component Counter
+
+ก่อนอื่น component ที่จะนำมาทดสอบ:
+
+export const testingComponentReact = `// Counter.tsx
+import React from 'react';
+
+export function Counter() {
+  const [count, setCount] = React.useState(0);
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(c => c + 1)}>Increment</button>
+    </div>
+  );
+}`;
+
+export const testingComponentSvelte = `<!-- Counter.svelte -->
+<script lang="ts">
+  let count = \$state(0);
+<\/script>
+<div>
+  <p>Count: {count}</p>
+  <button onclick={() => count++}>Increment</button>
+</div>`;
+
+<ReactSvelte react={testingComponentReact} svelte={testingComponentSvelte} reactTitle="Counter.tsx" svelteTitle="Counter.svelte" />
+
+ทีนี้มาดูตัวทดสอบ:
+
+export const testingTestReact = `// Counter.test.tsx (Jest + RTL)
+import { render, screen, fireEvent } from '@testing-library/react';
+import { Counter } from './Counter';
+
+test('increments count', () => {
+  render(<Counter />);
+  expect(screen.getByText('Count: 0')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Increment' }));
+  expect(screen.getByText('Count: 1')).toBeInTheDocument();
+});`;
+
+export const testingTestSvelte = `// Counter.test.ts (Vitest + @testing-library/svelte)
+import { render, screen, fireEvent } from '@testing-library/svelte';
+import Counter from './Counter.svelte';
+import { describe, it, expect } from 'vitest';
+
+describe('Counter', () => {
+  it('increments count', async () => {
+    render(Counter);
+    expect(screen.getByText('Count: 0')).toBeInTheDocument();
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Increment' })
+    );
+    expect(screen.getByText('Count: 1')).toBeInTheDocument();
+  });
+});`;
+
+<ReactSvelte react={testingTestReact} svelte={testingTestSvelte} reactTitle="Counter.test.tsx" svelteTitle="Counter.test.ts" />
+
+ความต่างสำคัญที่ควรสังเกต:
+- Svelte: `render(Counter)` — ส่ง component class เข้าไปโดยตรง (ไม่มี JSX) ส่วน React: `render(<Counter />)` — เป็น JSX element
+- Svelte: `fireEvent.click(...)` ต้อง `await` เพราะ Svelte จะ batch การอัปเดต DOM แบบ asynchronous ส่วน `fireEvent` ของ React RTL เป็นแบบ synchronous
+- ส่วนที่เหลือทั้งหมด — `screen`, `getByText`, `getByRole`, `toBeInTheDocument` — เหมือนกัน
+
+## การตั้งค่า Vitest
+
+```ts
+// vitest.config.ts
+import { defineConfig } from 'vitest/config';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+
+export default defineConfig({
+  plugins: [svelte({ hot: !process.env.VITEST })],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/setupTests.ts'],
+  },
+});
+```
+
+ตัวป้องกัน `hot: !process.env.VITEST` จะปิด HMR ระหว่างการรันทดสอบ (ซึ่งจะทำให้เกิด error ในสภาพแวดล้อม jsdom)
+
+## การติดตั้ง
+
+```bash
+npm install --save-dev vitest @testing-library/svelte @testing-library/jest-dom jsdom
+```
+
+สร้าง `src/setupTests.ts`:
+
+```ts
+import '@testing-library/jest-dom';
+```
+
+## การทดสอบ end-to-end ด้วย Playwright
+
+Playwright ทำงานเหมือนกันทั้งกับโปรเจกต์ React และ Svelte — ไม่มีอะไรเฉพาะของ Svelte ให้ต้องเรียนรู้ ติดตั้งและตั้งค่าด้วยวิธีเดียวกัน:
+
+```bash
+npm init playwright@latest
+```
+
+<Diff title="Jest + RTL vs Vitest + @testing-library/svelte">
+
+- Test runner: Jest → Vitest (เร็วกว่า, native กับ Vite, รองรับ ES module ได้ทันที)
+- Syntax การ import: `import { Counter } from './Counter'` (render แบบ JSX) → `import Counter from './Counter.svelte'` (render แบบ class)
+- การเรียก render: `render(<Counter />)` (JSX) → `render(Counter)` (component class ไม่มี JSX)
+- การอัปเดต DOM: `fireEvent` เป็น synchronous ใน RTL → ต้อง `await fireEvent` ใน @testing-library/svelte
+- `screen`, `getByText`, `getByRole`, `toBeInTheDocument`: **เหมือนกัน** ในทั้งสอง library
+- Config: Jest ต้องใช้ Babel transform สำหรับ JSX; Vitest ใช้ `@sveltejs/vite-plugin-svelte` เพื่อคอมไพล์ไฟล์ `.svelte`
+- E2E: Playwright — **ไม่ต่างกัน** ระหว่างโปรเจกต์ React และ Svelte
+
+</Diff>
+
+export const quizTesting = [
+  {
+    q: 'อะไรคือตัวเทียบเท่า Jest ในฝั่ง Svelte สำหรับการรันทดสอบ component?',
+    options: [
+      'Mocha',
+      'Jasmine',
+      'Vitest',
+      'Karma',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'คุณ render Svelte component ใน @testing-library/svelte อย่างไร?',
+    options: [
+      'render(<Counter />)',
+      'mount(Counter)',
+      'render(Counter)',
+      'shallow(Counter)',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ทำไมการเรียก fireEvent ต้องถูก await ใน @testing-library/svelte?',
+    options: [
+      'เพราะ Vitest เป็น asynchronous โดยค่าเริ่มต้น',
+      'เพราะ Svelte batch การอัปเดต DOM แบบ asynchronous',
+      'เพราะ fireEvent คืนค่าเป็น Promise ในทุกเวอร์ชันของ Testing Library',
+      'คุณไม่จำเป็นต้อง await — มันเป็นทางเลือก',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'เครื่องมือทดสอบ e2e ใดที่ทำงานเหมือนกันทั้งกับโปรเจกต์ React และ Svelte?',
+    options: [
+      'Cypress',
+      'Playwright',
+      'Selenium',
+      'TestCafe',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="tooling/testing" questions={quizTesting} />
+
+<ProgressTracker client:visible id="tooling/testing" />

@@ -1,6 +1,6 @@
 ---
 title: 'Template Blocks'
-description: 'Svelte {#if}, {#each}, and {#await} compared to JSX conditionals, .map(), and Suspense.'
+description: 'เปรียบเทียบ {#if}, {#each} และ {#await} ของ Svelte กับ conditional, .map() และ Suspense ใน JSX'
 ---
 
 import ReactSvelte from '../../../../components/ReactSvelte.tsx';
@@ -9,9 +9,9 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-React renders conditionals and lists entirely in JavaScript: ternaries, `&&`, and `.map()` inside JSX. Svelte provides **template block syntax** — dedicated control-flow tags that live in the markup, closer to how HTML templating languages like Handlebars or Jinja work.
+React render conditional และ list ด้วย JavaScript ล้วน ๆ: ternary, `&&` และ `.map()` ภายใน JSX ส่วน Svelte มี **template block syntax** — control-flow tag เฉพาะที่อยู่ใน markup ใกล้เคียงกับวิธีทำงานของภาษา HTML templating อย่าง Handlebars หรือ Jinja มากกว่า
 
-## Conditionals: `{#if}` / `{:else}` vs JSX ternary
+## Conditional: `{#if}` / `{:else}` เทียบกับ ternary ใน JSX
 
 export const ifReact = `function Status({ loggedIn }) {
   return (
@@ -35,9 +35,9 @@ export const ifSvelte = `<script>
 
 <ReactSvelte react={ifReact} svelte={ifSvelte} />
 
-You can also add `{:else if condition}` branches exactly like `else if` in JavaScript.
+คุณยังเพิ่ม branch `{:else if condition}` ได้เหมือนกับ `else if` ใน JavaScript เป๊ะ ๆ
 
-## Lists: `{#each}` vs `.map()`
+## List: `{#each}` เทียบกับ `.map()`
 
 export const eachReact = `function FruitList({ fruits }) {
   return (
@@ -61,9 +61,9 @@ export const eachSvelte = `<script>
 
 <ReactSvelte react={eachReact} svelte={eachSvelte} />
 
-The `(i)` at the end is the **keying expression** — equivalent to React's `key` prop. Use a stable unique ID when available (not the index).
+ตัว `(i)` ที่อยู่ท้ายสุดคือ **keying expression** — เทียบเท่ากับ prop `key` ของ React ควรใช้ ID ที่ไม่ซ้ำและคงที่เมื่อมีให้ใช้ (อย่าใช้ index)
 
-## Async: `{#await}` vs `useEffect` + state
+## Async: `{#await}` เทียบกับ `useEffect` + state
 
 export const awaitReact = `function UserCard({ userId }) {
   const [user, setUser] = React.useState(null);
@@ -91,7 +91,7 @@ export const awaitSvelte = `<script>
 
 <ReactSvelte react={awaitReact} svelte={awaitSvelte} />
 
-## Try it: interactive list with filter
+## ลองเล่น: list แบบ interactive พร้อม filter
 
 export const templateBlocksCode = `<script>
   let items = \$state(['Apples', 'Bananas', 'Cherries', 'Dates', 'Elderberries']);
@@ -120,37 +120,37 @@ export const templateBlocksCode = `<script>
 
 <Diff title="JSX conditionals/lists vs Svelte template blocks">
 
-- React `&&` / ternary → Svelte `{#if}` / `{:else if}` / `{:else}` / `{/if}`.
-- React `.map((item, i) => <li key={i}>)` → Svelte `{#each items as item, i (i)}` … `{/each}`.
-- React: no built-in async block — you manage loading/error state with `useState` + `useEffect`.
-- Svelte: `{#await promise}` … `{:then data}` … `{:catch err}` handles the full async lifecycle declaratively.
-- Svelte template blocks are **not** JavaScript — they cannot be used inside a `$derived` expression, only in markup.
+- React `&&` / ternary → Svelte `{#if}` / `{:else if}` / `{:else}` / `{/if}`
+- React `.map((item, i) => <li key={i}>)` → Svelte `{#each items as item, i (i)}` … `{/each}`
+- React: ไม่มี async block ในตัว — คุณต้องจัดการ state ของ loading/error เองด้วย `useState` + `useEffect`
+- Svelte: `{#await promise}` … `{:then data}` … `{:catch err}` จัดการ lifecycle ของ async ทั้งหมดแบบ declarative
+- template block ของ Svelte **ไม่ใช่** JavaScript — มันใช้ภายใน expression `$derived` ไม่ได้ ใช้ได้แค่ใน markup เท่านั้น
 
 </Diff>
 
 export const quizTemplateBlocks = [
   {
-    q: 'What is the Svelte 5 equivalent of React\'s array .map() for rendering a list?',
+    q: 'อะไรคือสิ่งที่เทียบเท่ากับ array .map() ของ React สำหรับ render list ใน Svelte 5?',
     options: ['{#for}', '{#map}', '{#each}', '{#list}'],
     answer: 2,
   },
   {
-    q: 'How do you key list items in a Svelte {#each} block?',
+    q: 'คุณใส่ key ให้ list item ในบล็อก {#each} ของ Svelte อย่างไร?',
     options: [
-      'Add a key= attribute to each element',
-      'Pass the key as the second argument to {#each}',
-      'Put the key expression in parentheses at the end: {#each items as item (item.id)}',
-      'Svelte keys automatically by index',
+      'เพิ่ม attribute key= ให้แต่ละ element',
+      'ส่ง key เป็น argument ตัวที่สองให้ {#each}',
+      'ใส่ key expression ในวงเล็บที่ท้าย: {#each items as item (item.id)}',
+      'Svelte ใส่ key ให้อัตโนมัติตาม index',
     ],
     answer: 2,
   },
   {
-    q: 'Which Svelte block handles a Promise with loading, success, and error states?',
+    q: 'บล็อกไหนของ Svelte ที่จัดการ Promise พร้อมสถานะ loading, success และ error?',
     options: ['{#async}', '{#await}', '{#promise}', '{#suspense}'],
     answer: 1,
   },
   {
-    q: 'How do you add an else-if branch in a Svelte {#if} block?',
+    q: 'คุณเพิ่ม branch else-if ในบล็อก {#if} ของ Svelte อย่างไร?',
     options: ['{#elseif condition}', '{else if condition}', '{:else if condition}', '{/else if condition}'],
     answer: 2,
   },

@@ -1,0 +1,161 @@
+---
+title: 'File-based Routing'
+description: 'เรียนรู้ src/routes/+page.svelte, nested folders, dynamic routes [param] เทียบกับ react-router และ Next.js'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน SvelteKit โครงสร้างโฟลเดอร์ใต้ `src/routes/` คือ URL ของแอปพลิเคชันโดยตรง ไม่มีขั้นตอนการกำหนด route เพิ่มเติม — แค่สร้างไฟล์และโฟลเดอร์ที่ถูกต้อง แล้ว SvelteKit จะจัดการ routing ให้เอง บทเรียนนี้จะพาคุณไปดู route patterns หลัก ๆ ทั้งหมด พร้อมเปรียบเทียบกับ react-router และ Next.js
+
+## File tree และ URL ที่สอดคล้องกัน
+
+```
+src/routes/
+├── +page.svelte                  →  /
+├── about/
+│   └── +page.svelte              →  /about
+├── blog/
+│   ├── +page.svelte              →  /blog
+│   └── [slug]/
+│       └── +page.svelte          →  /blog/:slug
+└── dashboard/
+    ├── +layout.svelte            →  layout ครอบทุก /dashboard/* routes
+    ├── +page.svelte              →  /dashboard
+    └── settings/
+        └── +page.svelte          →  /dashboard/settings
+```
+
+ทุกโฟลเดอร์คือ URL segment ทุกไฟล์ `+page.svelte` คือหน้าที่จะแสดงผลที่ URL นั้น ส่วน `+layout.svelte` ครอบทุก sibling และ child route ในโฟลเดอร์เดียวกัน
+
+## Static routes
+
+เปรียบเทียบวิธีกำหนด static route `/about` ใน react-router, Next.js และ SvelteKit:
+
+export const staticReact = `// react-router v6
+import { createBrowserRouter } from 'react-router-dom';
+import About from './pages/About';
+
+const router = createBrowserRouter([
+  { path: '/about', element: <About /> },
+]);`;
+
+export const staticSvelte = `<!-- src/routes/about/+page.svelte -->
+<h1>About</h1>
+<p>ไม่มี config — แค่วางไฟล์นี้ไว้ในโฟลเดอร์ about/</p>`;
+
+<ReactSvelte react={staticReact} svelte={staticSvelte} />
+
+ด้านซ้ายต้องมี import, config object และ router instance ด้านขวาแค่สร้างไฟล์ในโฟลเดอร์ที่ถูกต้อง
+
+## Dynamic routes — `[param]`
+
+ชื่อโฟลเดอร์ที่ห้อมล้อมด้วยวงเล็บเหลี่ยมกลายเป็น dynamic segment คุณอ่านค่า param ใน `+page.svelte` ผ่าน `$page.params`:
+
+export const dynamicReact = `// react-router v6
+{ path: '/blog/:slug', element: <BlogPost /> }
+
+// BlogPost.jsx
+import { useParams } from 'react-router-dom';
+function BlogPost() {
+  const { slug } = useParams();
+  return <h1>Post: {slug}</h1>;
+}`;
+
+export const dynamicSvelte = `<!-- src/routes/blog/[slug]/+page.svelte -->
+<script>
+  import { page } from '\$app/state';
+<\/script>
+
+<h1>Post: {\$page.params.slug}</h1>`;
+
+<ReactSvelte react={dynamicReact} svelte={dynamicSvelte} />
+
+ชื่อโฟลเดอร์ `[slug]` คือชื่อ key ของ `params` โดยตรง — เหมือนกับ `:slug` ใน react-router หรือ `[slug]` ใน Next.js
+
+## Nested layouts
+
+`+layout.svelte` ใน level ใด ๆ จะครอบทุก route ในโฟลเดอร์นั้นและโฟลเดอร์ลูก ซึ่งสอดคล้องกับ `layout.tsx` ของ Next.js App Router หรือ `<Outlet>` ของ react-router:
+
+export const layoutReact = `// react-router v6 — nested layout
+{ path: '/dashboard',
+  element: <DashboardLayout />,
+  children: [
+    { index: true, element: <DashboardHome /> },
+    { path: 'settings', element: <Settings /> },
+  ]
+}
+
+// DashboardLayout.jsx
+import { Outlet } from 'react-router-dom';
+function DashboardLayout() {
+  return (
+    <div>
+      <nav>Dashboard nav</nav>
+      <Outlet />
+    </div>
+  );
+}`;
+
+export const layoutSvelte = `<!-- src/routes/dashboard/+layout.svelte -->
+<nav>Dashboard nav</nav>
+<slot />
+
+<!-- src/routes/dashboard/+page.svelte -->
+<h1>Dashboard Home</h1>
+
+<!-- src/routes/dashboard/settings/+page.svelte -->
+<h1>Settings</h1>`;
+
+<ReactSvelte react={layoutReact} svelte={layoutSvelte} />
+
+`<slot />` ใน `+layout.svelte` คือจุดที่ child page จะถูก render เข้าไป — ทำหน้าที่เหมือน `<Outlet />` ของ react-router พอดี
+
+<Diff title="react-router / Next.js vs SvelteKit — file-based routing">
+
+- Static route: react-router ต้องการ config object — SvelteKit แค่ต้องการโฟลเดอร์และ `+page.svelte`
+- Dynamic segment: react-router `:slug`, Next.js `[slug].tsx` หรือ `[slug]/page.tsx` — SvelteKit `[slug]/+page.svelte` (convention เหมือน Next.js แต่ขยายด้วย `+page.svelte`)
+- Layout: react-router ใช้ `<Outlet />`, Next.js App Router ใช้ `layout.tsx` — SvelteKit ใช้ `+layout.svelte` ที่มี `<slot />`
+- การอ่าน route param: react-router `useParams()`, Next.js `params` prop — SvelteKit `$page.params` จาก `$app/state`
+- ทุก level ของโฟลเดอร์สามารถมี `+layout.svelte` ของตัวเอง — layouts ซ้อนกันได้ไม่จำกัด
+
+</Diff>
+
+export const quizFileBased = [
+  {
+    q: 'คุณสร้าง dynamic route สำหรับ /posts/:id ใน SvelteKit ได้อย่างไร?',
+    options: [
+      'ตั้งชื่อไฟล์ว่า +page[id].svelte',
+      'สร้างโฟลเดอร์ src/routes/posts/[id]/ แล้วเพิ่ม +page.svelte ข้างใน',
+      'เพิ่ม { path: "/posts/:id" } ลงใน svelte.config.js',
+      'ใช้ comment [param] ใน +page.svelte',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'SvelteKit equivalent ของ react-router layout route ที่มี <Outlet /> คืออะไร?',
+    options: [
+      '+layout.svelte ในโฟลเดอร์ route — children render ที่ <slot /> ปรากฏ',
+      'Wrapper component ที่ import เข้าไปใน +page.svelte ทุกไฟล์',
+      'ไฟล์ _layout.tsx ที่ root',
+      'app.svelte',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'SvelteKit ใช้ syntax อะไรสำหรับ dynamic route segment — และต่างจาก react-router อย่างไร?',
+    options: [
+      'SvelteKit ใช้ :param (เหมือน react-router)',
+      'SvelteKit ใช้ {param} ในชื่อโฟลเดอร์',
+      'SvelteKit ใช้ชื่อโฟลเดอร์แบบ [param]; react-router ใช้ :param ใน path string',
+      'เหมือนกัน — ทั้งคู่ใช้ [param]',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="routing/file-based-routing" questions={quizFileBased} />
+
+<ProgressTracker client:visible id="routing/file-based-routing" />

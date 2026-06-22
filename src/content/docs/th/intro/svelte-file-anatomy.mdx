@@ -1,0 +1,153 @@
+---
+title: 'โครงสร้างไฟล์ .svelte'
+description: 'ทำความเข้าใจสามส่วนของไฟล์ .svelte — script, markup และ style — เทียบกับ React component file'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React component อาศัยอยู่ในไฟล์ `.jsx` หรือ `.tsx`: logic ของ JavaScript อยู่ด้านบน, `return` statement ที่ครอบ JSX, และ CSS ที่ต้อง import จากไฟล์แยกหรือใช้ผ่าน CSS-in-JS Svelte component คือไฟล์ `.svelte` ไฟล์เดียวที่แบ่งออกเป็นสูงสุดสามส่วนที่มีชื่อชัดเจน — **`<script>`**, **markup** และ **`<style>`** — แต่ละส่วนมีหน้าที่เพียงอย่างเดียว ไม่มีการปนกัน ไม่ต้องใช้ build plugin เพิ่มเติมเพื่อ scope styles
+
+## สามส่วนของไฟล์ .svelte
+
+export const anatomyReact = `// ProfileCard.jsx
+import styles from './ProfileCard.module.css';
+
+function ProfileCard({ name, role }) {
+  return (
+    <div className={styles.card}>
+      <h2>{name}</h2>
+      <p>{role}</p>
+    </div>
+  );
+}
+export default ProfileCard;`;
+
+export const anatomySvelte = `<!-- ProfileCard.svelte -->
+<script>
+  let { name, role } = \$props();
+<\/script>
+
+<div class="card">
+  <h2>{name}</h2>
+  <p>{role}</p>
+</div>
+
+<style>
+  .card { border: 1px solid #ccc; padding: 1rem; border-radius: 8px; }
+</style>`;
+
+<ReactSvelte react={anatomyReact} svelte={anatomySvelte} />
+
+ประเด็นสำคัญ:
+- React ผสม logic และ markup ไว้ด้วยกันภายใน function body ส่วน Svelte แยกทั้งสองออกจากกันอย่างชัดเจน — `<script>` สำหรับ logic และทุกอย่างด้านล่างคือ markup template
+- React ต้องใช้ `className` เพราะ `class` เป็น reserved word ใน JSX ส่วน markup ของ Svelte คือ HTML ปกติ — ใช้ `class` ได้เลย
+- React ต้องการ CSS Modules import หรือการตั้งค่า styled-components เพื่อ scope styles ส่วน `<style>` ของ Svelte **ถูก scope ให้กับ component นั้นโดยอัตโนมัติ** โดย compiler — ไม่ต้องใช้เครื่องมือเพิ่มเติม ไม่ต้องจัดการชื่อ class เอง
+- React ต้องใช้ `export default` เพื่อ expose component ส่วน Svelte นั้น ตัวไฟล์เองคือ export — compiler จัดการให้
+- `\$props()` ใน Svelte 5 แทนที่ destructured props argument ในลายเซ็น React function
+
+## ไม่มีส่วนใดที่จำเป็นต้องมี
+
+ทั้งสามส่วนเป็น optional ทั้งหมด Svelte component ที่ถูกต้องที่ง่ายที่สุดคือแค่ markup เท่านั้น:
+
+```svelte
+<p>Hello, world!</p>
+```
+
+เพิ่ม `<script>` เมื่อต้องการ logic และเพิ่ม `<style>` เมื่อต้องการ styles เขียนเฉพาะสิ่งที่ต้องการเท่านั้น
+
+## ส่วน markup คือ template — ไม่ใช่ return value
+
+ใน React, JSX อยู่ภายใน `return (...)` call โดยมี parentheses, semicolons และ function wrapper เป็นส่วนประกอบที่จำเป็น ส่วน Svelte นั้น ทุกอย่างที่อยู่นอก `<script>` และ `<style>` คือ template ไม่มี `return`, ไม่มี parentheses — เขียน HTML ได้เลย
+
+```svelte
+<!-- นี่คือ template ไม่มี return statement -->
+<h1>Hello {name}</h1>
+```
+
+วงเล็บปีกกาใช้สำหรับ interpolate JavaScript expressions เข้าไปใน markup เช่นเดียวกับ JSX — แต่ไม่มี function call ที่ต้องปิดล้อม
+
+## Scoped styles โดยไม่ต้องตั้งค่าใดๆ
+
+นักพัฒนา React มักใช้ CSS Modules, styled-components หรือ Tailwind เพื่อหลีกเลี่ยง style leaks ข้าม components ส่วน `<style>` ของ Svelte ถูก scope โดย compiler ณ build time โดย rule อย่าง `.card` จะกลายเป็น `.card.svelte-xyz` ใน output — ซึ่งจะตรงกันเฉพาะกับ elements ภายในไฟล์ component นั้นเท่านั้น
+
+ผลในทางปฏิบัติ: เขียน CSS selectors ปกติได้เลย โดยไม่ต้องกังวลว่าจะไปสไตล์ `.card` ใน component อื่นโดยไม่ตั้งใจ
+
+## ลองใช้งาน: สามส่วนในการทำงานจริง
+
+export const anatomyCode = `<script>
+  let name = \$state('Svelte Developer');
+  let color = \$state('#FF3E00');
+<\/script>
+
+<div class="card">
+  <h2 style="color: {color}">{name}</h2>
+  <label>
+    Name: <input bind:value={name} />
+  </label>
+  <label>
+    Color: <input type="color" bind:value={color} />
+  </label>
+</div>
+
+<style>
+  .card { padding: 1.5rem; border-radius: 8px; border: 2px solid #eee; max-width: 320px; }
+  label { display: block; margin-top: 0.5rem; }
+  input { margin-left: 0.5rem; }
+  h2 { margin-top: 0; }
+</style>`;
+
+<SveltePlayground client:visible code={anatomyCode} />
+
+สังเกตว่า `<script>`, markup และ `<style>` ต่างทำงานร่วมกันในไฟล์เดียว state ที่กำหนดใน `<script>` ไหลเข้าสู่ markup โดยตรง และ styles ใน `<style>` มีผลเฉพาะกับ component นี้เท่านั้น
+
+<Diff title="React component file vs Svelte .svelte file">
+
+- React component คือไฟล์ JS/TS — logic และ JSX ปนกันอยู่ใน function body, CSS ถูก import แยกต่างหาก
+- Svelte component คือไฟล์ `.svelte` — `<script>` (logic), markup (template) และ `<style>` (CSS) ต่างอยู่ในส่วนของตัวเอง
+- JSX ต้องใช้ `className` แทน `class` และใช้ template literals หรือ CSS-in-JS สำหรับ dynamic styles ส่วน Svelte markup ใช้ HTML `class` ปกติและ inline `style="color: {color}"` ด้วย curly-brace interpolation
+- React scope styles ผ่าน CSS Modules, BEM conventions หรือ styled-components ส่วน `<style>` ของ Svelte ถูก scope ให้กับ component โดย compiler อัตโนมัติ — `.card` มีผลเฉพาะภายในไฟล์นั้นเท่านั้น
+- React expose component ด้วย `export default` ส่วน Svelte นั้น ไฟล์ `.svelte` เองคือ export — ไม่ต้องมี explicit export statement
+- Svelte 5 แทนที่ props argument ของ function ด้วย `\$props()` ใน `<script>` รูปแบบ destructuring เหมือนเดิม เปลี่ยนแค่แหล่งที่มา
+
+</Diff>
+
+export const quizSvelteFileAnatomy = [
+  {
+    q: 'ส่วนใดของไฟล์ .svelte ที่จำเป็นต้องมี?',
+    options: [
+      'เฉพาะ <script>',
+      'เฉพาะ <style>',
+      'เฉพาะ markup',
+      'ทั้งสามส่วน',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Svelte ทำการ scope สไตล์ของ component อย่างไร?',
+    options: [
+      'คุณต้องเพิ่ม unique class เอง',
+      'ผ่าน CSS Modules import',
+      'compiler scope <style> ให้ component นั้นโดยอัตโนมัติ',
+      'ผ่าน styled-components',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'อะไรคือ Svelte เทียบเท่ากับ `export default function MyComp` ใน React?',
+    options: [
+      'export default ใน <script>',
+      'module.exports',
+      'ไฟล์ .svelte เองคือ export — ไม่ต้อง export ชัดเจน',
+      'svelte:export',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/svelte-file-anatomy" questions={quizSvelteFileAnatomy} />
+
+<ProgressTracker client:visible id="intro/svelte-file-anatomy" />

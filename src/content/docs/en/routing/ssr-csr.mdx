@@ -1,0 +1,176 @@
+---
+title: 'SSR, CSR, and Prerendering'
+description: "SvelteKit rendering modes and adapters compared to Next.js SSR, SSG, and CSR — plus how adapters plug into svelte.config.js."
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+Next.js gave React developers three distinct rendering modes — `getServerSideProps` (SSR), `getStaticProps` (SSG), and client-only components — each requiring different APIs and mental models. SvelteKit unifies all three with a small set of **page options**: exported constants you place in a `+page.js` or `+page.server.js` file. Every page defaults to SSR; you opt in to other modes with one or two lines.
+
+> Run this in a SvelteKit project (`npx sv create`).
+
+## Configuring rendering mode
+
+Next.js uses different export APIs depending on the rendering mode. SvelteKit uses the same file with different boolean exports.
+
+export const renderingReact = `// Next.js App Router — rendering config via segment options
+
+// Force dynamic SSR (equivalent to getServerSideProps)
+export const dynamic = 'force-dynamic';
+
+// Force static generation (equivalent to getStaticProps)
+export const dynamic = 'force-static';
+
+// CSR-only: mark the component client-side
+'use client';
+// Then avoid any server data fetching`;
+
+export const renderingSvelte = `// +page.js or +page.server.js
+
+// Static prerendering — HTML built at build time (like getStaticProps)
+export const prerender = true;
+
+// Client-side only — no SSR, hydrated in the browser (like 'use client' + no server data)
+export const ssr = false;
+
+// Pure server HTML — no JavaScript sent to the browser at all
+export const csr = false;
+
+// Default: ssr=true, csr=true, prerender=false (full SSR + hydration)`;
+
+<ReactSvelte react={renderingReact} svelte={renderingSvelte} />
+
+These options can live in `+page.js`, `+page.server.js`, or even `+layout.js` to apply to an entire directory of routes.
+
+## Prerendering: static HTML at build time
+
+```js
+// src/routes/about/+page.js
+export const prerender = true;
+
+// Optional: define which paths to prerender for dynamic routes
+export function entries() {
+  return [{ slug: 'hello' }, { slug: 'world' }];
+}
+```
+
+With `prerender = true`, SvelteKit renders the page to HTML at build time and serves it as a static file. This is equivalent to Next.js `getStaticProps` / `generateStaticParams`. Use it for pages whose content does not change per request: marketing pages, docs, blog posts.
+
+## CSR-only: client-side rendering
+
+```js
+// src/routes/dashboard/+page.js
+export const ssr = false;
+```
+
+`ssr = false` skips server-side rendering entirely. The page is served as an empty shell and hydrated in the browser — exactly like a Create React App or Vite SPA. Use it for pages that need browser APIs on load, or sections that are fully behind authentication and do not benefit from SSR.
+
+## No JavaScript: pure server HTML
+
+```js
+// src/routes/simple-page/+page.js
+export const csr = false;
+```
+
+`csr = false` tells SvelteKit to send no JavaScript bundle for this page. The HTML is rendered on the server and no hydration happens. Use it for purely informational pages where interactivity is not needed — the fastest possible page load.
+
+## Combining options
+
+Options compose. A `+layout.js` can set `prerender = true` for a whole section, and individual pages can override:
+
+```js
+// src/routes/blog/+layout.js
+export const prerender = true; // all blog routes prerendered by default
+
+// src/routes/blog/[slug]/+page.js
+// inherits prerender = true from layout — no override needed
+
+// src/routes/blog/drafts/+page.js
+export const prerender = false; // override: this page is SSR only
+export const ssr = true;
+```
+
+## Adapters
+
+SvelteKit produces a generic build output. **Adapters** transform that output into the format expected by your deployment target. You configure an adapter in `svelte.config.js`:
+
+```js
+// svelte.config.js
+import adapter from '@sveltejs/adapter-auto';
+
+export default {
+  kit: {
+    adapter: adapter(),
+  },
+};
+```
+
+| Adapter | Target | Notes |
+|---|---|---|
+| `@sveltejs/adapter-auto` | Vercel, Netlify, Cloudflare | Auto-detects the platform — good default |
+| `@sveltejs/adapter-node` | Node.js server | Produces a standalone Node server (`node build`) |
+| `@sveltejs/adapter-static` | Any static host | Pure SSG — all pages must be prerenderable |
+| `@sveltejs/adapter-cloudflare` | Cloudflare Workers/Pages | Edge runtime, uses Workers APIs |
+
+Switching deployment targets is a one-line change in `svelte.config.js` — no application code changes required.
+
+## Key points
+
+- SvelteKit defaults to **SSR** for every page — no opt-in required.
+- `prerender = true` generates static HTML at build time, like Next.js `getStaticProps`.
+- `ssr = false` makes a page client-side only, like a CRA/Vite SPA route.
+- `csr = false` sends zero JavaScript to the browser — pure server HTML.
+- These options can be set per-page or per-layout, and they compose through the layout tree.
+- Adapters translate the build output to a deployment platform — swap them in `svelte.config.js`.
+- Partial prerendering is possible: some routes can be prerendered while others remain SSR in the same app.
+
+<Diff title="Next.js rendering modes → SvelteKit page options">
+
+- Next.js SSR uses `getServerSideProps` (Pages Router) or RSC with `dynamic = 'force-dynamic'` (App Router). SvelteKit SSR is the default — no configuration needed.
+- Next.js SSG uses `getStaticProps` / `generateStaticParams`. SvelteKit uses `export const prerender = true` in `+page.js`.
+- Next.js CSR is achieved by adding `'use client'` and avoiding server data. SvelteKit uses `export const ssr = false`.
+- Next.js has no direct equivalent to `csr = false` — sending zero JS requires third-party setup. SvelteKit supports it natively.
+- Next.js rendering mode changes require different export APIs and sometimes different file conventions. SvelteKit uses the same `+page.js` file with small boolean overrides.
+- Both support adapters/deployment targets. Next.js is tightly coupled to Vercel; SvelteKit adapter-auto supports Vercel, Netlify, and Cloudflare, with first-party adapters for Node and static hosting.
+
+</Diff>
+
+export const quizSsrCsr = [
+  {
+    q: 'What is the default rendering mode for a SvelteKit page?',
+    options: [
+      'Client-side rendering (CSR only)',
+      'Static prerendering (SSG)',
+      'Server-side rendering (SSR)',
+      'No rendering — you must opt in',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which page option makes SvelteKit generate static HTML at build time?',
+    options: [
+      "export const ssr = false",
+      "export const prerender = true",
+      "export const csr = false",
+      "export const static = true",
+    ],
+    answer: 1,
+  },
+  {
+    q: 'You want to deploy to a Node.js server. Which adapter do you use?',
+    options: [
+      '@sveltejs/adapter-auto',
+      '@sveltejs/adapter-static',
+      '@sveltejs/adapter-node',
+      '@sveltejs/adapter-cloudflare',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="routing/ssr-csr" questions={quizSsrCsr} />
+
+<ProgressTracker client:visible id="routing/ssr-csr" />

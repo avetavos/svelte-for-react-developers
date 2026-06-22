@@ -1,0 +1,144 @@
+---
+title: 'Load Functions'
+description: 'ดึงข้อมูลด้วย load() ใน +page.js และ +page.server.js เทียบกับ react-router loaders และ Next.js'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน SvelteKit การดึงข้อมูลแยกออกจาก component อย่างชัดเจน คุณ export ฟังก์ชัน `load()` จากไฟล์ `+page.js` (รันทั้งบน server และ client) หรือ `+page.server.js` (รันบน server เท่านั้น) จากนั้น SvelteKit จะส่งผลลัพธ์ที่ได้ไปให้ component ในรูปแบบ `data` prop โดยอัตโนมัติ แนวคิดนี้คล้ายกับ `loader` ของ react-router v6 และ `getServerSideProps` ของ Next.js Pages Router แต่มีข้อแตกต่างที่สำคัญ
+
+## `+page.js` — load ทั้งบน server และ client
+
+ใช้ `+page.js` เมื่อข้อมูลที่ต้องการดึงเป็น public API ที่เรียกได้จาก browser ได้โดยตรง:
+
+export const loadUniversalReact = `// react-router v6 loader
+export async function loader({ params }) {
+  const res = await fetch('/api/posts/' + params.slug);
+  if (!res.ok) throw new Response('Not Found', { status: 404 });
+  return res.json();
+}
+
+// BlogPost.jsx
+import { useLoaderData } from 'react-router-dom';
+export default function BlogPost() {
+  const post = useLoaderData();
+  return <h1>{post.title}</h1>;
+}`;
+
+export const loadUniversalSvelte = `// src/routes/blog/[slug]/+page.js
+export async function load({ params, fetch }) {
+  const res = await fetch('/api/posts/' + params.slug);
+  if (!res.ok) throw { status: 404 };
+  const post = await res.json();
+  return { post };
+}
+
+<!-- src/routes/blog/[slug]/+page.svelte -->
+<script>
+  let { data } = \$props();
+<\/script>
+
+<h1>{data.post.title}</h1>`;
+
+<ReactSvelte react={loadUniversalReact} svelte={loadUniversalSvelte} />
+
+ฟังก์ชัน `load()` รับ `params`, `fetch` ที่ SvelteKit ปรับแต่งไว้แล้ว (ใช้ cookie session อัตโนมัติ) และอีกหลาย utility ค่าที่ `return` จาก `load()` จะกลายเป็น `data` prop ที่คุณ destructure ออกมาใน component ด้วย `$props()`
+
+## `+page.server.js` — load บน server เท่านั้น
+
+ใช้ `+page.server.js` เมื่อต้องการเข้าถึงฐานข้อมูล, secret key, หรือ cookie โดยตรง — โค้ดนี้จะไม่ถูกส่งไปยัง browser เลย:
+
+export const loadServerReact = `// Next.js Pages Router
+export async function getServerSideProps({ params }) {
+  const post = await db.post.findUnique({
+    where: { slug: params.slug },
+  });
+  if (!post) return { notFound: true };
+  return { props: { post } };
+}
+
+export default function BlogPost({ post }) {
+  return <h1>{post.title}</h1>;
+}`;
+
+export const loadServerSvelte = `// src/routes/blog/[slug]/+page.server.js
+import { db } from '$lib/db';
+import { error } from '@sveltejs/kit';
+
+export async function load({ params }) {
+  const post = await db.post.findUnique({
+    where: { slug: params.slug },
+  });
+  if (!post) error(404, 'Not found');
+  return { post };
+}
+
+<!-- src/routes/blog/[slug]/+page.svelte -->
+<script>
+  let { data } = \$props();
+<\/script>
+
+<h1>{data.post.title}</h1>`;
+
+<ReactSvelte react={loadServerReact} svelte={loadServerSvelte} />
+
+Pattern เหมือนกันทุกอย่าง — แค่เปลี่ยนชื่อไฟล์จาก `+page.js` เป็น `+page.server.js` SvelteKit จะรู้ว่าโค้ดนี้ต้องรันบน server เท่านั้น
+
+## เลือก `+page.js` หรือ `+page.server.js`?
+
+| สถานการณ์ | ไฟล์ที่ควรใช้ |
+|---|---|
+| เรียก public REST API | `+page.js` |
+| ต้องการ fetch ทั้งบน server (SSR) และ client (navigation) | `+page.js` |
+| Query ฐานข้อมูลโดยตรง | `+page.server.js` |
+| อ่าน cookie หรือ session | `+page.server.js` |
+| ใช้ API key ที่เป็น secret | `+page.server.js` |
+
+หลักคิดง่าย ๆ: ถ้าไม่อยากให้โค้ดดังกล่าวปรากฏใน browser bundle ให้ใช้ `+page.server.js`
+
+<Diff title="react-router loaders / Next.js getServerSideProps vs SvelteKit load()">
+
+- react-router: `loader` function export จากไฟล์ route — อ่านข้อมูลด้วย `useLoaderData()` ใน component
+- Next.js Pages Router: `getServerSideProps` รันบน server เท่านั้น ส่งข้อมูลผ่าน `props`
+- Next.js App Router: async Server Component fetch ข้อมูลโดยตรง
+- SvelteKit `+page.js`: รันทั้งบน server (SSR/prerender) และ client (client-side navigation) — ดีสำหรับ public API
+- SvelteKit `+page.server.js`: รันบน server เท่านั้น — ดีสำหรับ DB, cookies, secrets
+- ทั้งคู่ส่งข้อมูลไปยัง component ผ่าน `data` prop — component เองไม่จำเป็นต้องเป็น async
+- Error handling: throw `error(404)` จาก `@sveltejs/kit` ใน `load()` แทนการ return `{ notFound: true }` ของ Next.js
+
+</Diff>
+
+export const quizLoad = [
+  {
+    q: '+page.js และ +page.server.js ใน SvelteKit ต่างกันอย่างไร?',
+    options: [
+      '+page.js รันบน server เท่านั้น; +page.server.js รันทั้ง server และ client',
+      '+page.js รันทั้ง server และ client; +page.server.js รันบน server เท่านั้น',
+      'เหมือนกัน — ชื่อไฟล์ไม่สำคัญ',
+      '+page.js สำหรับ TypeScript; +page.server.js สำหรับ JavaScript',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'SvelteKit page component รับข้อมูลที่ load() return กลับมาได้อย่างไร?',
+    options: [
+      'ผ่าน useLoaderData() hook',
+      'ผ่าน Svelte store ที่ตั้งชื่อตาม route อัตโนมัติ',
+      'เป็น data prop เข้าถึงด้วย let { data } = $props()',
+      'ผ่าน reactive variable $page.data เท่านั้น',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'argument ของ load() ตัวไหนที่มีเฉพาะใน +page.server.js ไม่มีใน +page.js?',
+    options: ['params', 'fetch', 'url', 'cookies'],
+    answer: 3,
+  },
+];
+
+<Quiz client:visible id="routing/load-functions" questions={quizLoad} />
+
+<ProgressTracker client:visible id="routing/load-functions" />

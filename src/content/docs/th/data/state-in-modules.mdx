@@ -1,0 +1,161 @@
+---
+title: 'State ใน Modules'
+description: 'แชร์ reactive $state ข้ามคอมโพเนนต์ด้วย .svelte.ts modules — ทางเลือกแทน React Context ใน Svelte 5'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+นักพัฒนา React แชร์ state ข้าม component tree ด้วย Context — `createContext`, Provider ที่ครอบส่วนหนึ่งของ tree, และ `useContext` ในทุก consumer มันทำงานได้ แต่ต้องการ boilerplate มาก: Provider ต้องครอบทุก consumer และการเพิ่ม shared state ใหม่หมายถึงต้องอัปเดต Provider ด้วย
+
+Svelte 5 แนะนำโมเดลที่เรียบง่ายกว่า: **`.svelte.ts` modules** คุณประกาศ `$state` และ `$derived` ระดับ module ในไฟล์ `.svelte.ts` (หรือ `.svelte.js`) แล้ว export ออกมา จากนั้น import เข้า component ใดก็ได้ Reactivity ทำงานเองโดยอัตโนมัติ — ทุก component ที่อ่านตัวแปรนั้นจะ re-render เมื่อค่าเปลี่ยน ไม่ต้องมี Provider ไม่ต้องมี context object ไม่ต้อง `useContext`
+
+## React Context เทียบกับ .svelte.ts module
+
+export const moduleContextReact = `// userStore.ts
+import { createContext, useContext, useState } from 'react';
+
+const UserContext = createContext(null);
+
+export function UserProvider({ children }) {
+  const [user, setUser] = useState(null);
+  return (
+    <UserContext.Provider value={{ user, setUser }}>
+      {children}
+    </UserContext.Provider>
+  );
+}
+
+export function useUser() {
+  return useContext(UserContext);
+}
+
+// App.tsx — must wrap consumers
+<UserProvider>
+  <Header />
+  <Main />
+</UserProvider>
+
+// Header.tsx
+const { user } = useUser();`;
+
+export const moduleContextSvelte = `// user.svelte.ts
+export let user = \$state(null);
+export function setUser(next) { user = next; }
+
+// Header.svelte — just import, no Provider needed
+<script>
+  import { user, setUser } from './user.svelte.ts';
+<\/script>
+
+<p>Hello, {user?.name ?? 'Guest'}</p>
+<button onclick={() => setUser({ name: 'Ada' })}>Log in</button>
+
+// Main.svelte — same import, same reactive state
+<script>
+  import { user } from './user.svelte.ts';
+<\/script>
+
+{#if user}
+  <p>Welcome back, {user.name}!</p>
+{/if}`;
+
+<ReactSvelte react={moduleContextReact} svelte={moduleContextSvelte} />
+
+ทุก component ที่ import `user` จาก `user.svelte.ts` จะ re-render โดยอัตโนมัติเมื่อ `user` เปลี่ยน เพราะ Svelte compiler มอง `$state` variables เป็น reactive แม้ในระดับ module scope
+
+## ลองเล่น: analog แบบ inline
+
+`.svelte.ts` modules ต้องใช้หลายไฟล์ ซึ่ง playground ไม่รองรับ ด้านล่างนี้คือ demo แบบ self-contained ที่ใช้ reactive pattern เดียวกัน — `$state` และ `$derived` ประกาศที่ต้น script block จำลองการแชร์ข้ามส่วนต่างๆ ของ UI
+
+ในโปรเจกต์จริง คุณจะย้าย state declarations ไปไว้ในไฟล์ `.svelte.ts` แล้ว import เข้ามา
+
+export const modulePlaygroundCode = `<script>
+  // In a real project these would live in theme.svelte.ts and be imported
+  let theme = \$state('light');
+  let fontSize = \$state(16);
+  let label = \$derived(theme === 'light' ? '☀️ Light' : '🌙 Dark');
+
+  function toggleTheme() {
+    theme = theme === 'light' ? 'dark' : 'light';
+  }
+<\/script>
+
+<div style="
+  background: {theme === 'light' ? '#fff' : '#1a1a2e'};
+  color: {theme === 'light' ? '#111' : '#eee'};
+  padding: 1.5rem;
+  border-radius: 8px;
+  font-size: {fontSize}px;
+  transition: all 0.2s;
+">
+  <h3 style="margin-top:0">Module-level state (inline demo)</h3>
+
+  <p>Current theme: <strong>{label}</strong></p>
+  <p>Font size: <strong>{fontSize}px</strong></p>
+
+  <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1rem">
+    <button onclick={toggleTheme}>Toggle theme</button>
+    <button onclick={() => fontSize = Math.max(12, fontSize - 2)}>A-</button>
+    <button onclick={() => fontSize = Math.min(24, fontSize + 2)}>A+</button>
+    <button onclick={() => { theme = 'light'; fontSize = 16; }}>Reset</button>
+  </div>
+
+  <p style="margin-top:1rem;font-size:0.8em;opacity:0.6">
+    In a real project, move theme and fontSize to theme.svelte.ts
+    and import them anywhere — they stay in sync automatically.
+  </p>
+</div>`;
+
+<SveltePlayground client:visible code={modulePlaygroundCode} />
+
+<Diff title="React Context tree vs Svelte module-level reactive state">
+
+- React Context ต้องการ `createContext`, Provider component, การครอบ tree, และ `useContext` ในทุก consumer
+- Svelte `.svelte.ts` modules ไม่ต้องการสิ่งเหล่านั้น — `import` คือการ subscribe Compiler จัดการ reactivity เอง
+- การย้าย shared state ใน React หมายถึงต้องอัปเดต Provider ใน Svelte แค่ย้าย `$state` declaration ไปไฟล์ `.svelte.ts` แล้ว consumer แก้แค่ import path
+- `$state` ระดับ module เป็น **singleton** — ทุก component แชร์ instance เดียวกัน (เหมือน Zustand store ไม่ใช่ React Context ที่มีหลาย Provider instance ได้)
+- `$derived` ระดับ module ก็ทำงานได้เช่นกัน: ประกาศในไฟล์ `.svelte.ts` เดียวกันแล้ว export ออกมา
+- ไม่ต้อง restructure tree Component ใดก็ตามในแอปสามารถ import และอ่าน state reactive เดียวกันได้
+
+</Diff>
+
+export const quizModules = [
+  {
+    q: 'extension ไฟล์ใดที่เปิดใช้งาน $state และ $derived ระดับ module scope ใน Svelte 5?',
+    options: [
+      '.ts',
+      '.svelte',
+      '.svelte.ts (หรือ .svelte.js)',
+      '.reactive.ts',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Component import ตัวแปร $state จาก .svelte.ts module เมื่อไหร่ component จะ re-render?',
+    options: [
+      'ไม่เคย — module-level state ไม่ใช่ reactive',
+      'เฉพาะเมื่อ component เรียก refresh() พิเศษ',
+      'ทุกครั้งที่ค่าของตัวแปร $state เปลี่ยน',
+      'เฉพาะเมื่อ reload หน้า',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'module-level $state แทนที่ React pattern ใด และเอาอะไรออก?',
+    options: [
+      'useState — เอา setter function ออก',
+      'React Context — เอาความจำเป็นของ Provider ที่ครอบ tree ออก',
+      'useReducer — เอา action/reducer pattern ออก',
+      'useRef — เอา .current accessor ออก',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="data/state-in-modules" questions={quizModules} />
+
+<ProgressTracker client:visible id="data/state-in-modules" />

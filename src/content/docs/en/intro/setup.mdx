@@ -1,0 +1,146 @@
+---
+title: 'Setup'
+description: 'From CRA/Vite-React/Next.js to Svelte and SvelteKit — scaffolding, project structure, and key scripts compared.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React has three mainstream starting points: Create React App (now deprecated), Vite with the React plugin, and Next.js for full-stack/SSR work. Svelte mirrors this split almost exactly — **Vite + Svelte plugin** for SPAs and **SvelteKit** for full-stack/SSR. If you know the React toolchain you already understand the shape of the Svelte one; the names just changed.
+
+## Scaffolding commands
+
+| React | Svelte |
+|---|---|
+| `npm create vite@latest my-app -- --template react-ts` | `npm create vite@latest my-app -- --template svelte-ts` |
+| `npx create-next-app my-app` | `npx sv create my-app` |
+
+- The Vite command is identical except for the template name: `react-ts` → `svelte-ts`.
+- `npx sv create` is the official SvelteKit scaffolder — the direct equivalent of `create-next-app`. It prompts for TypeScript, ESLint, Prettier, Vitest, and more.
+
+## package.json scripts — nearly identical
+
+Because both ecosystems use Vite under the hood, the scripts look almost the same. The only difference is that the React/Vite template runs `tsc` before `vite build` as a type-check step.
+
+export const scriptsReact = `{
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  }
+}`;
+
+export const scriptsSvelte = `{
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+}`;
+
+<ReactSvelte react={scriptsReact} svelte={scriptsSvelte} />
+
+Key points:
+- `dev`, `build`, and `preview` exist in both — muscle memory transfers directly.
+- Svelte's Vite plugin runs the Svelte compiler and TypeScript checks together via `svelte-check`, so there is no separate `tsc &&` prefix needed.
+- SvelteKit adds a `check` script (`svelte-kit sync && svelte-check`) and an optional `test` script on top of these basics.
+
+## Project structure
+
+Both a Vite+Svelte SPA and a SvelteKit project are thin wrappers around familiar patterns:
+
+**Vite + Svelte SPA** (equivalent to Vite + React):
+
+```
+src/
+  main.ts          ← entry point (was main.tsx)
+  App.svelte       ← root component (was App.tsx)
+  lib/             ← shared components and utilities
+index.html
+vite.config.ts
+```
+
+**SvelteKit** (equivalent to Next.js):
+
+```
+src/
+  routes/          ← file-based routing (was app/ or pages/ in Next.js)
+    +page.svelte   ← a route's UI
+    +layout.svelte ← shared layout wrapper
+  lib/             ← shared utilities and components
+static/            ← public assets (was public/)
+svelte.config.js
+vite.config.ts
+```
+
+The mental model maps cleanly: `src/routes/` in SvelteKit does what `app/` (or `pages/`) does in Next.js. The `+page.svelte` naming convention is SvelteKit-specific — the `+` prefix distinguishes framework files from your own helper files.
+
+## vite.config.ts — just a different plugin
+
+React and Svelte both configure Vite with a single plugin import:
+
+```ts
+// React
+import react from '@vitejs/plugin-react';
+export default { plugins: [react()] };
+
+// Svelte
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+export default { plugins: [svelte()] };
+```
+
+Everything else — aliases, server options, build targets — is identical Vite config.
+
+> **Playground note:** This is a project scaffolding lesson — there is no runnable in-browser snippet. Run the commands above in your terminal to scaffold a real project.
+
+<Diff title="React/Next.js setup vs Svelte/SvelteKit setup">
+
+- **SPA scaffold:** `npm create vite@latest -- --template react-ts` → `npm create vite@latest -- --template svelte-ts`. Same Vite command, different template name.
+- **Full-stack/SSR:** `npx create-next-app` → `npx sv create`. SvelteKit is the direct Next.js equivalent.
+- **Entry point:** `src/main.tsx` + `src/App.tsx` → `src/main.ts` + `src/App.svelte`.
+- **Routing (full-stack):** Next.js uses `app/` or `pages/` for file-based routing. SvelteKit uses `src/routes/` with `+page.svelte` and `+layout.svelte` conventions.
+- **Vite plugin:** `@vitejs/plugin-react` → `@sveltejs/vite-plugin-svelte`. One line changes in vite.config.ts.
+- **TypeScript:** Both fully supported out of the box. SvelteKit generates a `tsconfig.json` automatically via `svelte-kit sync`.
+- **Scripts:** `dev` / `build` / `preview` are identical. React/Vite prefixes build with `tsc &&`; Svelte uses `svelte-check` instead.
+- **CRA:** Create React App is deprecated with no Svelte equivalent — Vite is the right starting point for both ecosystems today.
+
+</Diff>
+
+export const quizSetup = [
+  {
+    q: 'What is the SvelteKit equivalent of Next.js?',
+    options: [
+      'Nuxt',
+      'SvelteKit',
+      'Astro',
+      'Remix',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which command scaffolds a plain Svelte SPA with Vite?',
+    options: [
+      'npm create vite@latest -- --template svelte-ts',
+      'npx sv create my-app',
+      'npm create vite@latest -- --template react-ts',
+      'npx create-svelte my-app',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'Where do SvelteKit routes live?',
+    options: [
+      'src/pages/',
+      'src/routes/',
+      'src/views/',
+      'pages/',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="intro/setup" questions={quizSetup} />
+
+<ProgressTracker client:visible id="intro/setup" />

@@ -1,0 +1,173 @@
+---
+title: 'Testing with Vitest & Testing Library'
+description: 'Vitest + @testing-library/svelte vs Jest + React Testing Library — component tests, async updates, and Playwright e2e.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React developers typically reach for **Jest** with **React Testing Library** (RTL) for component tests. Svelte's equivalent is **Vitest** + **`@testing-library/svelte`**. The Testing Library philosophy is identical — query the DOM the way a user would, fire events, assert on visible output. The APIs are almost byte-for-byte the same. The main differences are the test runner (Vitest vs Jest) and the way components are imported (`.svelte` files vs `.tsx`).
+
+## Counter component test comparison
+
+First, the components under test:
+
+export const testingComponentReact = `// Counter.tsx
+import React from 'react';
+
+export function Counter() {
+  const [count, setCount] = React.useState(0);
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(c => c + 1)}>Increment</button>
+    </div>
+  );
+}`;
+
+export const testingComponentSvelte = `<!-- Counter.svelte -->
+<script lang="ts">
+  let count = \$state(0);
+<\/script>
+<div>
+  <p>Count: {count}</p>
+  <button onclick={() => count++}>Increment</button>
+</div>`;
+
+<ReactSvelte react={testingComponentReact} svelte={testingComponentSvelte} reactTitle="Counter.tsx" svelteTitle="Counter.svelte" />
+
+Now the tests:
+
+export const testingTestReact = `// Counter.test.tsx (Jest + RTL)
+import { render, screen, fireEvent } from '@testing-library/react';
+import { Counter } from './Counter';
+
+test('increments count', () => {
+  render(<Counter />);
+  expect(screen.getByText('Count: 0')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Increment' }));
+  expect(screen.getByText('Count: 1')).toBeInTheDocument();
+});`;
+
+export const testingTestSvelte = `// Counter.test.ts (Vitest + @testing-library/svelte)
+import { render, screen, fireEvent } from '@testing-library/svelte';
+import Counter from './Counter.svelte';
+import { describe, it, expect } from 'vitest';
+
+describe('Counter', () => {
+  it('increments count', async () => {
+    render(Counter);
+    expect(screen.getByText('Count: 0')).toBeInTheDocument();
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Increment' })
+    );
+    expect(screen.getByText('Count: 1')).toBeInTheDocument();
+  });
+});`;
+
+<ReactSvelte react={testingTestReact} svelte={testingTestSvelte} reactTitle="Counter.test.tsx" svelteTitle="Counter.test.ts" />
+
+Key differences to notice:
+- Svelte: `render(Counter)` — pass the component class directly (no JSX). React: `render(<Counter />)` — JSX element.
+- Svelte: `fireEvent.click(...)` must be `await`ed because Svelte batches DOM updates asynchronously. React RTL's `fireEvent` is synchronous.
+- Everything else — `screen`, `getByText`, `getByRole`, `toBeInTheDocument` — is identical.
+
+## Vitest configuration
+
+```ts
+// vitest.config.ts
+import { defineConfig } from 'vitest/config';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+
+export default defineConfig({
+  plugins: [svelte({ hot: !process.env.VITEST })],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/setupTests.ts'],
+  },
+});
+```
+
+The `hot: !process.env.VITEST` guard disables HMR during test runs (which would cause errors in the jsdom environment).
+
+## Installation
+
+```bash
+npm install --save-dev vitest @testing-library/svelte @testing-library/jest-dom jsdom
+```
+
+Create `src/setupTests.ts`:
+
+```ts
+import '@testing-library/jest-dom';
+```
+
+## End-to-end testing with Playwright
+
+Playwright works identically for both React and Svelte projects — there is nothing Svelte-specific to learn. Install and configure it the same way:
+
+```bash
+npm init playwright@latest
+```
+
+<Diff title="Jest + RTL vs Vitest + @testing-library/svelte">
+
+- Test runner: Jest → Vitest (faster, Vite-native, ES module support out of the box)
+- Import syntax: `import { Counter } from './Counter'` (JSX render) → `import Counter from './Counter.svelte'` (class render)
+- Render call: `render(<Counter />)` (JSX) → `render(Counter)` (component class, no JSX)
+- DOM updates: `fireEvent` is synchronous in RTL → must `await fireEvent` in @testing-library/svelte
+- `screen`, `getByText`, `getByRole`, `toBeInTheDocument`: **identical** in both libraries
+- Config: Jest needs Babel transform for JSX; Vitest uses `@sveltejs/vite-plugin-svelte` to compile `.svelte` files
+- E2E: Playwright — **no difference** between React and Svelte projects
+
+</Diff>
+
+export const quizTesting = [
+  {
+    q: 'What is the Svelte equivalent of Jest for running component tests?',
+    options: [
+      'Mocha',
+      'Jasmine',
+      'Vitest',
+      'Karma',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'How do you render a Svelte component in @testing-library/svelte?',
+    options: [
+      'render(<Counter />)',
+      'mount(Counter)',
+      'render(Counter)',
+      'shallow(Counter)',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Why must fireEvent calls be awaited in @testing-library/svelte?',
+    options: [
+      'Because Vitest is asynchronous by default',
+      'Because Svelte batches DOM updates asynchronously',
+      'Because fireEvent returns a Promise in all Testing Library versions',
+      'You do not need to await — it is optional',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which e2e testing tool works identically for both React and Svelte projects?',
+    options: [
+      'Cypress',
+      'Playwright',
+      'Selenium',
+      'TestCafe',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="tooling/testing" questions={quizTesting} />
+
+<ProgressTracker client:visible id="tooling/testing" />

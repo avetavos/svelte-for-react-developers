@@ -1,0 +1,151 @@
+---
+title: 'Single-File Components'
+description: 'How the .svelte file maps to a React component — script, markup, and scoped style in one place.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React a "component" is a JavaScript file containing a function that returns JSX, usually paired with a separate CSS file or CSS-in-JS setup. In Svelte a component is a **single `.svelte` file** that puts all three concerns — logic, markup, and styles — in one place. The structure will feel instantly familiar if you have ever written plain HTML.
+
+## The three sections
+
+A `.svelte` file has exactly three optional sections, in any order (convention is script → markup → style):
+
+```
+<script>
+  // Component logic — reactive state, props, functions
+</script>
+
+<!-- Markup — the template, like JSX but real HTML -->
+
+<style>
+  /* Scoped CSS — automatically applies only to this component */
+</style>
+```
+
+Only the markup section is required. A valid Svelte component can be a single `<p>Hello</p>` with no `<script>` or `<style>` at all.
+
+## React file vs Svelte file
+
+export const sfcReact = `// UserCard.jsx
+import styles from './UserCard.module.css';
+
+export default function UserCard({ name, role }) {
+  return (
+    <article className={styles.card}>
+      <h2 className={styles.name}>{name}</h2>
+      <p className={styles.role}>{role}</p>
+    </article>
+  );
+}`;
+
+export const sfcSvelte = `<!-- UserCard.svelte -->
+<script>
+  let { name, role } = \$props();
+<\/script>
+
+<article class="card">
+  <h2 class="name">{name}</h2>
+  <p class="role">{role}</p>
+</article>
+
+<style>
+  .card { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; }
+  .name { margin: 0; font-size: 1.25rem; }
+  .role { margin: 0; color: #666; }
+</style>`;
+
+<ReactSvelte react={sfcReact} svelte={sfcSvelte} />
+
+Notice the differences:
+- No separate `UserCard.module.css` file — styles are in the same file.
+- `className` becomes `class` (real HTML attribute).
+- Props are declared with `$props()` instead of function arguments.
+- No `export default` — the file itself is the export.
+- No JSX `return` — the markup is just... there.
+
+## Try it: a Svelte single-file component
+
+export const sfcCode = `<script>
+  let { greeting = 'Hello' } = \$props();
+  let name = \$state('React developer');
+<\/script>
+
+<div class="card">
+  <p class="greeting">{greeting}, <strong>{name}</strong>!</p>
+  <input bind:value={name} placeholder="Change my name" />
+</div>
+
+<style>
+  .card {
+    border: 2px solid #FF3E00;
+    border-radius: 8px;
+    padding: 1.25rem;
+    font-family: sans-serif;
+  }
+  .greeting { font-size: 1.2rem; margin: 0 0 0.75rem; }
+  input { padding: 0.3rem 0.6rem; font-size: 1rem; width: 100%; box-sizing: border-box; }
+</style>`;
+
+<SveltePlayground client:visible code={sfcCode} />
+
+<Diff title="React JSX + CSS Modules vs Svelte single-file component">
+
+- React splits logic (`Component.jsx`) and styles (`Component.module.css`) into separate files. Svelte puts both in one `.svelte` file.
+- React: `className="foo"` (JSX attribute). Svelte: `class="foo"` (real HTML attribute, no renaming).
+- React: `export default function MyComponent({ name }) {}`. Svelte: `let { name } = $props();` — the file is the export, no function wrapper.
+- React: CSS Modules scope styles via hashed class names at build time. Svelte scopes `<style>` by injecting a unique attribute onto elements at compile time — same result, zero boilerplate.
+- React: must `return (...)` JSX. Svelte: the markup is the template body — no `return`, no extra parens.
+
+</Diff>
+
+export const quizSFC = [
+  {
+    q: 'Which section of a .svelte file is required?',
+    options: [
+      '<script>',
+      '<style>',
+      'The markup (HTML template body)',
+      'All three sections are required',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'How do you write a CSS class attribute in Svelte?',
+    options: [
+      'className="card"',
+      'class="card"',
+      'style={{ className: "card" }}',
+      'css="card"',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'In Svelte, how do you declare component props?',
+    options: [
+      'export default function({ name }) {}',
+      'props = { name: String }',
+      'let { name } = $props();',
+      'import { name } from "props";',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Why does a Svelte component not need "export default"?',
+    options: [
+      'Svelte does not support module exports',
+      'The .svelte file itself is the export — no function wrapper needed',
+      'You must use named exports instead',
+      'Svelte auto-exports via a config file',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="mental-model/single-file-components" questions={quizSFC} />
+
+<ProgressTracker client:visible id="mental-model/single-file-components" />

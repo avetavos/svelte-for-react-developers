@@ -1,0 +1,123 @@
+---
+title: 'Reactivity & Lifecycle (Runes)'
+description: 'วิธีที่ runes ของ Svelte 5 เทียบกับ React hooks — คู่มืออ้างอิงฉบับสมบูรณ์สำหรับนักพัฒนา React'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React จัดระเบียบ reactivity ด้วย hook แต่ละตัวที่แยกกัน เช่น `useState`, `useMemo`, `useEffect`, `useRef` และอื่น ๆ Svelte 5 แทนที่ทั้งหมดด้วย primitive เดียวที่เรียกว่า **runes** — คีย์เวิร์ดที่คอมไพเลอร์เข้าใจ โดยขึ้นต้นด้วย `$` คุณไม่ได้เรียกใช้สิ่งเหล่านี้เหมือนฟังก์ชันทั่วไป — คอมไพเลอร์จะอ่านโค้ดในขั้นตอน build และสร้างโค้ด reactive ที่ถูกปรับแต่งให้มีประสิทธิภาพสูงให้คุณ
+
+โมดูลนี้คือ **แกนกลางของหลักสูตร** บทเรียนถัดไปแต่ละบทจะลงลึกในแต่ละ rune โดยเฉพาะ เริ่มต้นที่นี่เพื่อให้ได้ mental map ครบก่อนดำน้ำลึก
+
+## ตารางเปรียบเทียบ runes ↔ hooks
+
+| React hook | Svelte 5 rune | หน้าที่ |
+|---|---|---|
+| `useState(init)` | `$state(init)` | ค่า reactive — แก้ไขตรงได้เลย ไม่ต้องใช้ setter |
+| `useMemo(() => expr, deps)` | `$derived(expr)` | ค่าที่คำนวณ — ติดตาม dependencies อัตโนมัติ ไม่ต้องระบุ deps array |
+| `useMemo(() => fn(), deps)` | `$derived.by(() => fn())` | ค่าที่คำนวณพร้อม function body หลายบรรทัด |
+| `useEffect(fn, deps)` | `$effect(fn)` | Side-effect — ติดตาม dependencies อัตโนมัติ |
+| `useEffect(fn, [])` | `onMount(fn)` | รันครั้งเดียวหลัง component mount |
+| `useEffect(() => () => cleanup, [])` | `onDestroy(fn)` | รันครั้งเดียวเมื่อ component ถูกทำลาย |
+| `useRef(init)` | ตัวแปร `let` ธรรมดา หรือ `bind:this` | ref ที่เปลี่ยนได้โดยไม่ทำให้ re-render |
+| `useContext(Ctx)` | `getContext(key)` | อ่าน context จาก ancestor |
+| Component props | `$props()` | ประกาศและ destructure props ที่รับเข้ามา |
+| Callback props / lifting state | `$bindable()` | prop ที่ bind แบบสองทาง |
+
+การเปลี่ยนแปลงเชิงแนวคิดที่ใหญ่ที่สุด: **React hooks ต้องการ dependency array ที่ระบุชัดเจน** runes ของ Svelte ถูก track โดยคอมไพเลอร์ — คุณไม่ต้องระบุ dependency ด้วยตนเองเลย
+
+## Counter แรกที่รันได้จริง
+
+export const indexCounterReact = `function Counter() {
+  const [count, setCount] = React.useState(0);
+  const doubled = React.useMemo(() => count * 2, [count]);
+
+  React.useEffect(() => {
+    document.title = 'Count: ' + count;
+  }, [count]);
+
+  return (
+    <div>
+      <button onClick={() => setCount(c => c + 1)}>+1</button>
+      <p>Count: {count} — Doubled: {doubled}</p>
+    </div>
+  );
+}`;
+
+export const indexCounterSvelte = `<script>
+  let count = \$state(0);
+  let doubled = \$derived(count * 2);
+
+  \$effect(() => {
+    document.title = 'Count: ' + count;
+  });
+<\/script>
+
+<button onclick={() => count++}>+1</button>
+<p>Count: {count} — Doubled: {doubled}</p>`;
+
+<ReactSvelte react={indexCounterReact} svelte={indexCounterSvelte} />
+
+สาม runes ไม่มี dependency array เลยแม้แต่ครั้งเดียว คอมไพเลอร์รู้เองว่า `doubled` ขึ้นกับ `count` และ `$effect` ควรรันใหม่ทุกครั้งที่ `count` เปลี่ยน
+
+## ทดลองได้เลย: counter แบบ live
+
+export const indexPlayCode = `<script>
+  let count = \$state(0);
+  let doubled = \$derived(count * 2);
+  let history = \$state([]);
+
+  \$effect(() => {
+    history = [...history, count];
+  });
+<\/script>
+
+<div style="font-family: sans-serif; padding: 1rem;">
+  <button onclick={() => count--} style="font-size:1.2rem;padding:0.3rem 0.8rem">-</button>
+  <strong style="font-size:1.5rem;margin:0 1rem">{count}</strong>
+  <button onclick={() => count++} style="font-size:1.2rem;padding:0.3rem 0.8rem">+</button>
+  <p>Doubled: {doubled}</p>
+  <p style="font-size:0.85rem;color:#666">History: {history.join(' → ')}</p>
+</div>`;
+
+<SveltePlayground client:visible code={indexPlayCode} />
+
+export const quizReactivityIndex = [
+  {
+    q: 'Svelte 5 rune ไหนที่แทน useState ของ React?',
+    options: ['$effect', '$derived', '$state', '$props'],
+    answer: 2,
+  },
+  {
+    q: 'ทำไม $derived ถึงไม่ต้องใช้ dependency array?',
+    options: [
+      'มันรันใหม่ทุก render เหมือน expression ธรรมดา',
+      'คอมไพเลอร์ Svelte ติดตาม dependency อัตโนมัติในขั้นตอน build',
+      'ยังต้องส่ง deps อยู่ — แค่ optional เท่านั้น',
+      'ใช้ได้แค่กับ primitive values',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'อะไรคือ Svelte 5 ที่เทียบเท่า useEffect ที่มี deps array ว่าง []?',
+    options: ['$effect ที่ไม่มี body', 'onMount', '$derived.by', '$state.snapshot'],
+    answer: 1,
+  },
+  {
+    q: 'ความแตกต่างหลักระหว่าง $derived กับ $derived.by คืออะไร?',
+    options: [
+      '$derived สำหรับ object; $derived.by สำหรับ primitive',
+      '$derived รับ expression เดียว; $derived.by รับ function ที่มี body เต็ม',
+      '$derived.by ต้องใช้ deps array; $derived ไม่ต้อง',
+      'เหมือนกันทุกอย่าง — $derived.by แค่เป็น alias',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="reactivity/index" questions={quizReactivityIndex} />
+
+<ProgressTracker client:visible id="reactivity/index" />
