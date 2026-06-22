@@ -1,6 +1,60 @@
 ---
-title: 'Svelte for React Developers'
-description: 'Learn Svelte 5 when you already know React.'
+title: Svelte สำหรับนักพัฒนา React
+description: เรียน Svelte 5 แบบเร็ว — เทียบทุกแนวคิดกับ React ที่คุณรู้อยู่แล้ว
 template: splash
+hero:
+  tagline: คุณรู้จัก component, props, state และ hooks อยู่แล้ว คอร์สนี้จับคู่ทุกอย่างเข้ากับ Svelte 5 และ runes — อะไรเหมือน อะไรต่าง — พร้อมตัวอย่างที่แก้ได้และ compile สดในเบราว์เซอร์
+  actions:
+    - text: เริ่มที่นี่
+      link: /svelte-for-react-developers/th/intro/
+      icon: right-arrow
+      variant: primary
+    - text: ข้ามไป Components
+      link: /svelte-for-react-developers/th/components/
+      icon: open-book
 ---
-Coming soon.
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## สิ่งที่คุณจะได้เรียน
+
+<CardGrid>
+  <Card title="บทแนะนำ & การติดตั้ง" icon="rocket">
+    ทำไมต้อง Svelte, โมเดล compiler (ไม่มี virtual DOM), toolchain, component แรกของคุณ [เริ่ม →](/svelte-for-react-developers/th/intro/)
+  </Card>
+  <Card title="React → Svelte: เหมือนและต่าง" icon="random">
+    single-file component, compiler เทียบ runtime, reactivity, scoped styles — อะไรย้ายมาได้ [เทียบ →](/svelte-for-react-developers/th/mental-model/)
+  </Card>
+  <Card title="Components & Templating" icon="open-book">
+    Props, conditional &amp; list, event, snippet, binding — เทียบ JSX [สร้าง →](/svelte-for-react-developers/th/components/)
+  </Card>
+  <Card title="Reactivity & Lifecycle (Runes)" icon="setting">
+    $state เทียบ useState, $derived เทียบ useMemo, $effect เทียบ useEffect — แมป runes↔hooks [เรียน runes →](/svelte-for-react-developers/th/reactivity/)
+  </Card>
+  <Card title="การจัดการข้อมูล & Stores" icon="laptop">
+    Store, module state, การ fetch, await block — เทียบ Context/Redux/react-query [จัดการข้อมูล →](/svelte-for-react-developers/th/data/)
+  </Card>
+  <Card title="Routing ด้วย SvelteKit" icon="puzzle">
+    File-based routing, load function, layout, form action — เทียบ react-router/Next [นำทาง →](/svelte-for-react-developers/th/routing/)
+  </Card>
+  <Card title="เครื่องมือ ทดสอบ & Deploy" icon="approve-check">
+    Vite, svelte-check, Vitest + testing-library, adapter & deploy — เทียบ jest/RTL/Next [ส่งงานจริง →](/svelte-for-react-developers/th/tooling/)
+  </Card>
+</CardGrid>
+
+## คอร์สนี้ทำงานยังไง
+
+<CardGrid>
+  <Card title="เทียบกับ React ก่อนเสมอ" icon="random">
+    ทุกแนวคิดเริ่มจาก React ที่คุณรู้ แล้วค่อยแสดงวิธีของ Svelte — พร้อมชี้จุดที่ต่างกัน
+  </Card>
+  <Card title="รันในเบราว์เซอร์" icon="rocket">
+    ตัวอย่างที่แก้ได้ compile ด้วย Svelte compiler จริงฝั่ง client แล้ว render สดในหน้า — ไม่ต้องติดตั้ง ไม่ต้องมี backend
+  </Card>
+  <Card title="แบบทดสอบ & ความคืบหน้า" icon="bars">
+    ทบทวนความเข้าใจหลังแต่ละบท ความคืบหน้าถูกบันทึกไว้ในเครื่อง
+  </Card>
+  <Card title="สองภาษา" icon="translate">
+    มีทั้งภาษาอังกฤษและไทย — สลับได้ตลอดจากแถบด้านบน
+  </Card>
+</CardGrid>

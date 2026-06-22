@@ -1,6 +1,60 @@
 ---
-title: 'Svelte for React Developers'
-description: 'Learn Svelte 5 when you already know React.'
+title: Svelte for React Developers
+description: Learn Svelte 5 the fast way — every concept mapped to the React you already know.
 template: splash
+hero:
+  tagline: You already know components, props, state, and hooks. This course maps all of it to Svelte 5 and its runes — what's the same, what's different — with live, editable examples that compile in your browser.
+  actions:
+    - text: Start here
+      link: /svelte-for-react-developers/en/intro/
+      icon: right-arrow
+      variant: primary
+    - text: Jump to Components
+      link: /svelte-for-react-developers/en/components/
+      icon: open-book
 ---
-Coming soon.
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## What you'll learn
+
+<CardGrid>
+  <Card title="Introduction & Setup" icon="rocket">
+    Why Svelte, the compiler model (no virtual DOM), the toolchain, your first component. [Start →](/svelte-for-react-developers/en/intro/)
+  </Card>
+  <Card title="React → Svelte: Same vs Different" icon="random">
+    Single-file components, compiler vs runtime, reactivity, scoped styles — what transfers. [Compare →](/svelte-for-react-developers/en/mental-model/)
+  </Card>
+  <Card title="Components & Templating" icon="open-book">
+    Props, conditionals &amp; lists, events, snippets, bindings — vs JSX. [Build →](/svelte-for-react-developers/en/components/)
+  </Card>
+  <Card title="Reactivity & Lifecycle (Runes)" icon="setting">
+    $state vs useState, $derived vs useMemo, $effect vs useEffect — the runes↔hooks map. [Learn runes →](/svelte-for-react-developers/en/reactivity/)
+  </Card>
+  <Card title="Handling Data & Stores" icon="laptop">
+    Stores, module state, fetching, {#await} — vs Context/Redux/react-query. [Manage data →](/svelte-for-react-developers/en/data/)
+  </Card>
+  <Card title="Routing with SvelteKit" icon="puzzle">
+    File-based routing, load functions, layouts, form actions — vs react-router/Next. [Route →](/svelte-for-react-developers/en/routing/)
+  </Card>
+  <Card title="Tooling, Testing & Deployment" icon="approve-check">
+    Vite, svelte-check, Vitest + testing-library, adapters & deploy — vs jest/RTL/Next. [Ship it →](/svelte-for-react-developers/en/tooling/)
+  </Card>
+</CardGrid>
+
+## How this course works
+
+<CardGrid>
+  <Card title="Comparison-first" icon="random">
+    Every concept starts from the React you know, then shows the Svelte way — and flags the differences.
+  </Card>
+  <Card title="Runs in your browser" icon="rocket">
+    Editable examples compile with the real Svelte compiler client-side and render live in the page — no setup, no backend.
+  </Card>
+  <Card title="Quizzes & progress" icon="bars">
+    Check your understanding after each lesson; your progress is saved locally.
+  </Card>
+  <Card title="Bilingual" icon="translate">
+    Available in English and ไทย — switch anytime from the top bar.
+  </Card>
+</CardGrid>
