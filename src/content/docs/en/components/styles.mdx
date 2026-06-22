@@ -1,0 +1,188 @@
+---
+title: Styles
+description: 'Svelte scoped <style> blocks and the class: directive vs CSS Modules and CSS-in-JS.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React has no built-in CSS scoping — you choose between CSS Modules, Styled Components, Tailwind, or plain global CSS. Svelte's `<style>` block is **automatically scoped** to the component: every selector gets a unique attribute injected at build time, so `.button` in one component never clashes with `.button` in another. No configuration required.
+
+## Scoped styles
+
+export const stylesBasicReact = `// Button.module.css
+.button { background: #FF3E00; color: white; padding: 0.5rem 1rem; }
+
+// Button.jsx
+import styles from './Button.module.css';
+function Button({ label }) {
+  return <button className={styles.button}>{label}</button>;
+}`;
+
+export const stylesBasicSvelte = `<!-- Button.svelte -->
+<script>
+  let { label } = \$props();
+<\/script>
+
+<button>{label}</button>
+
+<style>
+  /* This .button only applies inside this component */
+  button { background: #FF3E00; color: white; padding: 0.5rem 1rem; }
+</style>`;
+
+<ReactSvelte react={stylesBasicReact} svelte={stylesBasicSvelte} reactTitle="React (CSS Modules)" />
+
+Svelte compiles the `<style>` block and adds a unique hashed attribute to every element touched by it (e.g., `<button class="svelte-xyz123">`). The selector becomes `button.svelte-xyz123` — globally unique, no collision possible.
+
+## Dynamic classes: the `class:` directive
+
+React developers typically toggle classes with a ternary or a library like `clsx`. Svelte has a first-class `class:` directive:
+
+export const stylesDynamicReact = `function Alert({ message, type = 'info' }) {
+  return (
+    <div className={\`alert alert--\${type}\`}>
+      {message}
+    </div>
+  );
+}
+
+// With boolean toggle:
+<div className={isActive ? 'box box--active' : 'box'}>`;
+
+export const stylesDynamicSvelte = `<script>
+  let { message, type = 'info' } = \$props();
+  let isActive = \$state(false);
+<\/script>
+
+<div class="alert alert--{type}">{message}</div>
+
+<!-- Boolean class toggle — no clsx needed: -->
+<div class="box" class:box--active={isActive}>...</div>`;
+
+<ReactSvelte react={stylesDynamicReact} svelte={stylesDynamicSvelte} />
+
+`class:name={condition}` adds `name` to the element's class list when `condition` is truthy, and removes it otherwise. Clean, readable, no string concatenation.
+
+## Global styles (opting out of scoping)
+
+Sometimes you need to target child elements or apply truly global styles. Use `:global()`:
+
+```svelte
+<style>
+  /* Scoped — only affects elements in this component */
+  .container { padding: 1rem; }
+
+  /* Global — applies everywhere */
+  :global(body) { margin: 0; }
+
+  /* Scoped parent, global child */
+  .container :global(a) { color: #FF3E00; }
+</style>
+```
+
+## Try it: themed card with dynamic classes
+
+export const stylesCode = `<script>
+  let theme = \$state('light');
+  let highlighted = \$state(false);
+<\/script>
+
+<div class="card" class:dark={theme === 'dark'} class:highlighted>
+  <h3>Svelte Scoped Styles</h3>
+  <p>Toggle the theme and highlight to see class: in action.</p>
+  <div class="controls">
+    <button onclick={() => (theme = theme === 'light' ? 'dark' : 'light')}>
+      Switch to {theme === 'light' ? 'dark' : 'light'}
+    </button>
+    <button onclick={() => (highlighted = !highlighted)}>
+      {highlighted ? 'Remove' : 'Add'} highlight
+    </button>
+  </div>
+</div>
+
+<style>
+  .card {
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    padding: 1rem;
+    background: #fff;
+    color: #111;
+    transition: all 0.2s;
+  }
+  .card.dark {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    border-color: #585b70;
+  }
+  .card.highlighted {
+    border-color: #FF3E00;
+    box-shadow: 0 0 0 3px rgba(255, 62, 0, 0.25);
+  }
+  .controls { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+  button { padding: 0.3rem 0.7rem; cursor: pointer; border-radius: 4px; border: 1px solid #999; }
+</style>`;
+
+<SveltePlayground client:visible code={stylesCode} />
+
+<Diff title="React CSS strategies vs Svelte scoped styles">
+
+- React: no built-in scoping — you choose CSS Modules, Styled Components, Emotion, Tailwind, or BEM.
+- Svelte: `<style>` inside `.svelte` is **automatically scoped** — zero configuration.
+- React dynamic classes: ternary, template literal, or `clsx()`/`classnames` library.
+- Svelte: `class:name={condition}` directive — no library needed.
+- React CSS-in-JS: styles can reference JS variables at runtime.
+- Svelte scoped styles are static at compile time; use CSS custom properties (`var(--color)`) for dynamic theming.
+- Escape hatch: `:global(selector)` in Svelte targets elements outside the component's scope.
+
+</Diff>
+
+export const quizStyles = [
+  {
+    q: 'What happens to CSS selectors inside a Svelte <style> block?',
+    options: [
+      'They become global CSS like a plain .css file',
+      'Svelte scopes them automatically to the current component via a hashed attribute',
+      'You must use CSS Modules syntax (styles.className)',
+      'They are ignored unless you add a scoped attribute',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How do you conditionally add a CSS class in Svelte without string concatenation?',
+    options: [
+      'className={isActive ? "active" : ""}',
+      'class:active={isActive}',
+      ':class="{ active: isActive }"',
+      'classList.toggle("active", isActive)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How do you write a truly global CSS rule inside a Svelte <style> block?',
+    options: [
+      'Add !important to the rule',
+      'Use a separate global.css file only',
+      'Wrap the selector in :global()',
+      'Use the global: prefix',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the recommended approach for dynamic theming in Svelte when scoped styles cannot reference runtime JS?',
+    options: [
+      'CSS-in-JS libraries like Emotion',
+      'CSS custom properties (CSS variables) set from Svelte state',
+      'Inline style attributes for every element',
+      'Rebuild the stylesheet on each state change',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="components/styles" questions={quizStyles} />
+
+<ProgressTracker client:visible id="components/styles" />

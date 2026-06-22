@@ -1,0 +1,186 @@
+---
+title: Bindings
+description: 'Svelte bind:value and bind:checked for two-way data binding vs React controlled inputs.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React uses **controlled inputs**: you set `value={state}` and update it yourself in `onChange`. This is deliberate — one-way data flow keeps state changes explicit. Svelte offers `bind:value` for **two-way binding**, which wires the input and the variable together automatically. There is no direct React equivalent — it is a genuine Svelte superpower.
+
+## Text input: controlled vs `bind:value`
+
+export const bindingsTextReact = `function NameForm() {
+  const [name, setName] = React.useState('');
+  return (
+    <>
+      <input
+        value={name}
+        onChange={e => setName(e.target.value)}
+        placeholder="Your name"
+      />
+      <p>Hello, {name || 'stranger'}!</p>
+    </>
+  );
+}`;
+
+export const bindingsTextSvelte = `<script>
+  let name = \$state('');
+<\/script>
+
+<input bind:value={name} placeholder="Your name" />
+<p>Hello, {name || 'stranger'}!</p>`;
+
+<ReactSvelte react={bindingsTextReact} svelte={bindingsTextSvelte} />
+
+`bind:value` replaces both `value={name}` and `onChange={e => setName(e.target.value)}` in a single directive.
+
+## Checkbox: `bind:checked`
+
+export const bindingsCheckReact = `function Opt() {
+  const [agreed, setAgreed] = React.useState(false);
+  return (
+    <label>
+      <input
+        type="checkbox"
+        checked={agreed}
+        onChange={e => setAgreed(e.target.checked)}
+      />
+      I agree
+    </label>
+  );
+}`;
+
+export const bindingsCheckSvelte = `<script>
+  let agreed = \$state(false);
+<\/script>
+
+<label>
+  <input type="checkbox" bind:checked={agreed} />
+  I agree
+</label>
+<p>Agreed: {agreed}</p>`;
+
+<ReactSvelte react={bindingsCheckReact} svelte={bindingsCheckSvelte} />
+
+## Select / dropdown
+
+export const bindingsSelectReact = `function Picker() {
+  const [color, setColor] = React.useState('red');
+  return (
+    <select value={color} onChange={e => setColor(e.target.value)}>
+      <option value="red">Red</option>
+      <option value="green">Green</option>
+      <option value="blue">Blue</option>
+    </select>
+  );
+}`;
+
+export const bindingsSelectSvelte = `<script>
+  let color = \$state('red');
+<\/script>
+
+<select bind:value={color}>
+  <option value="red">Red</option>
+  <option value="green">Green</option>
+  <option value="blue">Blue</option>
+</select>
+<p>Chosen: {color}</p>`;
+
+<ReactSvelte react={bindingsSelectReact} svelte={bindingsSelectSvelte} />
+
+## Try it: a mini form
+
+export const bindingsCode = `<script>
+  let name = \$state('');
+  let email = \$state('');
+  let subscribed = \$state(false);
+  let plan = \$state('free');
+
+  let summary = \$derived(
+    name
+      ? name + ' (' + email + ') — ' + plan + (subscribed ? ' + newsletter' : '')
+      : 'Fill out the form above'
+  );
+<\/script>
+
+<form onsubmit={e => e.preventDefault()}>
+  <label>
+    Name
+    <input bind:value={name} placeholder="Your name" />
+  </label>
+  <label>
+    Email
+    <input type="email" bind:value={email} placeholder="you@example.com" />
+  </label>
+  <label>
+    Plan
+    <select bind:value={plan}>
+      <option value="free">Free</option>
+      <option value="pro">Pro</option>
+      <option value="enterprise">Enterprise</option>
+    </select>
+  </label>
+  <label class="check">
+    <input type="checkbox" bind:checked={subscribed} />
+    Subscribe to newsletter
+  </label>
+</form>
+
+<p class="summary">{summary}</p>
+
+<style>
+  form { display: flex; flex-direction: column; gap: 0.6rem; }
+  label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.9rem; }
+  label.check { flex-direction: row; align-items: center; gap: 0.5rem; }
+  input, select { padding: 0.3rem 0.5rem; border: 1px solid #ccc; border-radius: 4px; }
+  .summary { margin-top: 0.75rem; font-style: italic; color: #FF3E00; }
+</style>`;
+
+<SveltePlayground client:visible code={bindingsCode} />
+
+<Diff title="React controlled inputs vs Svelte bind:">
+
+- React controlled input requires `value={state}` + `onChange={e => setState(e.target.value)}` — two pieces.
+- Svelte `bind:value={state}` does both in one directive — two-way binding with no handler needed.
+- `bind:checked` for checkboxes, `bind:value` for text/number/email/select/textarea.
+- React philosophy: **one-way data flow** (explicit). Svelte: **two-way binding is opt-in** (convenient).
+- `bind:` is a Svelte directive. It only works on DOM elements or components that expose a `$bindable()` prop — not arbitrary JS values.
+- React has no direct equivalent. The closest is a custom hook (`useInput`) that returns `{ value, onChange }`.
+
+</Diff>
+
+export const quizBindings = [
+  {
+    q: 'What does bind:value do in Svelte?',
+    options: [
+      'It sets a read-only value on the input',
+      'It creates two-way binding — input changes update the variable and vice versa',
+      'It is equivalent to React defaultValue',
+      'It prevents the user from typing',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which directive do you use to bind a checkbox in Svelte?',
+    options: ['bind:value', 'bind:checked', 'bind:selected', 'bind:input'],
+    answer: 1,
+  },
+  {
+    q: 'How do you replicate Svelte bind:value in React?',
+    options: [
+      'Use the bind attribute on the input',
+      'Use defaultValue',
+      'Set value={state} and onChange={e => setState(e.target.value)}',
+      'React has a built-in bind() helper',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="components/bindings" questions={quizBindings} />
+
+<ProgressTracker client:visible id="components/bindings" />

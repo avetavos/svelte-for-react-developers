@@ -1,0 +1,197 @@
+---
+title: Snippets & Children
+description: 'Svelte 5 {#snippet} and {@render} vs React children and render props.'
+---
+
+import ReactSvelte from '../../../../components/ReactSvelte.tsx';
+import SveltePlayground from '../../../../components/SveltePlayground.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React passes UI content to components via `children` (JSX between tags) or render props (functions that return JSX). Svelte 5 replaces the old `<slot>` system with **snippets** — reusable, named, parameterized template fragments defined with `{#snippet}` and rendered with `{@render}`. The default snippet is still called `children`, so basic usage feels immediately familiar.
+
+## Default children
+
+export const childrenReact = `// Card.jsx
+function Card({ children }) {
+  return <div className="card">{children}</div>;
+}
+
+// Usage:
+<Card>
+  <p>Hello from inside!</p>
+</Card>`;
+
+export const childrenSvelte = `<!-- Card.svelte -->
+<script>
+  let { children } = \$props();
+<\/script>
+
+<div class="card">
+  {@render children()}
+</div>
+
+<!-- Usage in parent: -->
+<!-- <Card><p>Hello from inside!</p></Card> -->`;
+
+<ReactSvelte react={childrenReact} svelte={childrenSvelte} />
+
+The `children` prop is a **snippet function** — you must call it with `{@render children()}`. React's `{children}` is a value; Svelte's `children` is a callable snippet.
+
+## Named snippets (like named slots / render props)
+
+export const namedReact = `// Dialog.jsx
+function Dialog({ header, body, footer }) {
+  return (
+    <div className="dialog">
+      <div className="dialog-header">{header}</div>
+      <div className="dialog-body">{body}</div>
+      <div className="dialog-footer">{footer}</div>
+    </div>
+  );
+}
+
+// Usage:
+<Dialog
+  header={<h2>Confirm</h2>}
+  body={<p>Are you sure?</p>}
+  footer={<button>OK</button>}
+/>`;
+
+export const namedSvelte = `<!-- Dialog.svelte -->
+<script>
+  let { header, body, footer } = \$props();
+<\/script>
+
+<div class="dialog">
+  <div class="dialog-header">{@render header()}</div>
+  <div class="dialog-body">{@render body()}</div>
+  <div class="dialog-footer">{@render footer()}</div>
+</div>
+
+<!-- Usage in parent: -->
+<!--
+<Dialog>
+  {#snippet header()}<h2>Confirm</h2>{/snippet}
+  {#snippet body()}<p>Are you sure?</p>{/snippet}
+  {#snippet footer()}<button>OK</button>{/snippet}
+</Dialog>
+-->`;
+
+<ReactSvelte react={namedReact} svelte={namedSvelte} />
+
+## Snippets with parameters (render props pattern)
+
+Snippets can receive arguments — this replaces the React render-prop pattern cleanly:
+
+export const renderPropsReact = `// List.jsx
+function List({ items, renderItem }) {
+  return (
+    <ul>
+      {items.map((item, i) => (
+        <li key={i}>{renderItem(item)}</li>
+      ))}
+    </ul>
+  );
+}
+
+// Usage:
+<List
+  items={fruits}
+  renderItem={fruit => <strong>{fruit}</strong>}
+/>`;
+
+export const renderPropsSvelte = `<!-- List.svelte -->
+<script>
+  let { items, renderItem } = \$props();
+<\/script>
+
+<ul>
+  {#each items as item}
+    <li>{@render renderItem(item)}</li>
+  {/each}
+</ul>
+
+<!-- Usage in parent:
+<List {items}>
+  {#snippet renderItem(fruit)}
+    <strong>{fruit}</strong>
+  {/snippet}
+</List>
+-->`;
+
+<ReactSvelte react={renderPropsReact} svelte={renderPropsSvelte} />
+
+## Try it: card with children
+
+export const snippetsChildrenCode = `<script>
+  let items = \$state(['Learn Svelte', 'Build something', 'Deploy to Vercel']);
+<\/script>
+
+{#snippet card(title, body)}
+  <div class="card">
+    <h3>{title}</h3>
+    <p>{body}</p>
+  </div>
+{/snippet}
+
+<h2>My Todo List</h2>
+{#each items as item, i}
+  {@render card('Task ' + (i + 1), item)}
+{/each}
+
+<style>
+  .card { border: 1px solid #ccc; border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 0.5rem; }
+  h3 { margin: 0 0 0.25rem; color: #FF3E00; }
+  p { margin: 0; }
+</style>`;
+
+<SveltePlayground client:visible code={snippetsChildrenCode} />
+
+<Diff title="React children/render props vs Svelte snippets">
+
+- React `children` (a ReactNode value) → Svelte `children` snippet (a function, call with `{@render children()}`).
+- React named render props (functions passed as props) → Svelte named snippets (`{#snippet name()}` … `{/snippet}` inside the component tag).
+- React render prop pattern `renderItem={item => <JSX />}` → Svelte parameterized snippets `{#snippet renderItem(item)}` … `{/snippet}`.
+- Svelte 4 `<slot name="header">` → Svelte 5 `{@render header()}` with a named snippet prop.
+- `{@render snippet?.()}` — use optional chaining when a snippet prop might be undefined.
+
+</Diff>
+
+export const quizSnippets = [
+  {
+    q: 'How do you render the default children in a Svelte 5 component?',
+    options: [
+      '<slot />',
+      '{children}',
+      '{@render children()}',
+      '<Children />',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the Svelte 5 syntax for defining a reusable template fragment with parameters?',
+    options: [
+      '{#template name(param)}',
+      '{#snippet name(param)} ... {/snippet}',
+      '{#slot name(param)}',
+      '{#render name(param)}',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What replaced Svelte 4 named slots in Svelte 5?',
+    options: [
+      'React-style render props',
+      'Named snippets passed as props and rendered with {@render}',
+      'Named <slot name="x"> tags still work',
+      'Portal components',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="components/snippets-children" questions={quizSnippets} />
+
+<ProgressTracker client:visible id="components/snippets-children" />
