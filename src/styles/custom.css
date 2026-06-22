@@ -13,7 +13,7 @@
 .quiz__score { font-weight:700; }
 .pt { margin:2rem 0; padding:.5rem 1rem; border-radius:6px; border:1px solid var(--sl-color-accent); background:var(--sl-color-bg); cursor:pointer; color:inherit; }
 .pt--done { background:var(--sl-color-accent); color:#001; }
-/* inline code chips inside the React → Flutter callout: dark text on light chip */
+/* inline code chips inside the React → Svelte callout: dark text on light chip */
 .diff :not(pre) > code { background-color:#eceff4; color:#24292f; }
 .dp { margin:1rem 0; border:1px solid var(--sl-color-gray-5); border-radius:8px; overflow:hidden; }
 .dp__bar { display:flex; justify-content:space-between; align-items:center; gap:.5rem; padding:.35rem .6rem; background:var(--sl-color-gray-6); font-size:.8rem; }
