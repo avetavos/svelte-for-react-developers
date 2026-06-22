@@ -1,4 +1,4 @@
-:root { --sl-color-accent: #0468D7; --sl-color-accent-low: #0a1f3a; --sl-color-accent-high: #cfe2ff; }
+:root { --sl-color-accent: #FF3E00; --sl-color-accent-low: #3a0f00; --sl-color-accent-high: #ffd6c7; }
 
 .tsgo { display: grid; gap: 1rem; grid-template-columns: 1fr; margin: 1rem 0; }
 .tsgo__col header { display:flex; justify-content:space-between; align-items:center; font-weight:600; font-size:.85rem; padding:.25rem .5rem; background:var(--sl-color-gray-6); border-radius:6px 6px 0 0; }
@@ -7,7 +7,7 @@
 .pg__bar { display:flex; gap:.5rem; margin-bottom:.25rem; }
 .pg pre { white-space:pre; overflow:auto; }
 .pg__hint { font-size:.8rem; opacity:.7; margin:.25rem 0; }
-.pg__out { border-left:3px solid #0468D7; } .pg__err { border-left:3px solid var(--sl-color-red); color:var(--sl-color-red-high); }
+.pg__out { border-left:3px solid #FF3E00; } .pg__err { border-left:3px solid var(--sl-color-red); color:var(--sl-color-red-high); }
 .quiz__q { border:1px solid var(--sl-color-gray-5); border-radius:6px; margin:.5rem 0; padding:.25rem .75rem; }
 .quiz label { display:block; padding:.15rem .25rem; cursor:pointer; } .quiz label.ok { color:var(--sl-color-green-high); font-weight:600; } .quiz label.bad { color:var(--sl-color-red-high); }
 .quiz__score { font-weight:700; }
