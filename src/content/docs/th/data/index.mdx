@@ -1,0 +1,112 @@
+---
+title: 'การจัดการข้อมูลใน Flutter'
+description: 'ภาพรวมของ async data, การดึงข้อมูล HTTP, โมเดล JSON, FutureBuilder และ Provider — สิ่งที่โมดูลนี้ครอบคลุมและวิธีที่ Flutter จัดการข้อมูลเทียบกับ React'
+---
+
+import DartPad from '../../../../components/DartPad.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React และ Flutter แก้ปัญหาข้อมูลพื้นฐานเดียวกัน — ดึงข้อมูลแบบ async, เก็บไว้ใน state, ส่งต่อผ่าน tree — แต่ API มีหน้าตาต่างกันในทุกชั้น โมดูลนี้จะแมป mental model ของ React ที่คุณมีอยู่แล้วไปสู่ตัวเทียบเท่าใน Flutter เพื่อให้คุณข้ามความสับสนและเริ่มทำงานได้รวดเร็วยิ่งขึ้น
+
+## แผนที่แนวคิด React → Flutter
+
+หากคุณรู้ว่า React tool ไหนที่คุณใช้ นี่คือตัวเทียบเท่าใน Flutter:
+
+| แนวคิด React | ตัวเทียบเท่าใน Flutter | หมายเหตุ |
+|---|---|---|
+| `Promise` | `Future<T>` | wrapper async แบบ single-value เหมือนกัน `async`/`await` ทำงานเหมือนกันทุกประการ |
+| `async`/`await` | `async`/`await` | syntax ของ Dart แทบจะเหมือนกับ JS |
+| `fetch` / `axios` | `http` package (`http.get`) | เพิ่ม `http` ใน `pubspec.yaml` คืนค่าเป็น `Future<Response>` |
+| `useEffect` + `setState` | `FutureBuilder<T>` | widget แบบ declarative ที่ rebuild เมื่อ `Future` state เปลี่ยนแปลง |
+| `React.createContext` + `useContext` | `Provider` / `InheritedWidget` | package `provider` คือทางเลือกที่เป็น idiomatic |
+| `react-query` / SWR | `riverpod` (AsyncNotifier) | Caching, background refresh, error states — แนวคิดเดียวกัน |
+| `JSON.parse` | `jsonDecode` + model `.fromJson` | Dart มี type จึงต้อง map decoded map ไปยัง class ด้วยตนเอง (หรือใช้ `json_serializable`) |
+| `Promise.all` | `Future.wait` | รัน Future หลายตัวพร้อมกัน resolve เมื่อทุกตัวเสร็จ |
+| `try`/`catch` ใน async | `try`/`catch` ใน async | รูปแบบเหมือนกันทุกประการ `Future` ยังมี `.catchError()` สำหรับการจัดการแบบ chain |
+
+## สิ่งที่โมดูลนี้ครอบคลุม
+
+- **Future และ async/await** — การแมป `Promise` ↔ `Future` อย่างละเอียด, `.then()`, `.catchError()` และรูปแบบ `try`/`catch`
+- **HTTP และ JSON** — การใช้ `http` package เพื่อดึงข้อมูลจริงและ parse โมเดล Dart แบบ typed จาก JSON
+- **FutureBuilder** — วิธี declarative ของ Flutter ในการ render async state (loading / error / data) โดยไม่ต้องใช้ `useEffect`
+- **Provider** — การแชร์ข้อมูลข้าม widget tree ซึ่งเป็นตัวเทียบเท่ากับ React Context ใน Flutter
+
+## ลองชิมรสชาติ async
+
+snippet ด้านล่างจำลองการโหลดข้อมูลแบบ async โดยใช้ `Future.delayed` — ไม่ต้องใช้ network มันสะท้อนรูปแบบ `useEffect(() => fetch(...), [])` ที่คุณเขียนใน React แต่แสดงออกในรูปแบบ `FutureBuilder` widget
+
+export const indexCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(child: AsyncGreeting()),
+      ),
+    );
+  }
+}
+
+// Simulates an async data fetch — like useEffect + fetch in React.
+Future<String> fetchGreeting() {
+  return Future.delayed(
+    const Duration(seconds: 2),
+    () => 'Hello from the Flutter data layer!',
+  );
+}
+
+class AsyncGreeting extends StatelessWidget {
+  const AsyncGreeting({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: fetchGreeting(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading...', style: TextStyle(color: Colors.grey)),
+            ],
+          );
+        }
+        if (snapshot.hasError) {
+          return Text('Error: \${snapshot.error}',
+              style: const TextStyle(color: Colors.red));
+        }
+        return Text(
+          snapshot.data ?? '',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        );
+      },
+    );
+  }
+}`;
+
+<DartPad client:visible code={indexCode} />
+
+export const quizIndex = [
+  {
+    q: 'Flutter เทียบเท่ากับ JS Promise คืออะไร?',
+    options: ['Stream', 'Future<T>', 'Completer', 'async void'],
+    answer: 1,
+  },
+  {
+    q: 'Widget ใดที่จัดการการแสดง UI แบบ async แบบ declarative ใน Flutter?',
+    options: ['AsyncWidget', 'StreamBuilder', 'FutureBuilder', 'StatefulWidget'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="data/index" />

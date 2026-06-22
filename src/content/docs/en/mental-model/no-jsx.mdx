@@ -1,0 +1,220 @@
+---
+title: 'No JSX'
+description: 'Flutter has no JSX. Learn how Dart named-parameter constructor calls replace angle-bracket tags, and how to render conditional and list UI without JSX expressions.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+JSX is one of React's most distinctive features — you write HTML-like tags that Babel transforms into `React.createElement()` calls. Flutter has no JSX. Instead, you compose widgets by nesting Dart constructor calls with named parameters. Once you see the one-to-one mapping, the syntax difference becomes a minor detail.
+
+## Tags → constructor calls
+
+export const reactNoJsx = `// React — JSX list
+function FruitList({ fruits }) {
+  return (
+    <ul style={{ padding: 0 }}>
+      {fruits.map((fruit, i) => (
+        <li key={i} style={{ listStyle: 'none', padding: '8px 0' }}>
+          {fruit}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Conditional render
+function Badge({ isNew }) {
+  return (
+    <div>
+      <span>Item</span>
+      {isNew && <span style={{ color: 'green' }}>NEW</span>}
+    </div>
+  );
+}`;
+
+export const flutterNoJsx = `// Flutter — constructor calls + list
+class FruitList extends StatelessWidget {
+  final List<String> fruits;
+  const FruitList({super.key, required this.fruits});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: fruits
+          .map((fruit) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(fruit),
+              ))
+          .toList(),
+    );
+  }
+}
+
+// Conditional widget — collection-if in children list
+class Badge extends StatelessWidget {
+  final bool isNew;
+  const Badge({super.key, required this.isNew});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Text('Item'),
+        if (isNew)
+          const Text('NEW', style: TextStyle(color: Colors.green)),
+      ],
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={reactNoJsx} flutter={flutterNoJsx} />
+
+export const noJsxCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(title: const Text('Fruit List')),
+        body: const Padding(
+          padding: EdgeInsets.all(16),
+          child: FruitList(
+            fruits: ['Apple', 'Banana', 'Cherry', 'Dragonfruit', 'Elderberry'],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class FruitList extends StatelessWidget {
+  final List<String> fruits;
+  const FruitList({super.key, required this.fruits});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: fruits
+          .mapIndexed((i, fruit) => FruitCard(name: fruit, isNew: i == 0))
+          .toList(),
+    );
+  }
+}
+
+class FruitCard extends StatelessWidget {
+  final String name;
+  final bool isNew;
+  const FruitCard({super.key, required this.name, this.isNew = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Text(name, style: const TextStyle(fontSize: 16)),
+          const Spacer(),
+          if (isNew)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.green[100],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text('NEW',
+                  style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+extension IndexedIterable<E> on Iterable<E> {
+  Iterable<T> mapIndexed<T>(T Function(int i, E e) f) {
+    var i = 0;
+    return map((e) => f(i++, e));
+  }
+}`;
+
+<DartPad client:visible code={noJsxCode} />
+
+<Diff title="JSX → Dart constructors">
+
+- **`<MyWidget prop="value">`** → `MyWidget(prop: 'value')`. Named parameters replace JSX attributes.
+- **`<Parent><Child /></Parent>`** → `Parent(child: Child())`. The `child:` named parameter is the single-child equivalent.
+- **`{cond && <Widget />}`** → `if (cond) Widget()` inside a `children` list. Dart's collection-if is built into the list literal.
+- **`{items.map(x => <Item key={x} />)}`** → `items.map((x) => Item()).toList()` passed to `children:`.
+- **Ternary `{a ? <A /> : <B />}`** → `condition ? A() : B()` as the `child:` value or inside `children`.
+- **No Babel, no transpilation** — Dart constructors are real Dart, fully type-checked. Your IDE autocompletes every parameter name.
+
+</Diff>
+
+export const quizNoJsx = [
+  {
+    q: 'How do you write a widget with a child in Dart instead of JSX?',
+    options: [
+      '<Parent><Child /></Parent>',
+      'Parent { Child() }',
+      'Parent(child: Child())',
+      'Parent.child(Child())',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the Flutter/Dart equivalent of JSX conditional rendering {isNew && <Badge />}?',
+    options: [
+      'isNew ? Badge() : null',
+      'isNew == true { Badge() }',
+      'if (isNew) Badge()  inside a children list',
+      'Badge(visible: isNew)',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'How do you render a list of items in Flutter (equivalent to .map in JSX)?',
+    options: [
+      'Use a for loop and call addChild()',
+      'Use items.map((x) => Widget()).toList() as the children list',
+      'Use ListView.builder with XML templates',
+      'Use children: [for x in items: Widget()]',
+    ],
+    answer: 1,
+  },
+  {
+    q: "Flutter's widget constructor calls compared to JSX are:",
+    options: [
+      'Dynamically typed and evaluated at runtime',
+      'Fully type-checked Dart — no transpilation needed',
+      'Compiled to HTML by a build tool like Babel',
+      'Slower because there is no virtual DOM',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="mental-model/no-jsx" questions={quizNoJsx} />
+
+<ProgressTracker client:visible id="mental-model/no-jsx" />

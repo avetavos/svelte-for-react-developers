@@ -1,0 +1,186 @@
+---
+title: 'pub & pubspec.yaml'
+description: 'flutter pub add และ pubspec.yaml เทียบกับ npm และ package.json — dependencies, version constraints และการประกาศ assets'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React คุณจัดการ dependencies ผ่าน npm และ package.json ใน Flutter `pub` คือ package manager และ `pubspec.yaml` คือ project manifest registry คือ [pub.dev](https://pub.dev) แทน npmjs.com แต่ workflow เหมือนกัน: ค้นหา package, เพิ่มลงใน manifest, ดึงมา, แล้ว import ในโค้ด
+
+## โครงสร้างของ pubspec.yaml
+
+pubspec.yaml แบบ minimal มีห้า section ที่ map ตรงกับ concept ใน package.json:
+
+```yaml
+name: my_app
+description: A Flutter application.
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  mocktail: ^1.0.4
+
+flutter:
+  assets:
+    - assets/images/
+    - assets/icons/app_icon.png
+```
+
+`name` และ `description` เหมือนกับ package.json ทุกประการ `version` ใช้ format `major.minor.patch+build` — `+1` คือ build number ที่ใช้โดย app stores ซึ่งไม่มี equivalent ใน npm `environment.sdk` ล็อค Dart SDK range (คล้ายกับ `engines` ใน package.json) `dependencies` และ `dev_dependencies` ตรงกับ `dependencies` และ `devDependencies` ของ npm block `flutter:` มีเฉพาะใน Flutter — เป็นที่ที่คุณลงทะเบียน assets เพื่อให้ framework bundle ให้
+
+## Version constraints
+
+Flutter ใช้ caret semantics เดียวกับ npm:
+
+- `^1.2.0` หมายถึง `>=1.2.0 <2.0.0` — compatible กับ major version ปัจจุบัน
+- `^0.4.3` หมายถึง `>=0.4.3 <0.5.0` — สำหรับ package ก่อน 1.0, minor เป็น breaking boundary
+- `any` ยอมรับทุก version ใช้อย่างระวัง เพราะทำให้ build ไม่ reproducible
+- `>=1.0.0 <2.0.0` คือ form แบบ explicit ที่ `^1.0.0` ขยายออกมาเป็น
+
+`pubspec.lock` ล็อค resolved versions ตรงเหมือน `package-lock.json` หรือ `yarn.lock` — commit ไว้เสมอ
+
+## เพิ่ม packages จาก CLI
+
+```bash
+# เพิ่ม runtime dependency (เหมือน npm install http)
+flutter pub add http
+
+# เพิ่ม dev dependency (เหมือน npm install --save-dev mocktail)
+flutter pub add --dev mocktail
+
+# ดึง dependencies ทั้งหมดหลังแก้ pubspec.yaml ด้วยมือ
+flutter pub get
+
+# Upgrade dependencies ภายใน constraints
+flutter pub upgrade
+
+# ดู outdated packages
+flutter pub outdated
+```
+
+`flutter pub add http` ทำสองอย่างในคำสั่งเดียว: แก้ pubspec.yaml เพิ่ม entry ใน `dependencies` จากนั้นรัน `pub get` เพื่อดาวน์โหลด package ไม่มี flag "save" แยกต่างหาก — manifest อัปเดตเสมอ
+
+## Assets: ไม่ต้อง import ผ่าน bundler
+
+ใน React/Vite คุณ import รูปภาพตรงๆ ใน JavaScript:
+
+```js
+import logo from './assets/logo.svg';
+```
+
+Vite จัดการ bundling ให้ ใน Flutter ไม่มี bundler import แต่ต้องประกาศ asset paths ใน pubspec.yaml ภายใต้ `flutter: assets:` แล้ว reference ด้วย string path ใน Dart:
+
+```dart
+Image.asset('assets/images/logo.png')
+```
+
+คุณสามารถประกาศทั้ง directory (`assets/images/`) เพื่อรวมทุกไฟล์ข้างใน หรือระบุไฟล์ทีละชิ้นเพื่อควบคุมได้แน่นขึ้น Flutter จะ bundle เฉพาะสิ่งที่คุณประกาศ
+
+## เปรียบเทียบ: package.json vs pubspec.yaml
+
+export const pkgReact = `{
+  "name": "my-app",
+  "version": "1.0.0",
+  "dependencies": {
+    "react": "^18.2.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.0.0",
+    "vite": "^5.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "jest"
+  }
+}`;
+
+export const pkgFlutter = `name: my_app
+version: 1.0.0+1
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  mocktail: ^1.0.4
+flutter:
+  assets:
+    - assets/images/
+    - assets/icons/app_icon.png`;
+
+<ReactFlutter client:visible react={pkgReact} flutter={pkgFlutter} />
+
+<Diff title="package.json → pubspec.yaml">
+
+- **YAML ไม่ใช่ JSON.** pubspec.yaml ใช้ indentation แทน braces และ brackets ไม่ต้องใส่ quote รอบ keys และ strings ต้องการ quote เฉพาะเมื่อมีอักขระพิเศษของ YAML (colons, `>` ขึ้นต้น ฯลฯ)
+- **version มี build number.** `1.0.0+1` — suffix `+1` คือ build number ที่ App Store และ Google Play ใช้ npm ไม่มี equivalent ตรงนี้
+- **sdk constraint ระบุชัดเจน.** field `environment: sdk:` ล็อค Dart SDK range ใกล้เคียงกับ field `engines` ใน package.json มากกว่า dependency ปกติ
+- **`flutter:` assets block แทน bundler imports.** Vite/webpack ค้นพบ assets ผ่าน `import` statements Flutter ต้องการให้คุณระบุ path ใน pubspec.yaml การละเว้นขั้นตอนนี้เป็นสาเหตุที่พบบ่อยที่สุดที่ `Image.asset()` throw error ตอน runtime
+- **ไม่มี `scripts:` section.** Flutter CLI commands (`flutter run`, `flutter build`, `flutter test`, `flutter analyze`) เป็น built-in verbs ไม่มี equivalent ของการ define custom npm scripts หากต้องการ custom task runner ชุมชน Flutter ใช้ `melos` สำหรับ monorepos หรือ shell scripts
+- **`flutter_test` คือ RTL equivalent.** มาพร้อม SDK จึงปรากฏเป็น `sdk: flutter` dependency แทนที่จะเป็น pub.dev package ที่ pin version
+
+</Diff>
+
+export const quizPubPubspec = [
+  {
+    q: "pubspec.yaml เทียบเท่ากับ devDependencies ของ npm คืออะไร?",
+    options: [
+      'flutter_dependencies',
+      'dev_dependencies',
+      'test_dependencies',
+      'build_dependencies',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'version constraint "^1.2.0" ใน pubspec.yaml หมายความว่าอะไร?',
+    options: [
+      'เฉพาะ 1.2.0 เท่านั้น',
+      '>=1.2.0 และ <2.0.0',
+      '>=1.2.0 และ <1.3.0',
+      'ทุก version',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คำสั่งใดที่เพิ่ม package และอัปเดต pubspec.yaml พร้อมกันในคำสั่งเดียว?',
+    options: [
+      'flutter pub install http',
+      'flutter pub add http',
+      'dart pub add http --save',
+      'flutter add http',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ประกาศ image assets ใน Flutter project ที่ไหน?',
+    options: [
+      'ในคำสั่ง import ใน Dart code',
+      'ใน webpack.config.js',
+      'ภายใต้ flutter: assets: ใน pubspec.yaml',
+      'ใน assets.json file แยกต่างหาก',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="tooling/pub-pubspec" questions={quizPubPubspec} />
+
+<ProgressTracker client:visible id="tooling/pub-pubspec" />

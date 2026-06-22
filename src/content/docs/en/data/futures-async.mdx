@@ -1,0 +1,214 @@
+---
+title: "Futures and Async/Await"
+description: "How Flutter's Future maps to a JS Promise — async/await, .then(), error handling, and try/catch."
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+A `Future<T>` in Dart is a `Promise<T>` in JavaScript. Both represent a single value that is not available yet — it will arrive (or fail) at some point in the future. Every concept you know from JS Promises maps directly: `.then()`, `.catch()`, `async`/`await`, `try`/`catch`, and parallel execution with `Future.wait` / `Promise.all`. The mental model is the same; only the API surface changes slightly.
+
+## Side-by-side comparison
+
+export const reactCode = `// --- Promise chain style ---
+function loadUser(id) {
+  return fetch(\`/api/users/\${id}\`)
+    .then(res => res.json())
+    .then(data => {
+      console.log('User:', data.name);
+      return data;
+    })
+    .catch(err => {
+      console.error('Failed:', err.message);
+    });
+}
+
+// --- async/await style ---
+async function loadUserAsync(id) {
+  try {
+    const res = await fetch(\`/api/users/\${id}\`);
+    const data = await res.json();
+    console.log('User:', data.name);
+    return data;
+  } catch (err) {
+    console.error('Failed:', err.message);
+  }
+}`;
+
+export const flutterCode = `// --- Future chain style ---
+Future<void> loadUser(String id) {
+  return Future.delayed(
+    const Duration(seconds: 1),
+    () => {'name': 'Ava', 'id': id},
+  )
+    .then((data) {
+      print('User: \${data['name']}');
+    })
+    .catchError((err) {
+      print('Failed: \$err');
+    });
+}
+
+// --- async/await style ---
+Future<void> loadUserAsync(String id) async {
+  try {
+    // Simulating an HTTP call with Future.delayed
+    final data = await Future.delayed(
+      const Duration(seconds: 1),
+      () => {'name': 'Ava', 'id': id},
+    );
+    print('User: \${data['name']}');
+  } catch (err) {
+    print('Failed: \$err');
+  }
+}`;
+
+<ReactFlutter client:visible react={reactCode} flutter={flutterCode} />
+
+<Diff title="Future vs Promise">
+
+- **`.catchError()` vs `.catch()`.** Dart's chain-style error handler is `.catchError(fn)`, not `.catch(fn)`. In practice, `async`/`await` with `try`/`catch` is more idiomatic in Dart — just as it has become in modern JS.
+- **`void` Futures.** Dart has `Future<void>` for async operations that produce no value (side effects, fire-and-forget). JS Promises resolve to `undefined` implicitly; Dart makes the absence of a return value explicit in the type.
+- **`Future.wait` vs `Promise.all`.** To run multiple Futures concurrently and wait for all of them, use `Future.wait([futureA, futureB])`. It returns a `Future<List<T>>`, exactly like `Promise.all`.
+- **`Completer` vs `new Promise(resolve, reject)`.** When you need to manually resolve or reject a Future (wrapping a callback API, for example), use a `Completer<T>`. Call `completer.complete(value)` or `completer.completeError(err)` — the direct equivalent of the `resolve`/`reject` arguments in the Promise constructor.
+- **Error type.** JS `catch (err)` gives you an `unknown`. Dart `catch (e)` gives you an `Object` — you can add `on SpecificException catch (e)` to catch typed errors, which is closer to typed `instanceof` checks.
+
+</Diff>
+
+## Runnable example
+
+The app below demonstrates a `FutureBuilder` consuming a `Future.delayed` — the Flutter pattern equivalent to `useEffect(() => { fetch(...).then(setData) }, [])`. Watch the spinner disappear and the result appear after two seconds.
+
+export const dartPadCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(child: FutureDemo()),
+      ),
+    );
+  }
+}
+
+// Simulates a network call — replace with http.get() in a real app.
+Future<String> fetchMessage() {
+  return Future.delayed(
+    const Duration(seconds: 2),
+    () => 'Hello from the future!',
+  );
+}
+
+class FutureDemo extends StatefulWidget {
+  const FutureDemo({super.key});
+
+  @override
+  State<FutureDemo> createState() => _FutureDemoState();
+}
+
+class _FutureDemoState extends State<FutureDemo> {
+  // Hold the Future in state so it does not restart on every rebuild.
+  late final Future<String> _messageFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _messageFuture = fetchMessage();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _messageFuture,
+      builder: (context, snapshot) {
+        // ConnectionState.waiting === Promise pending
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                'Awaiting the future...',
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+            ],
+          );
+        }
+
+        // snapshot.hasError === Promise rejected
+        if (snapshot.hasError) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 40),
+              const SizedBox(height: 12),
+              Text(
+                'Error: \${snapshot.error}',
+                style: const TextStyle(color: Colors.red, fontSize: 14),
+              ),
+            ],
+          );
+        }
+
+        // snapshot.data present === Promise resolved
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle_outline,
+                color: Colors.green, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              snapshot.data ?? '',
+              style: const TextStyle(
+                  fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Future resolved — like a Promise.then() callback.',
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}`;
+
+<DartPad client:visible code={dartPadCode} />
+
+export const quizFuturesAsync = [
+  {
+    q: "What is the Dart equivalent of JavaScript's `.catch()` in a Promise chain?",
+    options: ['.onError()', '.catchError()', '.handleError()', '.rescue()'],
+    answer: 1,
+  },
+  {
+    q: 'Which Dart API runs multiple Futures concurrently and resolves when all complete?',
+    options: [
+      'Future.any()',
+      'Future.microtask()',
+      'Future.wait()',
+      'Completer.waitAll()',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'When wrapping a callback-based API to return a Future manually, which Dart class do you use?',
+    options: ['FutureController', 'AsyncController', 'Completer', 'StreamController'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/futures-async" questions={quizFuturesAsync} />
+
+<ProgressTracker client:visible id="data/futures-async" />

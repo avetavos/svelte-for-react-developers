@@ -1,0 +1,122 @@
+---
+title: 'Flutter DevTools'
+description: 'Widget inspector, performance profiler และ memory view ของ Flutter DevTools เทียบกับ React DevTools และ React Profiler'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React DevTools คือ browser extension ที่ใช้ตรวจสอบ component tree, ดู props และ state รวมถึง profile การ render ส่วน Flutter DevTools เป็น web app แบบ standalone ที่รันในเครื่อง ทำหน้าที่เดียวกันสำหรับ Flutter พร้อมเพิ่ม performance timeline, memory graph และการตรวจสอบ network เข้ามาด้วย คุณเปิดใช้งานได้ด้วยคำสั่ง `flutter devtools` หรือเปิดผ่าน IDE โดยตรง ข้อแตกต่างสำคัญคือมันไม่ได้ผูกกับ browser — ใช้งานได้กับทุก target ไม่ว่าจะเป็น iOS, Android, desktop หรือ web
+
+## การเปิด DevTools
+
+ระหว่างที่ `flutter run` กำลังทำงานอยู่ ให้กด `d` ใน terminal หรือคลิก "Open DevTools" ใน VS Code หรือ IntelliJ จากนั้น DevTools จะเปิดขึ้นในแท็บ browser ที่ localhost URL นอกจากนี้ยังสามารถรัน `flutter devtools` แบบ standalone เพื่อเปิด UI โดยไม่ต้องมีแอปรันอยู่ แล้วค่อย connect กับ process ที่รันอยู่ผ่าน URL ได้
+
+นี่คือสิ่งเดียวกับการคลิก icon ของ React DevTools browser extension — ยกเว้นว่ามันใช้งานได้กับทุก Flutter target ไม่ใช่แค่ web
+
+## ภาพรวมของแต่ละ panel
+
+การ mapping แนวคิดระหว่าง React DevTools และ Flutter DevTools นั้นตรงไปตรงมา แต่ละแท็บใน React DevTools มีคู่เทียบใน Flutter DevTools
+
+export const devtoolsReact = `React DevTools panels:
+├─ Components tab
+│   ├─ Component tree (like DOM Inspector)
+│   ├─ Props viewer
+│   ├─ State viewer (hooks)
+│   └─ Context values
+└─ Profiler tab
+    ├─ Record renders
+    ├─ Flamegraph per commit
+    └─ Why did this render?`;
+
+export const devtoolsFlutter = `Flutter DevTools panels:
+├─ Widget Inspector
+│   ├─ Widget tree (like Components tab)
+│   ├─ Properties panel (widget fields)
+│   ├─ Layout Explorer (flexbox-like debug)
+│   └─ Select Widget Mode (click on screen)
+├─ Performance tab
+│   ├─ Frame timeline (60fps budget)
+│   ├─ UI thread vs Raster thread
+│   └─ Flame chart per frame
+├─ Memory tab
+│   ├─ Heap snapshot
+│   ├─ Allocation tracing
+│   └─ Leak detection
+└─ Network tab
+    └─ HTTP/HTTPS request log`;
+
+<ReactFlutter client:visible react={devtoolsReact} flutter={devtoolsFlutter} reactTitle="React DevTools" flutterTitle="Flutter DevTools" />
+
+## Widget Inspector
+
+Widget Inspector คือคู่เทียบโดยตรงของแท็บ Components ใน React DevTools มันแสดง tree แบบ scrollable ของทุก widget ใน build ปัจจุบัน ตั้งแต่ root `MaterialApp` ลงไปจนถึง leaf อย่าง `Text` และ `Icon`
+
+**Select Widget Mode** ช่วยให้แตะ widget ใดก็ได้บนอุปกรณ์หรือ emulator แล้ว jump ไปหา widget นั้นใน tree — เหมือนกับการคลิก component ใน React DevTools Components tab เพื่อ highlight ใน browser
+
+**Layout Explorer** แสดง constraint ของ column และ row แบบ visual เมื่อ `Row` หรือ `Column` ล้นหรือทำงานไม่ตามที่คาด Layout Explorer จะแสดง flex factor, ขนาด และพื้นที่ว่างของแต่ละ child ให้เห็นภาพ คิดว่ามันคือ Chrome's flexbox overlay แต่ใช้สำหรับระบบ constraint ของ Flutter แทน CSS
+
+**Properties panel** แสดง constructor parameter ของ widget และค่าที่ resolve ออกมาแล้ว — เทียบตรงๆ กับ Props panel ใน React DevTools
+
+## Performance profiler
+
+แท็บ Performance ของ Flutter บันทึก frame timeline ทุก frame ควรเสร็จภายใน 16 ms เพื่อให้ได้ 60 fps แท็บนี้แบ่งงานออกเป็นสอง thread:
+
+- **UI thread** — รัน Dart code ของคุณ: `build()`, layout และ hit-testing
+- **Raster thread** — รัน GPU rendering ของ composited layer tree
+
+Frame ที่เกิน budget จะปรากฏเป็นแท่งสูงใน timeline ส่วน frame ที่ jank จะถูก highlight เป็นสีแดง ซึ่ง map ตรงกับ Profiler flamegraph ใน React DevTools: commit ที่ใช้เวลานานเกินไปจะแสดงเป็นแท่งกว้าง แล้วค่อย drill in เพื่อหาว่า component ไหนเป็นต้นเหตุ
+
+ใน React คุณใช้ `React.memo` และ `useMemo` เพื่อลดการ re-render ที่ไม่จำเป็น ใน Flutter เครื่องมือที่เทียบเคียงได้คือ `const` constructors (ซึ่ง short-circuit build phase ทั้งหมด) และ `RepaintBoundary` (ซึ่งแยก subtree ออกจากการ repaint ของ parent) แท็บ Performance คือที่ที่คุณยืนยันว่า optimization เหล่านั้นทำงานได้จริง
+
+## แท็บ Memory
+
+แท็บ Memory ไม่มีคู่เทียบตรงๆ ใน React DevTools — มันใกล้เคียงกับแท็บ Memory ใน Chrome DevTools มากกว่า คุณสามารถถ่าย heap snapshot เพื่อระบุ widget leak ได้: `StatefulWidget` ที่ถูกลบออกจาก tree แล้วแต่ `State` object ยังไม่ถูก garbage-collect เพราะ listener, `AnimationController` หรือ `StreamSubscription` ไม่ได้ถูก dispose ใน `dispose()`
+
+allocation tracing view แสดงว่า Dart class ไหนถูกสร้างบ่อยที่สุด ซึ่งมีประโยชน์เมื่อวินิจฉัยการสร้าง object ที่ไม่คาดคิดระหว่าง frame
+
+## แท็บ Network
+
+แท็บ Network บันทึก HTTP และ HTTPS request ทุกรายการที่แอปทำ รวมถึง header, response code และ timing ไม่มีคู่เทียบตรงๆ ใน React DevTools — นี่คือ Flutter counterpart ของ Network panel ใน Chrome DevTools
+
+## การเปิดใช้ DevTools ใน VS Code
+
+ติดตั้ง Flutter extension แล้วเริ่ม debug session ผ่าน Run and Debug DevTools จะเปิดขึ้นโดยอัตโนมัติและเชื่อมต่อกับ process ที่รันอยู่ Breakpoint, hot reload และ DevTools ทำงานร่วมกันใน session เดียวกัน — เทียบได้กับการเปิด React DevTools, browser console และ React Profiler พร้อมกันทั้งหมดบน `vite dev` server
+
+export const quizDevtools = [
+  {
+    q: 'คุณเปิด Flutter DevTools ระหว่างที่ flutter run กำลังทำงานอยู่ได้อย่างไร?',
+    options: [
+      'กด "d" ใน terminal หรือคลิก Open DevTools ใน IDE',
+      'รัน npm run devtools',
+      'เปิด chrome://devtools',
+      'รัน flutter inspect',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'Flutter มีอะไรที่เทียบเคียงกับแท็บ Components ใน React DevTools?',
+    options: [
+      'แท็บ Network',
+      'Widget Inspector',
+      'แท็บ Memory',
+      'แท็บ Performance',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ใน Flutter Performance tab frame สีแดงหมายถึงอะไร?',
+    options: [
+      'เกิด Dart compile error',
+      'Frame ที่ใช้เวลาเกิน 16ms budget (janky frame)',
+      'มี memory leak',
+      'Network request ล้มเหลว',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="tooling/devtools" questions={quizDevtools} />
+
+<ProgressTracker client:visible id="tooling/devtools" />

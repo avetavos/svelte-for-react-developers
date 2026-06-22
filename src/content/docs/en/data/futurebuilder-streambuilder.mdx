@@ -1,0 +1,247 @@
+---
+title: 'FutureBuilder and StreamBuilder'
+description: 'Declarative async UI with FutureBuilder and StreamBuilder vs useEffect+fetch, react-query, and Suspense.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React you use `useEffect` + `useState`, react-query, or Suspense to handle async data in UI. Flutter provides `FutureBuilder` and `StreamBuilder` — widgets that declaratively handle loading, error, and data states right in the widget tree. Instead of wiring up flags and effects, you hand the widget a `Future` or `Stream` and describe what to render for each state.
+
+## FutureBuilder
+
+`FutureBuilder` is Flutter's answer to `useEffect` + `fetch` + a loading boolean. You pass it a `Future` and a `builder` callback that receives a `AsyncSnapshot`. The snapshot carries a `connectionState` enum (`waiting`, `done`) and either `data` or `error` — no manual flag management required.
+
+export const fbReact = `// React: useEffect + fetch + loading flag
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(\`/api/users/\${userId}\`)
+      .then(r => r.json())
+      .then(data => { if (!cancelled) setUser(data); })
+      .catch(err => { if (!cancelled) setError(err); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  if (loading) return <Spinner />;
+  if (error) return <p>Error: {error.message}</p>;
+  return <p>{user.name}</p>;
+}`;
+
+export const fbFlutter = `// Flutter: FutureBuilder — no flags, no effects
+class UserProfile extends StatelessWidget {
+  final String userId;
+  const UserProfile({super.key, required this.userId});
+
+  Future<String> _fetchUser() async {
+    // simulating a network call
+    await Future.delayed(const Duration(seconds: 1));
+    return 'Ava Tavos';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _fetchUser(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CircularProgressIndicator();
+        }
+        if (snapshot.hasError) {
+          return Text('Error: \${snapshot.error}');
+        }
+        return Text(snapshot.data ?? '');
+      },
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={fbReact} flutter={fbFlutter} />
+
+## StreamBuilder
+
+`StreamBuilder` is the `FutureBuilder` equivalent for continuous data — think WebSocket feeds, real-time database updates, or interval timers. In React you might reach for a WebSocket, EventSource, or an RxJS observable wrapped in `useEffect`. In Flutter you hand a `Stream` directly to the widget.
+
+export const sbReact = `// React: WebSocket feed via useEffect
+function LivePrice({ symbol }) {
+  const [price, setPrice] = useState(null);
+
+  useEffect(() => {
+    const ws = new WebSocket(\`wss://prices.example.com/\${symbol}\`);
+    ws.onmessage = e => setPrice(JSON.parse(e.data).price);
+    return () => ws.close(); // cleanup on unmount / symbol change
+  }, [symbol]);
+
+  if (price === null) return <p>Connecting…</p>;
+  return <p>\${price.toFixed(2)}</p>;
+}`;
+
+export const sbFlutter = `// Flutter: StreamBuilder — stream wired directly to the tree
+class LivePrice extends StatelessWidget {
+  final Stream<double> priceStream;
+  const LivePrice({super.key, required this.priceStream});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<double>(
+      stream: priceStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Text('Connecting…');
+        }
+        if (snapshot.hasError) {
+          return Text('Error: \${snapshot.error}');
+        }
+        final price = snapshot.data ?? 0.0;
+        return Text('\$\${price.toStringAsFixed(2)}');
+      },
+    );
+  }
+}
+
+// Usage — pass in any Stream<double>
+// StreamBuilder wires itself to the stream; no cleanup code needed.`;
+
+<ReactFlutter client:visible react={sbReact} flutter={sbFlutter} />
+
+## Runnable example
+
+export const fbCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: DataFetchDemo(),
+        ),
+      ),
+    );
+  }
+}
+
+class DataFetchDemo extends StatelessWidget {
+  const DataFetchDemo({super.key});
+
+  Future<String> _loadData() async {
+    await Future.delayed(const Duration(seconds: 2));
+    return 'Data loaded!';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _loadData(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Fetching data…', style: TextStyle(color: Colors.grey)),
+            ],
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Card(
+            color: Colors.red.shade50,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'Error: \${snapshot.error}',
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
+          );
+        }
+
+        return Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 48),
+                const SizedBox(height: 12),
+                Text(
+                  snapshot.data ?? '',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'The Future resolved successfully.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}`;
+
+<DartPad client:visible code={fbCode} />
+
+<Diff title="FutureBuilder vs useEffect+fetch">
+
+- **Declarative vs imperative.** `FutureBuilder` describes what to render for each async state directly in the widget tree. With `useEffect` you imperatively set loading/error/data flags and scatter the rendering logic across the component.
+- **`ConnectionState` enum vs loading boolean.** Flutter's `AsyncSnapshot.connectionState` gives you `none`, `waiting`, `active`, and `done` — a richer state machine than a single `isLoading: boolean`. `active` is especially useful with `StreamBuilder` to distinguish "connected but no data yet" from "first event received".
+- **Automatic teardown vs cleanup function.** `FutureBuilder` and `StreamBuilder` cancel subscriptions and ignore late-arriving data automatically when the widget leaves the tree. With `useEffect` you must return a cleanup function and guard against stale closures (the `cancelled` flag pattern).
+- **Error slot vs try/catch in effect.** `snapshot.hasError` and `snapshot.error` are first-class API — no `try/catch`, no separate error state variable. The framework captures thrown errors from the `Future`/`Stream` and surfaces them through the snapshot.
+
+</Diff>
+
+export const quizFb = [
+  {
+    q: 'Which `ConnectionState` value is present while a `Future` has not yet resolved?',
+    options: ['ConnectionState.none', 'ConnectionState.waiting', 'ConnectionState.active', 'ConnectionState.done'],
+    answer: 1,
+  },
+  {
+    q: 'What happens when a `Future` passed to `FutureBuilder` completes with an error?',
+    options: [
+      'The widget throws an unhandled exception',
+      'Flutter shows a red error screen automatically',
+      'snapshot.hasError becomes true and snapshot.error holds the error object',
+      'connectionState remains waiting indefinitely',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'When should you reach for `StreamBuilder` instead of `FutureBuilder`?',
+    options: [
+      'When the async operation returns a single value after completing',
+      'When you need to cancel the async operation manually',
+      'When the data source emits multiple values over time (WebSocket, timer, etc.)',
+      'When you want to show a loading indicator',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/futurebuilder-streambuilder" questions={quizFb} />
+
+<ProgressTracker client:visible id="data/futurebuilder-streambuilder" />

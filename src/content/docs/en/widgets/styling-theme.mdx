@@ -1,0 +1,236 @@
+---
+title: 'Styling & Theme'
+description: 'No CSS in Flutter — styling via widget properties, TextStyle, BoxDecoration, and ThemeData vs CSS and styled-components.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+The most fundamental difference between React and Flutter UI work is this: **there is no stylesheet**. No CSS files, no `className`, no `styled-components`, no Tailwind utility classes. Styling in Flutter is expressed entirely through widget constructor properties. Color, typography, spacing, and decoration are all Dart objects nested inside the widget tree.
+
+For app-wide design tokens — brand colours, text scales, button shapes — Flutter uses `ThemeData`, which you configure once at `MaterialApp(theme: ...)` and consume anywhere via `Theme.of(context)`. This is the direct equivalent of a `ThemeProvider` wrapping your React app.
+
+## Side-by-side comparison
+
+export const styleReact = `// React — CSS-in-JS / styled-components style
+
+// 1. Inline styles (like Flutter widget props)
+<p style={{ fontSize: 18, color: '#1a1a1a', fontWeight: 700 }}>
+  Hello
+</p>
+
+// 2. styled-components (design token from ThemeProvider)
+const Heading = styled.h1\`
+  font-size: \${({ theme }) => theme.fontSizes.xl}px;
+  color: \${({ theme }) => theme.colors.primary};
+  font-weight: 700;
+\`;
+
+// 3. ThemeProvider wrapping the app
+<ThemeProvider theme={myTheme}>
+  <App />
+</ThemeProvider>
+
+// 4. Consuming the theme in a component
+const { theme } = useTheme();
+<div style={{ background: theme.colors.surface }}>...</div>`;
+
+export const styleFlutter = `// Flutter — widget properties + ThemeData
+
+// 1. Inline TextStyle (equivalent to inline styles)
+Text(
+  'Hello',
+  style: TextStyle(
+    fontSize: 18,
+    color: Color(0xFF1A1A1A),
+    fontWeight: FontWeight.bold,
+  ),
+)
+
+// 2. BoxDecoration (background, border, radius, shadow)
+Container(
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(12),
+    border: Border.all(color: Colors.grey[300]!),
+  ),
+  child: ...,
+)
+
+// 3. ThemeData wrapping the app (in MaterialApp)
+MaterialApp(
+  theme: ThemeData(
+    colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+    textTheme: const TextTheme(
+      headlineMedium: TextStyle(fontWeight: FontWeight.bold),
+    ),
+  ),
+  home: const MyHome(),
+)
+
+// 4. Consuming the theme anywhere
+final theme = Theme.of(context);
+Container(color: theme.colorScheme.surface, ...)`;
+
+<ReactFlutter client:visible react={styleReact} flutter={styleFlutter} />
+
+<Diff title="CSS / styled-components → Flutter styling">
+
+- **No stylesheet, no className.** Every visual property is a constructor argument. `Text('Hi', style: TextStyle(fontSize: 18))` is the equivalent of `<p style={{ fontSize: 18 }}>Hi</p>`.
+- **`TextStyle` = typography CSS properties.** `fontSize`, `fontWeight`, `color`, `letterSpacing`, `height` (line-height), `decoration` (underline, etc.) all live on `TextStyle`.
+- **`BoxDecoration` = the visual box CSS rules.** `background-color`, `border-radius`, `border`, `box-shadow`, and gradient fills all go on a `BoxDecoration` passed to `Container(decoration: ...)`.
+- **`Theme.of(context)` = `useTheme()`.** Read the app's current theme from anywhere in the widget tree. `Theme.of(context).colorScheme.primary` is equivalent to `theme.colors.primary` from a `ThemeProvider`.
+- **Material 3 `ColorScheme.fromSeed`** — pass a single brand `seedColor` and Flutter derives a full accessible colour palette automatically. No need to manually specify 20 colour tokens.
+- **`copyWith` for local overrides** — `Theme.of(context).textTheme.bodyLarge!.copyWith(color: Colors.red)` overrides a single property while inheriting the rest from the theme. Equivalent to spread-merging a style object in JS.
+
+</Diff>
+
+## Runnable example
+
+export const styleCode = `import 'package:flutter/material.dart';
+
+void main() {
+  runApp(
+    MaterialApp(
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0468D7)),
+        useMaterial3: true,
+        textTheme: const TextTheme(
+          headlineSmall: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+          bodyMedium: TextStyle(fontSize: 15, height: 1.6),
+        ),
+      ),
+      home: const StyleDemo(),
+    ),
+  );
+}
+
+class StyleDemo extends StatelessWidget {
+  const StyleDemo({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Scaffold(
+      backgroundColor: cs.surfaceContainerLow,
+      appBar: AppBar(
+        backgroundColor: cs.primary,
+        title: Text('Styling & Theme',
+            style: TextStyle(color: cs.onPrimary, fontWeight: FontWeight.bold)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 16,
+          children: [
+            // TextStyle from theme
+            Text('Headline from ThemeData',
+                style: theme.textTheme.headlineSmall),
+            Text('Body text with theme line-height',
+                style: theme.textTheme.bodyMedium),
+
+            // TextStyle override via copyWith
+            Text('Local color override',
+                style: theme.textTheme.bodyMedium!
+                    .copyWith(color: cs.error, fontWeight: FontWeight.w600)),
+
+            // BoxDecoration card
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: cs.primaryContainer,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 8,
+                children: [
+                  Text('Primary container card',
+                      style: TextStyle(color: cs.onPrimaryContainer,
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text('Colours from ColorScheme.fromSeed',
+                      style: TextStyle(color: cs.onPrimaryContainer)),
+                ],
+              ),
+            ),
+
+            // BoxDecoration with gradient
+            Container(
+              height: 80,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [cs.primary, cs.tertiary],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Text('Gradient via BoxDecoration',
+                  style: TextStyle(color: cs.onPrimary,
+                      fontWeight: FontWeight.bold)),
+            ),
+
+            // Buttons inherit theme automatically
+            Row(
+              spacing: 8,
+              children: [
+                ElevatedButton(onPressed: () {}, child: const Text('Elevated')),
+                TextButton(onPressed: () {}, child: const Text('Text')),
+                OutlinedButton(onPressed: () {}, child: const Text('Outlined')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={styleCode} />
+
+export const quizStyle = [
+  {
+    q: 'Where does all Flutter styling live — how is it applied to a widget?',
+    options: [
+      'In a separate .css file imported at the top of the Dart file',
+      'Via className strings that reference a global stylesheet',
+      'Directly in widget constructor properties (e.g. TextStyle, BoxDecoration)',
+      'In a JSON theme file referenced by pubspec.yaml',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the Flutter equivalent of a styled-components `ThemeProvider` + `useTheme()`?',
+    options: [
+      'InheritedWidget and of() methods',
+      'ThemeData on MaterialApp and Theme.of(context)',
+      'A global ThemeNotifier Riverpod provider',
+      'BuildContext.theme',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'You want to keep all TextStyle properties from the theme but change only the color. What is the correct Flutter pattern?',
+    options: [
+      'Create a brand-new TextStyle with all properties copied manually',
+      'Use theme.textTheme.bodyMedium!.copyWith(color: myColor)',
+      'Wrap the Text in a DefaultTextStyle widget',
+      'Pass a mergedStyle to the MaterialApp theme',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which Flutter class holds background-color, border-radius, border, and box-shadow for a Container?',
+    options: ['ContainerStyle', 'BoxDecoration', 'DecorationTheme', 'ShapeDecoration'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="widgets/styling-theme" questions={quizStyle} />
+
+<ProgressTracker client:visible id="widgets/styling-theme" />

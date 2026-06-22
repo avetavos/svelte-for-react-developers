@@ -1,0 +1,219 @@
+---
+title: 'แท็บและ Drawer'
+description: 'BottomNavigationBar, TabBar, และ Drawer ใน Flutter — navigation chrome แบบ persistent เทียบกับ tab library และ sidebar component ของ React'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React คุณสร้าง tab bar และ navigation drawer ด้วย third-party library หรือ custom component — ไม่มี built-in tab navigation primitive Flutter มาพร้อม first-class widget สำหรับทุก navigation chrome pattern ที่พบบ่อย: `BottomNavigationBar` (หรือ `NavigationBar` ใน Material 3) สำหรับ bottom tab, `TabBar` + `TabBarView` สำหรับ top tab, และ `Drawer` สำหรับ side navigation menu ทั้งสามทำงานร่วมกับ `Scaffold` ที่จองพื้นที่ layout ที่ถูกต้องให้อัตโนมัติ
+
+## การเปรียบเทียบแบบ side-by-side
+
+export const tabsReact = `// React — bottom tabs (custom / library)
+import { useState } from 'react';
+
+const tabs = ['Home', 'Search', 'Profile'];
+
+function App() {
+  const [activeTab, setActiveTab] = useState(0);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1 }}>
+        {activeTab === 0 && <HomeScreen />}
+        {activeTab === 1 && <SearchScreen />}
+        {activeTab === 2 && <ProfileScreen />}
+      </div>
+      <nav>
+        {tabs.map((tab, i) => (
+          <button key={tab} onClick={() => setActiveTab(i)}>
+            {tab}
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}`;
+
+export const tabsFlutter = `// Flutter — BottomNavigationBar
+class App extends StatefulWidget {
+  const App({super.key});
+  @override
+  State<App> createState() => _AppState();
+}
+
+class _AppState extends State<App> {
+  int _currentIndex = 0;
+
+  final _screens = const [
+    HomeScreen(),
+    SearchScreen(),
+    ProfileScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _screens[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home),   label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={tabsReact} flutter={tabsFlutter} />
+
+<Diff title="Custom tab component → BottomNavigationBar / Drawer">
+
+- **`Scaffold` จองพื้นที่ให้.** ส่ง widget ให้ `Scaffold.bottomNavigationBar` และ Flutter จอง bottom padding ให้อัตโนมัติ — ไม่ต้องทำ flex layout เอง
+- **`BottomNavigationBar` vs `NavigationBar`.** `BottomNavigationBar` คือเวอร์ชัน Material 2 `NavigationBar` (ไม่มี "Bottom") คือ equivalent ของ Material 3 ที่มี pill indicator ทั้งคู่มีรูปแบบ API เหมือนกัน
+- **`TabBar` + `TabBarView` + `TabController`** — สำหรับ top tab (เช่น แอป social ที่มีแท็บ Following / For You) `DefaultTabController` ให้ controller โดยอัตโนมัติ คล้ายกับ controlled component ที่มี state ของตัวเอง `TabBarView` คือ pager ที่แสดงเนื้อหาแท็บที่ active
+- **`Drawer`** — ส่ง `Drawer` widget ให้ `Scaffold.drawer` ไอคอนเมนู hamburger ใน `AppBar` จะปรากฏอัตโนมัติ swipe จาก left edge เปิดมันบนทั้งสอง platform
+- **`IndexedStack` สำหรับ persistent tab state.** สลับ `body: _screens[index]` เป็น `body: IndexedStack(index: index, children: _screens)` เพื่อให้ทั้งสาม screen mount อยู่พร้อมกัน — เหมือนกับที่ React เก็บ off-screen tab ไว้ใน DOM เมื่อใช้ CSS `display: none`
+
+</Diff>
+
+## ตัวอย่างที่รันได้
+
+export const tabsCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(home: MainShell());
+  }
+}
+
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  int _index = 0;
+
+  static const _screens = [
+    _PlaceholderScreen(label: 'Home',    icon: Icons.home,   color: Colors.blue),
+    _PlaceholderScreen(label: 'Search',  icon: Icons.search, color: Colors.green),
+    _PlaceholderScreen(label: 'Profile', icon: Icons.person, color: Colors.purple),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_screens[_index].label),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          children: const [
+            DrawerHeader(
+              decoration: BoxDecoration(color: Colors.blueGrey),
+              child: Text('Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
+            ),
+            ListTile(leading: Icon(Icons.settings), title: Text('Settings')),
+            ListTile(leading: Icon(Icons.help),     title: Text('Help')),
+          ],
+        ),
+      ),
+      body: IndexedStack(index: _index, children: _screens),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _index,
+        onTap: (i) => setState(() => _index = i),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home),   label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlaceholderScreen extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const _PlaceholderScreen({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 64, color: color),
+          const SizedBox(height: 12),
+          Text(label, style: TextStyle(fontSize: 24, color: color,
+              fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={tabsCode} />
+
+export const quizTabsDrawer = [
+  {
+    q: 'คุณส่ง BottomNavigationBar widget ไปที่ไหนใน Flutter?',
+    options: [
+      'เป็น child ของ Column ที่ด้านล่าง body',
+      'ที่ property Scaffold.bottomNavigationBar',
+      'ภายใน AppBar.actions',
+      'เป็น element สุดท้ายของ Stack',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'IndexedStack ทำอะไรต่างจากการสลับ body: _screens[index]?',
+    options: [
+      'IndexedStack เล่น fade animation ระหว่างแท็บ',
+      'IndexedStack เก็บ screen ทั้งหมด mount ไว้ ป้องกัน state หายเมื่อสลับแท็บ',
+      'IndexedStack โหลด screen แบบ lazy เมื่อเข้าชมครั้งแรก',
+      'IndexedStack render screen ใน horizontal scroll view',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Flutter แสดงไอคอนเมนู hamburger สำหรับ Drawer อัตโนมัติอย่างไร?',
+    options: [
+      'คุณต้องเพิ่ม IconButton ลงใน AppBar.leading เอง',
+      'Scaffold ตรวจพบ property drawer และเพิ่ม leading icon ให้ AppBar อัตโนมัติ',
+      'Drawer widget render floating button ของตัวเอง',
+      'คุณต้องเรียก Scaffold.of(context).openDrawer() เมื่อกดปุ่ม',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'อะไรคือตัวแทน Material 3 ของ BottomNavigationBar?',
+    options: ['NavBar', 'NavigationBar', 'BottomBar', 'MaterialNavBar'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="navigation/tabs-drawer" questions={quizTabsDrawer} />
+
+<ProgressTracker client:visible id="navigation/tabs-drawer" />

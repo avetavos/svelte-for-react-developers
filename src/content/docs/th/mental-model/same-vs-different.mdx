@@ -1,0 +1,163 @@
+---
+title: 'Same vs Different: ตาราง Lookup'
+description: 'Reference แบบ side-by-side ที่ map ทุก React concept ไปยัง Flutter equivalent บุ๊กมาร์กหน้านี้ไว้'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+{/* DartPad skipped: this is a reference table lesson — all runnable code lives in the other mental-model lessons */}
+
+นี่คือ cheat sheet ของคุณ คอลัมน์ซ้ายแสดงสิ่งที่คุณรู้จาก React คอลัมน์ขวาแสดง Flutter equivalent รายการส่วนใหญ่ map แบบ one-to-one สิ่งที่แตกต่างจริงๆ จะมีหมายเหตุกำกับ
+
+## แผนที่ Concept
+
+| React concept | Flutter equivalent | หมายเหตุ |
+|---|---|---|
+| Function component | `StatelessWidget` | Class ที่มี method `build()` |
+| Class component | `StatefulWidget` + `State<T>` | แยกเป็นสอง class |
+| Props | Constructor parameters | Dart named params: `MyWidget(name: 'Ava')` |
+| `useState` | `setState(() { ... })` | อยู่ใน `State<T>` subclass |
+| `useEffect` (mount) | `initState()` | เรียกครั้งเดียวหลัง build แรก |
+| `useEffect` (unmount) | `dispose()` | Clean up controllers, streams, timers |
+| `useEffect` (deps) | Manual `didUpdateWidget` / Riverpod | ไม่มี equivalent ตรงๆ |
+| `useContext` / Context | `InheritedWidget` / Provider package | Provider คือ community standard |
+| `React.memo` | `const` constructor | Dart `const` ป้องกัน rebuild |
+| `key` prop | `Key` / `super.key` | วัตถุประสงค์เดียวกัน — tree reconciliation |
+| JSX | Dart constructor calls | `<Text>` → `Text('...')` |
+| CSS / StyleSheet | Widget params + `ThemeData` | `TextStyle`, `BoxDecoration` ฯลฯ |
+| Flexbox | `Row` / `Column` | `mainAxisAlignment` ≈ `justify-content` |
+| `display: none` | Conditional ด้วย `if` หรือ `Visibility` | `if (show) MyWidget()` ใน children list |
+| react-router / Next.js | `Navigator` + routes / go_router | Imperative หรือ declarative routing |
+| npm / package.json | pub / pubspec.yaml | `flutter pub add package_name` |
+| Fast Refresh | Hot Reload (`r` ใน terminal) | เก็บ state ไว้; hot restart = full reload |
+| `.map()` ใน JSX | `.map(...).toList()` ใน `children` | Return `List<Widget>` |
+| `styled-components` | `ThemeData` + widget params | ไม่มี runtime CSS — เป็น Dart compile-time ทั้งหมด |
+| `React.createContext` | `InheritedWidget` หรือ `ChangeNotifier` | Provider wrap ทั้งสอง pattern |
+
+## ความแปลกใจสองอันดับแรก
+
+export const reactSurprise = `// React instinct — what you'd reach for
+function ProfileCard({ name, isAdmin }) {
+  const [liked, setLiked] = useState(false);
+  return (
+    <div className="card" style={{ padding: 16, borderRadius: 12 }}>
+      <h3 style={{ margin: 0 }}>{name}</h3>
+      {isAdmin && <span className="badge">Admin</span>}
+      <button onClick={() => setLiked(l => !l)}>
+        {liked ? '❤️ Liked' : '🤍 Like'}
+      </button>
+    </div>
+  );
+}`;
+
+export const flutterSurprise = `// Flutter equivalent — layout is widgets
+class ProfileCard extends StatefulWidget {
+  final String name;
+  final bool isAdmin;
+  const ProfileCard({super.key, required this.name, this.isAdmin = false});
+
+  @override
+  State<ProfileCard> createState() => _ProfileCardState();
+}
+
+class _ProfileCardState extends State<ProfileCard> {
+  bool _liked = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.name,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          if (widget.isAdmin)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue[100],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text('Admin',
+                  style: TextStyle(color: Colors.blue, fontSize: 12)),
+            ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => setState(() => _liked = !_liked),
+            child: Text(
+              _liked ? '❤️ Liked' : '🤍 Like',
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={reactSurprise} flutter={flutterSurprise} />
+
+<Diff title="ความแปลกใจสองอันดับแรกสำหรับ React developer">
+
+- **ไม่มี CSS** — ไม่มี stylesheet, `className` หรือ `style` prop ใน Flutter ทุก visual property เป็น Dart value บน widget หรือใน `ThemeData` — widget tree คือ stylesheet ของคุณ
+- **`useState` → สอง class** — Flutter แยก stateful component เป็น `StatefulWidget` (immutable config) และ `State<T>` (mutable state) verbose กว่า `useState` แต่ให้ Flutter ควบคุม rebuild ได้ละเอียดกว่า
+- **ไม่มี JSX, ไม่มี Babel** — widget tree ของคุณคือ Dart ล้วนๆ IDE autocomplete ทุก constructor param และ Dart compiler จับ type error ทุกตัวตอน compile ไม่ใช่ตอน JSX transform
+
+</Diff>
+
+export const quizSameVsDifferent = [
+  {
+    q: 'Flutter equivalent ของ npm / package.json คืออะไร?',
+    options: [
+      'bower.json',
+      'pubspec.yaml + pub package manager',
+      'flutter.json',
+      'cargo.toml',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ใน Flutter คุณทำให้เทียบเท่า CSS display: none เพื่อซ่อน widget แบบ conditional อย่างไร?',
+    options: [
+      "widget.style.display = 'none'",
+      'ตั้ง opacity: 0 เท่านั้น',
+      'ใช้ if (condition) MyWidget() ภายใน children list หรือ wrap ด้วย Visibility(visible: false, ...)',
+      'เรียก widget.hide()',
+    ],
+    answer: 2,
+  },
+  {
+    q: "React's Fast Refresh map กับ Flutter feature ใด?",
+    options: [
+      'flutter build --watch',
+      'Hot Reload (กด r) — เก็บ app state ไว้ระหว่างการแก้ไขโค้ด',
+      'Cold restart เท่านั้น',
+      'Dart analyzer',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ทำไม Flutter ถึงแยก stateful component เป็น StatefulWidget + State<T>?',
+    options: [
+      'เพราะ Dart ไม่รองรับ closures',
+      'เพื่อแยก immutable widget config ออกจาก mutable state ทำให้ Flutter ควบคุม rebuild ได้ละเอียดขึ้น',
+      'เพื่อ compatibility กับ Flutter v1',
+      'เพื่อให้ตรงกับ React class component lifecycle',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="mental-model/same-vs-different" questions={quizSameVsDifferent} />
+
+<ProgressTracker client:visible id="mental-model/same-vs-different" />

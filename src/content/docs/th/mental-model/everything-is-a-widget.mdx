@@ -1,0 +1,161 @@
+---
+title: 'Everything is a Widget'
+description: 'ใน React layout คือ CSS แต่ใน Flutter layout คือ widget — Padding, Center, Column ล้วนเป็น widget ที่คุณ compose ไม่ใช่ style ที่คุณ apply'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React เวลาที่คุณต้องการเพิ่ม spacing, จัดตำแหน่ง content หรือเรียง item เป็นแถว คุณจะนึกถึง CSS หรือ inline styles ทันที แต่ใน Flutter ไม่มี CSS ทุกสิ่งที่เกี่ยวกับการแสดงผล — padding, centering, clipping, shadows, rows, columns — ล้วนถูก express เป็น widget ในต้นไม้ นี่คือการเปลี่ยนแปลงทางความคิดที่ใหญ่ที่สุด และเมื่อคุณ "คลิก" กับมันได้ Flutter ที่เหลือก็จะตามมาได้อย่างเป็นธรรมชาติ
+
+## Layout เป็นส่วนหนึ่งของ widget tree
+
+export const reactEverything = `// React — layout via CSS / inline styles
+function UserCard({ name, role }) {
+  return (
+    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{ fontWeight: 'bold', fontSize: 20 }}>{name}</div>
+      <div style={{ color: '#666', marginTop: 4 }}>{role}</div>
+    </div>
+  );
+}`;
+
+export const flutterEverything = `// Flutter — layout via widgets
+class UserCard extends StatelessWidget {
+  final String name;
+  final String role;
+  const UserCard({super.key, required this.name, required this.role});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+          const SizedBox(height: 4),
+          Text(role, style: const TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={reactEverything} flutter={flutterEverything} />
+
+export const widgetCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.grey[100],
+        body: Center(
+          child: UserCard(
+            name: 'Ava Tavos',
+            role: 'React Developer → Flutter Developer',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class UserCard extends StatelessWidget {
+  final String name;
+  final String role;
+  const UserCard({super.key, required this.name, required this.role});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircleAvatar(
+            radius: 32,
+            backgroundColor: Colors.blue,
+            child: Icon(Icons.person, size: 32, color: Colors.white),
+          ),
+          const SizedBox(height: 12),
+          Text(name,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(role,
+              style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={widgetCode} />
+
+<Diff title="CSS layout → layout widgets">
+
+- **`Padding` widget** = CSS property `padding` — wrap widget ใดก็ได้: `Padding(padding: EdgeInsets.all(16), child: ...)`
+- **`Center` widget** = CSS `margin: auto` หรือ `align-items: center` — วาง widget ใดก็ได้ข้างในแล้วมันจะ center ในพื้นที่ที่มี
+- **`Column` widget** = CSS `display: flex` + `flex-direction: column` — children เรียงตามแนวตั้ง
+- **`Row` widget** = CSS `display: flex` (default `flex-direction: row`) — children เรียงตามแนวนอน
+- **`SizedBox(height: n)`** = CSS `margin-bottom: n` หรือ `gap: n` — ช่องว่างขนาดคงที่ระหว่าง children
+- **ไม่มี `className` หรือ `style` attribute** — layout ทั้งหมดอยู่ใน widget tree ต้นไม้คือ stylesheet ของคุณ
+
+</Diff>
+
+export const quizEverything = [
+  {
+    q: 'ใน Flutter คุณเพิ่ม padding 16px รอบ widget อย่างไร?',
+    options: [
+      'เพิ่ม style={{ padding: 16 }} ให้ widget',
+      'Wrap widget ด้วย Padding(padding: EdgeInsets.all(16), child: ...)',
+      'เรียก widget.setPadding(16)',
+      'เพิ่ม CSS class ที่มี padding: 16px',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Flutter equivalent ของ CSS display: flex + flex-direction: column คืออะไร?',
+    options: ['Stack', 'ListView', 'Column', 'Container ที่มี flexDirection'],
+    answer: 2,
+  },
+  {
+    q: 'Widget ใดให้ผลลัพธ์เหมือน CSS margin: auto สำหรับการจัดกึ่งกลาง?',
+    options: ['Align', 'Positioned', 'Center', 'Expanded'],
+    answer: 2,
+  },
+  {
+    q: 'SizedBox(height: 8) เทียบเท่ากับอะไรใน React/CSS?',
+    options: [
+      'z-index: 8',
+      'margin-bottom: 8px หรือ CSS gap ขนาด 8',
+      'padding-top: 8px',
+      'height: 8% ของ parent',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="mental-model/everything-is-a-widget" questions={quizEverything} />
+
+<ProgressTracker client:visible id="mental-model/everything-is-a-widget" />

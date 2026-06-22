@@ -1,0 +1,165 @@
+---
+title: 'Flutter Setup & Toolchain'
+description: 'ติดตั้ง Flutter และ configure editor — เทียบกับ npm, Vite, และ VS Code ที่คุ้นเคยอยู่แล้ว'
+---
+
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+> **หมายเหตุ Playground:** บทเรียนนี้เป็น setup และ toolchain — ไม่มี snippet ที่รันในบราวเซอร์ได้อย่างมีความหมาย ทำตามขั้นตอนใน terminal ของคุณ
+
+การ setup Flutter ใกล้เคียงกับการติดตั้ง Go หรือ Rust toolchain มากกว่า `npm install` คุณดาวน์โหลด SDK ครั้งเดียว เพิ่มใน `PATH` แล้ว `flutter` CLI จัดการทุกอย่างเอง — dependency management, device emulation, builds, และ hot reload
+
+## ติดตั้ง Flutter
+
+เข้าไปที่ [flutter.dev/docs/get-started/install](https://flutter.dev/docs/get-started/install) และทำตาม guide สำหรับ OS ของคุณ (macOS, Windows, หรือ Linux)
+
+**macOS shortcut (Homebrew):**
+
+```bash
+brew install --cask flutter
+```
+
+หลังติดตั้งแล้ว รัน doctor เพื่อตรวจสอบ environment:
+
+```bash
+flutter doctor
+```
+
+`flutter doctor` เหมือน `npx create-react-app --check` ของ Flutter — scan หา dependency ที่ขาด (Xcode, Android Studio, connected devices) และบอกว่าต้องแก้อะไร
+
+## `flutter` CLI vs npm / Vite
+
+| npm / Vite / CRA | `flutter` CLI | วัตถุประสงค์ |
+|---|---|---|
+| `npm create vite@latest my-app` | `flutter create my_app` | Scaffold project ใหม่ |
+| `npm install` | `flutter pub get` | ติดตั้ง dependencies |
+| `npm run dev` | `flutter run` | Start dev server + hot reload |
+| `npm run build` | `flutter build apk` / `flutter build web` | Production build |
+| `npm install package` | `flutter pub add package` | เพิ่ม dependency |
+| `npm test` | `flutter test` | รัน tests |
+| `npx eslint .` | `flutter analyze` | Lint / static analysis |
+
+### Scaffold project ใหม่
+
+```bash
+flutter create my_app
+cd my_app
+flutter run
+```
+
+`flutter create` generate project คล้ายกับ `create-react-app`: entry point, sample widget, และ platform-specific boilerplate ทั้งหมด (iOS Xcode project, Android Gradle files, web `index.html`)
+
+## โครงสร้าง project vs React
+
+```
+my_app/
+├── lib/
+│   └── main.dart          # entry point  (≈ src/main.tsx)
+├── test/
+│   └── widget_test.dart   # tests        (≈ src/__tests__/)
+├── pubspec.yaml           # dependencies (≈ package.json)
+├── android/               # Android native shell
+├── ios/                   # iOS native shell
+└── web/                   # Web shell
+```
+
+Dart code ทั้งหมดอยู่ใน `lib/` คุณแทบไม่ต้องยุ่งกับ `android/` หรือ `ios/` เว้นแต่จะต้องใช้ native code
+
+## `pubspec.yaml` vs `package.json`
+
+```yaml
+# pubspec.yaml
+name: my_app
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.4.0          # HTTP client  (≈ axios)
+  go_router: ^13.0.0   # routing      (≈ react-router-dom)
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+```
+
+หลังแก้ `pubspec.yaml` รัน `flutter pub get` (≈ `npm install`) เพื่อ fetch packages จาก [pub.dev](https://pub.dev) — npm registry ของ Dart
+
+### เพิ่ม package
+
+```bash
+flutter pub add dio
+```
+
+คำสั่งนี้แก้ `pubspec.yaml` และรัน `pub get` ในขั้นตอนเดียว — เทียบเท่า `npm install dio`
+
+## Editor setup
+
+**VS Code** (แนะนำสำหรับ React developer):
+1. ติดตั้ง extension **Flutter** (รวม Dart language support)
+2. เปิด command palette → **Flutter: Select Device** เพื่อเลือก simulator/emulator
+3. กด `F5` หรือรัน **Flutter: Run** เพื่อเริ่มพร้อม hot reload
+
+**Android Studio / IntelliJ**: ติดตั้ง Flutter และ Dart plugins เหมาะสำหรับงาน Android เป็นหลัก
+
+### Hot Reload vs Fast Refresh
+
+ทั้งคู่ทำงานเหมือนกัน: แก้ source file, save, แล้ว app ที่รันอยู่จะ update ภายในไม่ถึงวินาทีโดยไม่ต้อง reset state ใน Flutter:
+
+- **Hot Reload** (`r` ใน terminal, หรือ `Ctrl+S` ใน VS Code ที่มี extension) — inject code ที่อัปเดตแล้ว, preserve widget state
+- **Hot Restart** (`R`) — restart ทั้งหมด, reset state เทียบเท่า `Ctrl+C` + `npm run dev`
+
+## รันบน device หรือ emulator
+
+```bash
+# ดู device ที่ใช้ได้
+flutter devices
+
+# รันบน device เฉพาะ
+flutter run -d "iPhone 16"
+flutter run -d chrome
+flutter run -d macos
+```
+
+<Diff title="React toolchain → Flutter toolchain">
+
+- **ไม่มี `node_modules/` folder** Packages เก็บใน global pub cache (`~/.pub-cache`) project folder จึงเบา
+- **`pubspec.lock`** เทียบเท่า `package-lock.json` / `yarn.lock` ต้อง commit
+- **Platform folders (`android/`, `ios/`) ถูก generate** โดย `flutter create` และ Flutter จัดการเอง ไม่ต้องเขียน Gradle หรือ Xcode config เว้นแต่ต้องการ native plugin
+- **`flutter analyze`** คือ linter ที่ built-in ไม่ต้อง setup ESLint แยก
+- **`flutter test`** รัน file ทั้งหมดที่ match `test/**/*_test.dart` — ไม่ต้อง config Jest
+
+</Diff>
+
+export const quizSetup = [
+  {
+    q: 'Flutter equivalent ของ `npm install` คืออะไร?',
+    options: ['flutter install', 'flutter pub get', 'dart pub install', 'flutter fetch'],
+    answer: 1,
+  },
+  {
+    q: 'Dart application code อยู่ใน folder ใดของ Flutter project?',
+    options: ['src/', 'dart/', 'lib/', 'app/'],
+    answer: 2,
+  },
+  {
+    q: 'คำสั่งใดที่เพิ่ม package ใหม่ใน Flutter project และอัปเดต pubspec.yaml?',
+    options: ['flutter install <pkg>', 'flutter pub add <pkg>', 'dart add <pkg>', 'pub install <pkg>'],
+    answer: 1,
+  },
+  {
+    q: 'Hot Reload ของ Flutter preserve widget state ส่วน Hot Restart ทำอะไร?',
+    options: [
+      'Save state ปัจจุบันลง disk',
+      'Reload เฉพาะ file ที่เปลี่ยน',
+      'Restart ทั้งหมดและ reset state ทั้งหมด',
+      'Rebuild native app binary',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/setup" questions={quizSetup} />
+
+<ProgressTracker client:visible id="intro/setup" />

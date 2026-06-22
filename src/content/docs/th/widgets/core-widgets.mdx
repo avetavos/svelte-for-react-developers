@@ -1,0 +1,188 @@
+---
+title: 'Core Widgets'
+description: 'Text, Image.network, ElevatedButton, TextButton, Icon และ ListView — สิ่งที่เทียบเท่าใน Flutter ของ HTML/React element ที่ใช้บ่อยที่สุด'
+---
+
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ทุกแอปต้องมี text, image, button, icon และ list React พึ่ง HTML element (`<p>`, `<img>`, `<button>`, `<ul>/<li>`) ผสมกับ CSS ส่วน Flutter มี widget ระดับ first-class ให้สำหรับทุกอย่างเหล่านี้ โดยแต่ละตัวมี API ที่ครบครันซึ่งรวมการแสดงผลและ styling ไว้ที่เดียวกัน
+
+## ตารางแมป HTML / React → Flutter widget
+
+| HTML / React | Flutter widget |
+|---|---|
+| `<p>`, `<span>`, `<h1>` | `Text` |
+| `<img src="https://...">` | `Image.network('https://...')` |
+| `<button>`, `<Button>` (MUI primary) | `ElevatedButton` |
+| `<button>` (ghost / text) | `TextButton` |
+| `<IconButton>` / FontAwesome | `Icon(Icons.star)` + `IconButton` |
+| `<ul>/<li>` scrollable list | `ListView` / `ListView.builder` |
+| `<FlatList>` (React Native) | `ListView.builder` |
+
+## API หลัก ๆ แบบรวบรัด
+
+**`Text`** — `Text('Hello', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87))`
+
+**`Image.network`** — `Image.network('https://...', width: 100, height: 100, fit: BoxFit.cover)` — `fit` เทียบเท่ากับ `object-fit` ของ CSS
+
+**`ElevatedButton`** — `ElevatedButton(onPressed: () {}, child: const Text('Submit'))`
+
+**`TextButton`** — API เหมือน `ElevatedButton` แต่ render โดยไม่มี elevation
+
+**`Icon`** — `Icon(Icons.favorite, color: Colors.red, size: 24)` — ใช้ Material Icons ที่มีอยู่ใน Flutter อยู่แล้ว
+
+**`ListView.builder`** — list แบบ lazy ที่ render เฉพาะ item ที่มองเห็น เทียบเท่ากับ `<FlatList>` ของ React หรือ `<ul>` ที่ทำ virtualization ส่ง `itemCount` และ callback `itemBuilder` เข้าไป
+
+## ตัวอย่างที่รันได้ — รายชื่อผู้ติดต่อเล็ก ๆ
+
+export const coreCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(
+          title: const Text('Core Widgets'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: () {},
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            // Image.network
+            Image.network(
+              'https://picsum.photos/seed/flutter/800/200',
+              height: 140,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+
+            // Text
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Your Contacts',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            ),
+
+            // ListView.builder
+            Expanded(
+              child: ListView.builder(
+                itemCount: _contacts.length,
+                itemBuilder: (context, index) {
+                  final contact = _contacts[index];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: contact.color,
+                      child: Text(contact.initials,
+                          style: const TextStyle(color: Colors.white,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                    title: Text(contact.name),
+                    subtitle: Text(contact.role),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            contact.starred ? Icons.star : Icons.star_border,
+                            color: contact.starred ? Colors.amber : Colors.grey,
+                          ),
+                          onPressed: () {},
+                        ),
+                        TextButton(
+                          onPressed: () {},
+                          child: const Text('Message'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // ElevatedButton
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.person_add),
+                label: const Text('Add Contact'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Contact {
+  final String name, role, initials;
+  final Color color;
+  final bool starred;
+  const _Contact({required this.name, required this.role,
+      required this.initials, required this.color, this.starred = false});
+}
+
+const _contacts = [
+  _Contact(name: 'Ava Tavos', role: 'Flutter Developer',
+      initials: 'AT', color: Colors.blue, starred: true),
+  _Contact(name: 'Ben React', role: 'Frontend Engineer',
+      initials: 'BR', color: Colors.green),
+  _Contact(name: 'Cleo Dart', role: 'Mobile Lead',
+      initials: 'CD', color: Colors.purple, starred: true),
+  _Contact(name: 'Dana State', role: 'UX Designer',
+      initials: 'DS', color: Colors.orange),
+  _Contact(name: 'Eli Widget', role: 'Tech Lead',
+      initials: 'EW', color: Colors.teal),
+];`;
+
+<DartPad client:visible code={coreCode} />
+
+<Diff title="HTML elements → Flutter core widgets">
+
+- **`Text` ไม่ wrap ข้อความโดยอัตโนมัติ** ต่างจาก `<p>` ตรงที่ widget `Text` จะถูกตัด (clip) ถ้า parent แคบเกินไป ตั้ง `softWrap: true` (ค่า default) และ `overflow: TextOverflow.ellipsis` เพื่อตัดข้อความด้วย `...` หรือใช้ `TextOverflow.fade`
+- **`Image.network` เป็น async** image โหลดแบบ asynchronous ใช้ `loadingBuilder` เพื่อแสดง placeholder ระหว่างโหลด เทียบเท่ากับ component `<Skeleton>` ใน React
+- **`ListView.builder` ทำ virtualization เสมอ** ต่างจากการ map array ไปเป็น `<li>` ใน JSX (ซึ่ง render ทุก item) `ListView.builder` จะ build widget เฉพาะ item ที่มองเห็นเท่านั้น ใช้มันกับ list ที่ไม่ทราบความยาวหรือยาวมาก เทียบเท่ากับ `react-virtualized` / `react-window` แต่มีมาให้ในตัว
+- **Button ต้องมี `onPressed`** ถ้า `onPressed` เป็น `null` button จะ render ในสถานะ disabled โดยอัตโนมัติ คุณไม่ต้องสลับ prop `disabled`
+- **`Icon` ใช้ class แบบ enum ไม่ใช่ string** `Icons.favorite` เป็นค่าคงที่ ไม่ใช่ `"favorite"` หรือชื่อ font class การ autocomplete ใน IDE จะแสดง icon ที่มีให้ทั้งหมด
+
+</Diff>
+
+export const quizCore = [
+  {
+    q: 'อะไรคือสิ่งที่เทียบเท่ากับ `<FlatList>` (React Native) หรือ list แบบ virtualized ใน React ใน Flutter?',
+    options: ['ListView', 'ListView.builder', 'Column with a map()', 'GridView'],
+    answer: 1,
+  },
+  {
+    q: '`BoxFit.cover` บน `Image.network` ตรงกับ CSS property ตัวไหน?',
+    options: ['background-size: contain', 'object-fit: cover', 'object-fit: fill', 'background-repeat: no-repeat'],
+    answer: 1,
+  },
+  {
+    q: 'คุณ render `ElevatedButton` ในสถานะ disabled ใน Flutter อย่างไร?',
+    options: [
+      'ElevatedButton(disabled: true, ...)',
+      'ตั้ง onPressed เป็น null',
+      'ห่อด้วย IgnorePointer',
+      'ตั้ง enabled: false บน ButtonStyle',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="widgets/core-widgets" questions={quizCore} />
+
+<ProgressTracker client:visible id="widgets/core-widgets" />

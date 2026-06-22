@@ -1,0 +1,191 @@
+---
+title: 'Props & Constructors'
+description: 'Passing data to widgets via named constructor parameters — the Flutter equivalent of React props.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React you pass data to a component via **props** — a plain object destructured in the function signature. In Flutter you pass data to a widget via **constructor parameters** declared as `final` fields on the class. The two models solve the exact same problem: making a widget configurable from the outside without coupling it to a specific data source.
+
+Flutter uses Dart's **named parameters** extensively. Named parameters are opt-in: wrap them in `{}` and they become keyword arguments at the call site. Mark one `required` and Dart enforces it at compile time — no more `PropTypes` or TypeScript's `Required<>`.
+
+## Side-by-side comparison
+
+export const propsReact = `// React — TypeScript props
+interface BadgeProps {
+  label: string;
+  color?: string;      // optional, has default
+  count: number;       // required
+}
+
+function Badge({ label, color = 'blue', count }: BadgeProps) {
+  return (
+    <span style={{ background: color }}>
+      {label} ({count})
+    </span>
+  );
+}
+
+// Usage
+<Badge label="Notifications" count={5} />
+<Badge label="Alerts" color="red" count={2} />`;
+
+export const propsFlutter = `// Flutter — constructor params
+class Badge extends StatelessWidget {
+  final String label;
+  final Color color;   // optional with default
+  final int count;     // required
+
+  const Badge({
+    super.key,
+    required this.label,
+    this.color = Colors.blue,  // default value
+    required this.count,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        '\$label (\$count)',
+        style: const TextStyle(color: Colors.white),
+      ),
+    );
+  }
+}
+
+// Usage
+Badge(label: 'Notifications', count: 5)
+Badge(label: 'Alerts', color: Colors.red, count: 2)`;
+
+<ReactFlutter client:visible react={propsReact} flutter={propsFlutter} />
+
+<Diff title="Props → Constructor parameters">
+
+- **Named parameters with `{}`** — wrapping parameters in curly braces makes them named. At the call site you write `Badge(label: 'x', count: 3)` instead of positional `Badge('x', 3)`. This is equivalent to React's destructured props object.
+- **`required` keyword** — the compile-time equivalent of TypeScript's required prop. Dart will refuse to compile if a caller omits a `required` parameter.
+- **`this.fieldName` shorthand** — instead of writing `this.label = label` in the constructor body, Dart lets you write `this.label` (or just `required this.label`) directly in the parameter list. It declares and assigns the field in one step.
+- **`final` fields** — widget fields are always `final`. A `StatelessWidget` is immutable: you cannot mutate `this.label` after construction. This mirrors the React rule that you never mutate props directly.
+- **Default values** — use `= value` after the parameter name, exactly like TypeScript default parameter values.
+- **`super.key`** — always include this first in the named parameter list so callers can pass a `Key` for reconciliation.
+
+</Diff>
+
+## Runnable example
+
+export const propsCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.grey[100],
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              StatusBadge(label: 'Active', status: BadgeStatus.success),
+              SizedBox(height: 12),
+              StatusBadge(label: 'Pending', status: BadgeStatus.warning),
+              SizedBox(height: 12),
+              StatusBadge(label: 'Failed', status: BadgeStatus.error),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum BadgeStatus { success, warning, error }
+
+class StatusBadge extends StatelessWidget {
+  final String label;
+  final BadgeStatus status;
+  final double fontSize;
+
+  const StatusBadge({
+    super.key,
+    required this.label,
+    required this.status,
+    this.fontSize = 14,
+  });
+
+  Color get _color {
+    switch (status) {
+      case BadgeStatus.success: return Colors.green;
+      case BadgeStatus.warning: return Colors.orange;
+      case BadgeStatus.error:   return Colors.red;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: _color.withOpacity(0.15),
+        border: Border.all(color: _color),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: _color, fontSize: fontSize,
+            fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={propsCode} />
+
+export const quizProps = [
+  {
+    q: 'How do you declare a required named parameter in a Flutter widget constructor?',
+    options: [
+      'required String label',
+      '@required String label',
+      'String! label',
+      'final String label',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'Why are widget fields declared `final` in Flutter?',
+    options: [
+      'final is required by the Dart compiler for all class fields',
+      'Widgets are immutable — their fields cannot change after construction, mirroring the React rule of never mutating props',
+      'final makes the field available as a named parameter',
+      'final fields are automatically JSON-serializable',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does the `this.fieldName` shorthand in a Dart constructor parameter list do?',
+    options: [
+      'It creates a getter that returns the field',
+      'It marks the field as nullable',
+      'It both declares the instance field and assigns the parameter value in one step',
+      'It copies the field from the parent widget',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="widgets/props-constructors" questions={quizProps} />
+
+<ProgressTracker client:visible id="widgets/props-constructors" />

@@ -1,0 +1,171 @@
+---
+title: 'Declarative UI'
+description: 'Flutter and React share the same core idea — UI = f(state). Learn how widget trees, the element tree, and hot reload map to what you already know.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+The most reassuring thing about Flutter for React developers is that the declarative UI model is identical at its core: your UI is a pure function of state. When state changes, you describe the new UI and the framework figures out what to update. The difference is in the plumbing — Flutter has its own element tree and reconciler instead of the virtual DOM, but the mental model you already have is exactly right.
+
+## UI = f(state): same idea, different plumbing
+
+export const reactDeclarative = `// React — declarative counter
+import { useState } from 'react';
+
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(c => c + 1)}>
+        Increment
+      </button>
+    </div>
+  );
+}`;
+
+export const flutterDeclarative = `// Flutter — declarative counter (StatefulWidget)
+class Counter extends StatefulWidget {
+  const Counter({super.key});
+
+  @override
+  State<Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<Counter> {
+  int _count = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Count: \$_count',
+            style: const TextStyle(fontSize: 24)),
+        ElevatedButton(
+          onPressed: () => setState(() => _count++),
+          child: const Text('Increment'),
+        ),
+      ],
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={reactDeclarative} flutter={flutterDeclarative} />
+
+export const declarativeCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Counter(),
+        ),
+      ),
+    );
+  }
+}
+
+class Counter extends StatefulWidget {
+  const Counter({super.key});
+
+  @override
+  State<Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<Counter> {
+  int _count = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Count: \$_count',
+          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () => setState(() => _count++),
+          child: const Text('Increment', style: TextStyle(fontSize: 18)),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: () => setState(() => _count = 0),
+          child: const Text('Reset'),
+        ),
+      ],
+    );
+  }
+}`;
+
+<DartPad client:visible code={declarativeCode} />
+
+<Diff title="React reconciliation → Flutter element tree">
+
+- **`useState` / `setState`** → `setState(() { ... })` inside `_CounterState`. Calling it schedules a rebuild of the widget.
+- **Virtual DOM diff** → Flutter's element tree + RenderObject tree. Flutter diffs the new widget tree against the existing element tree — same concept, different implementation.
+- **Re-render on state change** → `build()` is called again. Flutter is smart: only the subtree below the changed `State` rebuilds.
+- **React.StrictMode double-render (dev)** → Flutter's debug mode uses hot reload — no double-render, but the Dart VM adds extra assertions.
+- **`useEffect` cleanup** → `dispose()` method on `State<T>`. Covered in a later lesson.
+
+</Diff>
+
+export const quizDeclarative = [
+  {
+    q: "Which statement about Flutter's declarative model is true?",
+    options: [
+      'Flutter uses an imperative model — you call widget.show()',
+      "Flutter's UI = f(state) model is fundamentally the same as React's",
+      'Flutter re-creates the entire DOM on every state change',
+      'Flutter has no concept of state — everything is stateless',
+    ],
+    answer: 1,
+  },
+  {
+    q: "What Flutter method is the equivalent of React's setState?",
+    options: [
+      'widget.update()',
+      'this.refresh()',
+      'setState(() { ... })',
+      'rebuild()',
+    ],
+    answer: 2,
+  },
+  {
+    q: "What is Flutter's equivalent of the React virtual DOM?",
+    options: [
+      'The widget tree',
+      'The element tree and RenderObject tree',
+      'The BuildContext',
+      'The Scaffold',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'In Flutter, when does the build() method run?',
+    options: [
+      'Only once when the app starts',
+      'After every animation frame',
+      'Whenever the framework determines the widget needs to be rebuilt (e.g. after setState)',
+      'Only when the user taps the screen',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="mental-model/declarative-ui" questions={quizDeclarative} />
+
+<ProgressTracker client:visible id="mental-model/declarative-ui" />

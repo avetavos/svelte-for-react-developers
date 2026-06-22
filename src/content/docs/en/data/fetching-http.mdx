@@ -1,0 +1,239 @@
+---
+title: 'Fetching Data with http'
+description: 'The http package vs fetch/axios — GET requests, response decoding, and error handling in Flutter.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React you reach for `fetch` or `axios` to make HTTP requests — they are either built into the browser or installed as a single package. Flutter has no built-in HTTP client, so the ecosystem settled on the `http` package from the Dart team. The mental model is the same: fire a request, `await` the response, inspect the status code, and decode the body. The differences are at the API surface.
+
+## Side-by-side comparison
+
+> **Note:** Live network calls may be blocked in the DartPad sandbox — run the real `http` example locally after adding `http: ^1.2.0` to your `pubspec.yaml` dependencies.
+
+export const fetchReact = `// React — fetch (built-in) or axios
+import axios from 'axios';
+
+// Using fetch
+async function getUser(id) {
+  const res = await fetch(\`https://api.example.com/users/\${id}\`);
+  if (!res.ok) throw new Error(\`HTTP error: \${res.status}\`);
+  const data = await res.json();
+  return data;
+}
+
+// Using axios (throws automatically on non-2xx)
+async function getUserAxios(id) {
+  const { data } = await axios.get(
+    \`https://api.example.com/users/\${id}\`
+  );
+  return data;
+}`;
+
+export const fetchFlutter = `// Flutter — package:http
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+Future<Map<String, dynamic>> getUser(int id) async {
+  final uri = Uri.parse(
+    'https://api.example.com/users/\$id',
+  );
+  final response = await http.get(uri);
+
+  if (response.statusCode != 200) {
+    throw Exception('HTTP error: \${response.statusCode}');
+  }
+
+  // response.body is a String — decode manually
+  final data = jsonDecode(response.body)
+      as Map<String, dynamic>;
+  return data;
+}`;
+
+<ReactFlutter client:visible react={fetchReact} flutter={fetchFlutter} />
+
+<Diff title="fetch/axios → http package">
+
+- **Add to pubspec.** `http` is not bundled with Flutter. Add `http: ^1.2.0` under `dependencies:` in `pubspec.yaml` and run `flutter pub get`.
+- **No browser `fetch`.** Flutter runs on the Dart VM (and Dart-compiled native binaries), so the browser's `fetch` API is not available. `http.get(Uri)` is the cross-platform replacement.
+- **`Uri`, not a plain string.** `http.get` takes a `Uri` object, not a raw string. Use `Uri.parse('...')` to convert — it validates the URL at parse time.
+- **Explicit status check.** Unlike `axios`, the `http` package does not throw on non-2xx responses. You must inspect `response.statusCode` yourself, mirroring `fetch`'s `res.ok` check.
+- **`jsonDecode`, not `.json()`.** `response.body` is a plain `String`. Call `jsonDecode(response.body)` from `dart:convert` to parse it — the equivalent of `await res.json()` in `fetch`.
+- **Error handling.** Wrap calls in `try/catch` to handle `SocketException` (no network), `TimeoutException`, or your own thrown `Exception` for bad status codes.
+
+</Diff>
+
+## Runnable example
+
+The DartPad below skips the live network call and instead uses `Future.delayed` to simulate async latency — identical to how you would mock an API in a Jest test. The JSON decoding logic is real `dart:convert` code.
+
+export const dartpadCode = `import 'dart:convert';
+import 'package:flutter/material.dart';
+
+// Simulates a network call — returns after 1 second
+// In production replace this with http.get(uri)
+Future<Map<String, dynamic>> fetchUser() {
+  return Future.delayed(
+    const Duration(seconds: 1),
+    () => jsonDecode('{"id": 1, "name": "Ada Lovelace", "email": "ada@example.com"}')
+        as Map<String, dynamic>,
+  );
+}
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'HTTP Demo',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        useMaterial3: true,
+      ),
+      home: const UserScreen(),
+    );
+  }
+}
+
+class UserScreen extends StatelessWidget {
+  const UserScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Fetch User'),
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+      ),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: fetchUser(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error: \${snapshot.error}',
+                style: const TextStyle(color: Colors.red),
+              ),
+            );
+          }
+          final user = snapshot.data!;
+          return Center(
+            child: Card(
+              margin: const EdgeInsets.all(24),
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 24,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: Colors.indigo,
+                          child: Text(
+                            '\${user['name'][0]}',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          user['name'] as String,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _Row(label: 'ID', value: '\${user['id']}'),
+                    const SizedBox(height: 8),
+                    _Row(label: 'Email', value: user['email'] as String),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _Row extends StatelessWidget {
+  final String label;
+  final String value;
+  const _Row({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 56,
+          child: Text(
+            '\$label:',
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.indigo,
+            ),
+          ),
+        ),
+        Expanded(child: Text(value)),
+      ],
+    );
+  }
+}`;
+
+<DartPad client:visible code={dartpadCode} />
+
+export const quizFetching = [
+  {
+    q: 'Why does the `http` package require an explicit status code check while `axios` does not?',
+    options: [
+      'Dart does not support exceptions',
+      'The `http` package does not throw on non-2xx responses — you must inspect `response.statusCode` yourself',
+      'Flutter automatically retries failed requests',
+      '`http.get` only throws on network timeouts, not HTTP errors',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does `jsonDecode(response.body)` return by default when the JSON root is an object?',
+    options: [
+      'A typed Dart class instance',
+      'A `String`',
+      'A `Map<String, dynamic>`',
+      'A `List<dynamic>`',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which argument type does `http.get` accept instead of a plain string URL?',
+    options: ['`String`', '`Uri`', '`URL`', '`HttpRequest`'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="data/fetching-http" questions={quizFetching} />
+
+<ProgressTracker client:visible id="data/fetching-http" />

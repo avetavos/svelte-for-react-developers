@@ -1,0 +1,133 @@
+---
+title: 'Introduction — Flutter for React Developers'
+description: 'Why Flutter is worth your time as a React developer, what this course covers, and your first runnable Flutter app.'
+---
+
+import DartPad from '../../../../components/DartPad.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+You already know how to build UIs. You understand components, props, state, and the idea that the framework re-renders the tree when data changes. Flutter uses exactly the same declarative model — it just calls everything a **widget** instead of a component.
+
+The payoff: a single Dart codebase that ships to iOS, Android, web, macOS, Windows, and Linux with **native performance** on every target. No React Native bridge, no Cordova WebView. Flutter compiles to native ARM code and draws every pixel itself using the Skia/Impeller graphics engine.
+
+## Why Flutter if you know React?
+
+| React | Flutter |
+|---|---|
+| One codebase → web | One codebase → iOS · Android · web · desktop |
+| Virtual DOM diffing | Widget tree + RenderObject layer |
+| Fast Refresh (hot reload) | Hot Reload (same idea, sub-second) |
+| `npm` / Vite / CRA | `pub` / `flutter create` / `flutter run` |
+| JavaScript / TypeScript | Dart (sound null safety, strong types) |
+| Styled-components / Tailwind | Widget properties + ThemeData (Material 3) |
+
+The mental model transfer rate is high. Once you see that `StatelessWidget.build()` ≈ a React function component returning JSX, and that `StatefulWidget` ≈ a component with `useState`, the rest is learning Flutter's widget vocabulary.
+
+## What this course covers
+
+1. **Introduction & Setup** (this module) — Dart basics, toolchain, first app, mental model
+2. **Widgets & UI** — StatelessWidget, props, layout (Row/Column ≈ Flexbox), styling
+3. **State & Lifecycle** — StatefulWidget, `setState`, Riverpod (≈ Zustand/Jotai)
+4. **Handling Data** — Futures/async-await, REST with Dio, JSON parsing
+5. **Navigation & Routing** — GoRouter (≈ React Router)
+6. **Tooling, Testing & Deployment** — `flutter test`, widget tests, CI/CD
+
+## Your first Flutter app
+
+Below is a complete, runnable Flutter app. The structure mirrors a React app: an entry point (`main()`), a root widget (`MyApp`), and a composed UI tree. Press **Run** to see it live.
+
+export const introCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: const WelcomeScreen(),
+    );
+  }
+}
+
+class WelcomeScreen extends StatelessWidget {
+  const WelcomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: colors.surface,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.flutter_dash, size: 80, color: colors.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Flutter for React Devs',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colors.primary,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your React skills transfer. Let\\'s build.',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Start Learning'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={introCode} />
+
+export const quizIntroIndex = [
+  {
+    q: 'What is the Flutter equivalent of a React component?',
+    options: ['A Dart function', 'A widget', 'A scaffold', 'A screen'],
+    answer: 1,
+  },
+  {
+    q: 'Which platforms can a single Flutter codebase target?',
+    options: [
+      'iOS and Android only',
+      'Web only',
+      'iOS, Android, web, macOS, Windows, and Linux',
+      'iOS, Android, and web only',
+    ],
+    answer: 2,
+  },
+  {
+    q: "Flutter's Hot Reload is most similar to which React tooling feature?",
+    options: ['React DevTools', 'Fast Refresh', 'Concurrent Mode', 'Suspense'],
+    answer: 1,
+  },
+  {
+    q: 'What is the Dart package manager equivalent of npm?',
+    options: ['cargo', 'pip', 'pub', 'brew'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/index" questions={quizIntroIndex} />
+
+<ProgressTracker client:visible id="intro/index" />

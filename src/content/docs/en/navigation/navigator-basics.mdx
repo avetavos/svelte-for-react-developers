@@ -1,0 +1,211 @@
+---
+title: 'Navigator Basics'
+description: 'Navigator.push and Navigator.pop vs useNavigate and history.push — the Flutter navigation stack explained for React developers.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React you call `useNavigate()` to get a `navigate` function, then call `navigate('/detail')` to change the current route. Flutter's equivalent is `Navigator.push(context, route)` — but instead of a URL string, you pass a `Route` object that knows how to build the next screen. The key difference is that Flutter maintains a real **widget stack**: the previous screen stays alive in memory below the new one, just as browser history keeps previous pages alive in the tab's session.
+
+The Android back button and iOS swipe-back gesture are handled automatically by the `Navigator` — you do not need to wire up a back handler unless you want to intercept it.
+
+## Side-by-side comparison
+
+export const navReact = `// React — navigate programmatically
+import { useNavigate } from 'react-router-dom';
+
+function HomeScreen() {
+  const navigate = useNavigate();
+
+  return (
+    <button onClick={() => navigate('/detail')}>
+      Go to Detail
+    </button>
+  );
+}
+
+// Go back
+function DetailScreen() {
+  const navigate = useNavigate();
+  return (
+    <button onClick={() => navigate(-1)}>
+      Back
+    </button>
+  );
+}`;
+
+export const navFlutter = `// Flutter — push / pop
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const DetailScreen(),
+          ),
+        );
+      },
+      child: const Text('Go to Detail'),
+    );
+  }
+}
+
+// Go back
+class DetailScreen extends StatelessWidget {
+  const DetailScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: () => Navigator.pop(context),
+      child: const Text('Back'),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={navReact} flutter={navFlutter} />
+
+<Diff title="useNavigate / history.push → Navigator.push">
+
+- **Context required.** `Navigator.push` is a static method that takes a `BuildContext`. Flutter resolves the nearest `Navigator` ancestor from that context — similar to how react-router's hooks resolve the nearest `Router` via React context.
+- **Stack model, not URL model.** `Navigator.push` literally adds a new entry to an in-memory stack. There is no URL change on mobile (though Flutter Web does update the browser URL).
+- **`MaterialPageRoute` is the route object.** It wraps a builder function and provides the platform-appropriate transition animation (slide on iOS, fade on Android). React Router has no direct equivalent because it defers transitions to CSS.
+- **`Navigator.pop` vs `navigate(-1)`.** `pop` removes the top entry from the Flutter stack. `navigate(-1)` steps back in browser history. Both achieve "go back," but `pop` is synchronous and does not consult a URL.
+- **Back gestures are free.** The `Navigator` wires up Android back button and iOS edge-swipe automatically. In react-router you must manage `history.block` or `useBeforeUnload` yourself.
+
+</Diff>
+
+## Runnable example
+
+export const navCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Home')),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'You are on the Home screen.',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DetailScreen(),
+                  ),
+                );
+              },
+              child: const Text('Go to Detail'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DetailScreen extends StatelessWidget {
+  const DetailScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Detail')),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'You are on the Detail screen.',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Go Back'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={navCode} />
+
+export const quizNav = [
+  {
+    q: 'What does Navigator.push add to the Flutter navigation stack?',
+    options: [
+      'A URL entry in the browser history',
+      'A new Route object on top of the stack, keeping the previous screen alive',
+      'A snapshot of the current widget tree',
+      'A platform-level intent (Android) or segue (iOS)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why does Navigator.push require a BuildContext?',
+    options: [
+      'It needs context to read the current theme colors',
+      'It resolves the nearest Navigator ancestor in the widget tree from that context',
+      'BuildContext carries the route arguments',
+      'It is required by the Dart type system but unused at runtime',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is MaterialPageRoute responsible for?',
+    options: [
+      'Registering a route name in the app route table',
+      'Providing the builder function and platform-appropriate transition animation for a new screen',
+      'Persisting navigation history across app restarts',
+      'Handling deep links from the OS',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How does Flutter handle the Android back button without any extra code?',
+    options: [
+      'It calls Navigator.pop automatically when the button is pressed',
+      'It restarts the app to the initial route',
+      'It relies on the OS to kill the activity',
+      'It dispatches a PopRouteIntent that you must handle manually',
+    ],
+    answer: 0,
+  },
+];
+
+<Quiz client:visible id="navigation/navigator-basics" questions={quizNav} />
+
+<ProgressTracker client:visible id="navigation/navigator-basics" />

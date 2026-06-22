@@ -1,0 +1,274 @@
+---
+title: 'Rebuilds & Keys'
+description: 'เมื่อไหร่ widgets rebuild, const widgets เพื่อข้าม rebuilds, และ Key สำหรับ identity — Flutter reconciliation vs React reconciliation'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React ใช้ virtual DOM diffing algorithm เพื่อตัดสินว่า components ใดควรอัปเดต Flutter ใช้การ reconcile element tree แบบคล้ายกัน แต่มีความแตกต่างสำคัญในวิธีที่คุณควบคุมมัน — หลักๆ ผ่าน `const` constructors และ `Key`s
+
+การเข้าใจว่า Flutter rebuild เมื่อไหร่เป็นสิ่งสำคัญสำหรับการเขียน apps ที่มีประสิทธิภาพ mental model ใกล้เคียงกับ React แต่ tools แตกต่างกัน
+
+## เมื่อไหร่ Flutter rebuild?
+
+`build()` ของ widget ถูกเรียกเมื่อ:
+
+1. `setState()` ถูกเรียกบน `State` object ของมัน
+2. Parent ของมัน rebuild (และส่ง widget configuration ใหม่)
+3. `InheritedWidget` ที่มัน depend on เปลี่ยน (เช่น `Theme`, `MediaQuery`)
+
+ใน React trigger เทียบเท่าคือ: state setter call, parent re-render, หรือ context value change
+
+## const widgets — zero-cost optimization
+
+ใน React คุณเอื้อมหา `React.memo`, `useMemo`, และ `useCallback` เพื่อป้องกัน re-renders ที่ไม่จำเป็น ใน Flutter คุณเอื้อมหา `const` — และมันมีพลังมากกว่าเพราะทำงานที่ระดับภาษา/compiler
+
+`const` widget เป็น compile-time constant Flutter element reconciliation ตรวจสอบ identity: ถ้า widget reference ใน build output ใหม่ **เหมือนกัน** กับของก่อนหน้า (same object ใน memory) element subtree ทั้งหมดถูกข้าม `const` รับประกัน identity นี้
+
+export const rkReact = `// React: opt-out จาก re-render ด้วย React.memo
+const Header = React.memo(function Header({ title }) {
+  return <h1>{title}</h1>;
+});
+
+// React: stable reference ด้วย useMemo
+function Page() {
+  const icon = useMemo(() => <Icon name="star" />, []);
+  return <div>{icon}<Content /></div>;
+}`;
+
+export const rkFlutter = `// Flutter: const widget ไม่ถูก rebuild ถ้า parent rebuild
+class Header extends StatelessWidget {
+  final String title;
+  const Header({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(title,
+        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold));
+  }
+}
+
+class Page extends StatelessWidget {
+  const Page({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Subtree นี้เป็น compile-time constant — Flutter จะ
+        // ไม่เรียก build() ของมันอีก แม้ Page จะ rebuild
+        const SizedBox(height: 16),
+        const Icon(Icons.star, size: 32),
+        const Header(title: 'My App'),  // const ด้วย — free skip
+      ],
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={rkReact} flutter={rkFlutter} />
+
+## Keys — identity ข้ามการ rebuild
+
+`key` prop ของ React บอก reconciler ว่า: "element นี้มี identity นี้ — match มันกับ element เดิมใน render ก่อนหน้า แม้ position ใน list จะเปลี่ยน" `Key` ของ Flutter ทำหน้าที่เหมือนกันทุกประการ
+
+ถ้าไม่มี `Key` Flutter จะ match widgets ตาม **type และ position** ถ้าคุณ reorder list ของ stateful items Flutter อาจ match `State` object ผิดกับ widget ผิด — เหมือน bug ใน React ที่ไม่มี list keys
+
+export const rkKeysReact = `// React — key บน list items ป้องกัน state mixing
+function TodoList({ todos }) {
+  return (
+    <ul>
+      {todos.map(todo => (
+        <TodoItem key={todo.id} todo={todo} />  // key ด้วย stable id
+      ))}
+    </ul>
+  );
+}`;
+
+export const rkKeysFlutter = `// Flutter — Key บน list items
+class TodoList extends StatelessWidget {
+  final List<Todo> todos;
+  const TodoList({super.key, required this.todos});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      children: todos
+          .map((todo) => TodoItem(
+                key: ValueKey(todo.id),  // stable id key
+                todo: todo,
+              ))
+          .toList(),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={rkKeysReact} flutter={rkKeysFlutter} />
+
+<Diff title="React reconciliation → Flutter reconciliation">
+
+- **Type + position matching** ถ้าไม่มี `Key` ทั้ง React และ Flutter จะ match elements ตาม type และ position ใน tree สำหรับ static lists ใช้ได้ดี สำหรับ dynamic/reordered lists ทำให้ state ไหลระหว่าง items
+- **`ValueKey(id)` = React `key={id}`** ใช้ `ValueKey` เมื่อคุณมี stable unique identifier (database ID, UUID) Flutter เลือก `State` object ที่ถูกต้องแม้หลัง reorder
+- **`ObjectKey(object)` = React `key={object}`** ใช้เมื่อ identity ของ object เองเป็น key (reference equality) ไม่ใช่ scalar ID
+- **`UniqueKey()` = forced remount** สร้าง `Key` ใหม่ทุก build รับประกันว่า `State` เก่าถูกทิ้งและสร้างใหม่ เทียบเท่ากับการเปลี่ยน React `key` เป็นค่าใหม่เพื่อ force full unmount/mount cycle ใช้อย่างประหยัด — มัน destroy state
+- **`GlobalKey`** = ไม่มีเทียบเท่า React ให้เข้าถึง `State` หรือ `RenderObject` ของ widget จากที่ใดก็ได้ใน tree ไม่ค่อยต้องการ; ใช้สำหรับ `Form` validation (`_formKey.currentState!.validate()`) หรือ measure widget sizes
+- **`const` คือ primary rebuild optimization** React devs มักเอื้อมหา `useMemo` ทุกที่; ใน Flutter คำตอบที่ idiomatic คือ mark leaf widgets และ static sub-trees เป็น `const` และปล่อยให้ compiler กำจัด rebuild cost ทั้งหมด
+
+</Diff>
+
+## ตัวอย่างที่รันได้
+
+export const rkCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange)),
+      home: const KeyDemo(),
+    );
+  }
+}
+
+class KeyDemo extends StatefulWidget {
+  const KeyDemo({super.key});
+  @override
+  State<KeyDemo> createState() => _KeyDemoState();
+}
+
+class _KeyDemoState extends State<KeyDemo> {
+  List<String> _items = ['Apple', 'Banana', 'Cherry'];
+  bool _useKeys = false;
+
+  void _shuffle() => setState(() => _items = [..._items]..shuffle());
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Keys Demo')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Text('Use ValueKey:'),
+                const SizedBox(width: 8),
+                Switch(
+                  value: _useKeys,
+                  onChanged: (v) => setState(() => _useKeys = v),
+                ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: _shuffle,
+                  child: const Text('Shuffle'),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              children: _items.map((item) {
+                // ด้วย keys: Flutter match ColorBox กับ item เดิมหลัง shuffle
+                // ไม่มี keys: Flutter match ตาม position — สีจะ "กระโดด" ไปผิด items
+                return ColorBox(
+                  key: _useKeys ? ValueKey(item) : null,
+                  label: item,
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Stateful widget ที่เก็บ random color เป็น state ของตัวเอง
+// ไม่มี Key การ shuffle จะ reorder labels แต่ colors ยังอยู่ใน
+// position เดิม — classic key-less reconciliation bug
+class ColorBox extends StatefulWidget {
+  final String label;
+  const ColorBox({super.key, required this.label});
+
+  @override
+  State<ColorBox> createState() => _ColorBoxState();
+}
+
+class _ColorBoxState extends State<ColorBox> {
+  late final Color _color;
+
+  @override
+  void initState() {
+    super.initState();
+    // สีจาก label hashCode — stable ต่อ State instance
+    final hue = (widget.label.hashCode % 360).abs().toDouble();
+    _color = HSLColor.fromAHSL(1, hue, 0.6, 0.7).toColor();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _color,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        widget.label,
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={rkCode} />
+
+export const quizRk = [
+  {
+    q: 'การ mark Flutter widget constructor เป็น const รับประกันอะไรระหว่าง rebuilds?',
+    options: [
+      'Widget จะไม่รับ props ใหม่จาก parent',
+      'Flutter จะข้ามการเรียก build() บน widget นั้นถ้า reference เหมือนกับ build ก่อนหน้า',
+      'Widget จะถูกลบออกจาก tree หลัง build แรก',
+      'Widget ถูก render บน thread แยก',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Key type ใดที่เทียบเท่ากับ pattern React key={item.id} สำหรับ stable list items?',
+    options: ['GlobalKey', 'UniqueKey', 'ObjectKey', 'ValueKey'],
+    answer: 3,
+  },
+  {
+    q: 'อะไรเกิดขึ้นเมื่อคุณใช้ UniqueKey() บน widget ใน Flutter?',
+    options: [
+      'Widget ถูก promote เป็น global singleton',
+      'Flutter ข้าม reconciliation สำหรับ subtree นั้น',
+      'State เก่าถูกทิ้งและสร้างใหม่ทุก rebuild — forced remount',
+      'Widget สามารถเข้าถึงได้จากนอก tree ผ่าน controller',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ถ้าไม่มี Key บน list items Flutter จะ match widgets ระหว่าง reconciliation อย่างไร?',
+    options: [
+      'ตาม widget type และ position ใน children list',
+      'ตาม hashCode ของ widget',
+      'ตาม toString() ของ widget',
+      'ตาม runtimeType ของ State object',
+    ],
+    answer: 0,
+  },
+];
+
+<Quiz client:visible id="state-lifecycle/rebuilds-keys" questions={quizRk} />
+
+<ProgressTracker client:visible id="state-lifecycle/rebuilds-keys" />

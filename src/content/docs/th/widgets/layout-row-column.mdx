@@ -1,0 +1,227 @@
+---
+title: 'Layout: Row & Column'
+description: 'Row, Column, Expanded และการจัด axis alignment ใน Flutter เทียบกับ CSS flexbox — โมเดลเดียวกันแต่ใช้คำศัพท์ต่างกัน'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+โมเดล layout ของ Flutter ก็คือ **flexbox** เพียงแต่สะกดด้วยคำต่างกันเท่านั้น `Row` คือ `display: flex; flex-direction: row` `Column` คือ `display: flex; flex-direction: column` `Expanded` คือ `flex: 1` `MainAxisAlignment` แมปไปยัง `justify-content` ส่วน `CrossAxisAlignment` แมปไปยัง `align-items`
+
+พอเห็นการแมปนี้แล้ว layout ของ Flutter จะคุ้นเคยขึ้นมาทันที จุดที่ต้องระวังคือ **main axis จะสลับ** กันระหว่าง `Row` กับ `Column` ในขณะที่ใน CSS นั้น `justify-content` หมายถึง axis ในทิศที่คุณตั้งไว้เสมอ
+
+## เปรียบเทียบแบบเคียงข้างกัน
+
+export const layoutReact = `/* React / CSS flexbox */
+
+/* Row layout */
+.row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;  /* main axis */
+  align-items: center;             /* cross axis */
+  gap: 8px;
+}
+
+/* Column layout */
+.col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* Flex child that grows */
+.grow { flex: 1; }
+
+// JSX
+function NavBar() {
+  return (
+    <div className="row">
+      <span className="grow">My App</span>
+      <button>Login</button>
+      <button>Sign Up</button>
+    </div>
+  );
+}`;
+
+export const layoutFlutter = `// Flutter Row / Column
+
+// Row layout
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  crossAxisAlignment: CrossAxisAlignment.center,
+  spacing: 8,          // Flutter 3.27+ gap shorthand
+  children: [/* ... */],
+)
+
+// Column layout
+Column(
+  mainAxisAlignment: MainAxisAlignment.center,
+  crossAxisAlignment: CrossAxisAlignment.start,
+  spacing: 12,
+  children: [/* ... */],
+)
+
+// Flex child that grows (flex: 1)
+Expanded(child: someWidget)
+
+// Widget
+class NavBar extends StatelessWidget {
+  const NavBar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Text('My App',
+            style: TextStyle(fontWeight: FontWeight.bold))),
+        TextButton(onPressed: () {}, child: const Text('Login')),
+        ElevatedButton(onPressed: () {}, child: const Text('Sign Up')),
+      ],
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={layoutReact} flutter={layoutFlutter} />
+
+<Diff title="Flexbox → Row / Column">
+
+- **`Row` = `flex-direction: row`, `Column` = `flex-direction: column`** ไม่มี property ให้สลับ คุณต้องเลือกใช้ widget ให้ถูกตัว
+- **`mainAxisAlignment`** แมปไปยัง `justify-content` มันจัด child **ตามแนว** axis ของ widget นั้นเอง คือแนวนอนสำหรับ `Row` และแนวตั้งสำหรับ `Column`
+- **`crossAxisAlignment`** แมปไปยัง `align-items` มันจัด child ในแนว **ตั้งฉาก** กับ axis ของ widget นั้นเอง
+- **`Expanded`** ห่อ child ตัวเดียวแล้วให้พฤติกรรม `flex: 1` คือเติมพื้นที่ที่เหลือ ห่อ child หลายตัวด้วย `Expanded` เพื่อแบ่งพื้นที่ตามสัดส่วน (ใช้ property `flex:` บน `Expanded` เพื่อกำหนดอัตราส่วนเอง)
+- **`spacing`** (Flutter 3.27+) คือสิ่งที่เทียบเท่าโดยตรงกับ `gap` ของ CSS สำหรับ Flutter เวอร์ชันเก่ากว่าให้แทรก `SizedBox(width: 8)` หรือ `SizedBox(height: 8)` ระหว่าง child ด้วยตัวเอง
+- **ไม่มี `width: 100%` โดยปริยายบน `Column`** `Column` จะกว้างเท่ากับ child ที่กว้างที่สุดของมันเท่านั้น เว้นแต่คุณจะ constrain มันไว้ ให้ห่อด้วย `SizedBox(width: double.infinity)` หรือใช้ `crossAxisAlignment: CrossAxisAlignment.stretch` เพื่อเติมเต็ม parent
+
+</Diff>
+
+## ตัวอย่างที่รันได้
+
+export const layoutCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(title: const Text('Row & Column Demo')),
+        body: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 16,
+            children: [
+              _SectionLabel('Row — spaceAround'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _Chip(label: 'Flutter', color: Colors.blue),
+                  _Chip(label: 'Dart', color: Colors.teal),
+                  _Chip(label: 'Material', color: Colors.purple),
+                ],
+              ),
+              _SectionLabel('Row with Expanded'),
+              Row(
+                spacing: 8,
+                children: [
+                  Expanded(child: _Chip(label: 'Grows to fill', color: Colors.orange)),
+                  _Chip(label: 'Fixed', color: Colors.red),
+                ],
+              ),
+              _SectionLabel('Column — center + start'),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 6,
+                children: [
+                  _Chip(label: 'Item 1', color: Colors.indigo),
+                  _Chip(label: 'Item 2', color: Colors.indigo),
+                  _Chip(label: 'Item 3', color: Colors.indigo),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) => Text(text,
+      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13,
+          color: Colors.grey));
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _Chip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: color.withOpacity(0.15),
+          border: Border.all(color: color),
+          borderRadius: BorderRadius.circular(20)),
+      child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+    );
+  }
+}`;
+
+<DartPad client:visible code={layoutCode} />
+
+export const quizLayout = [
+  {
+    q: 'อะไรคือสิ่งที่เทียบเท่ากับ `justify-content` ของ CSS flexbox ใน Flutter?',
+    options: [
+      'crossAxisAlignment',
+      'mainAxisAlignment',
+      'mainAxisSize',
+      'alignment',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'สำหรับ `Column` นั้น `mainAxisAlignment` ควบคุมการจัดวางตาม axis ไหน?',
+    options: [
+      'แนวนอน (ซ้าย–ขวา)',
+      'แนวตั้ง (บน–ล่าง)',
+      'ทั้งสอง axis พร้อมกัน',
+      'axis ของ Scaffold ที่ใกล้ที่สุด',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Flutter widget ตัวไหนที่เทียบเท่ากับ `flex: 1` บน flex child?',
+    options: ['Flexible with fit: FlexFit.loose', 'SizedBox', 'Expanded', 'Spacer'],
+    answer: 2,
+  },
+  {
+    q: 'อะไรคือวิธีที่ง่ายที่สุดใน Flutter ที่เทียบเท่ากับ `gap: 8px` ของ CSS ระหว่าง child ของ Row (Flutter 3.27+)?',
+    options: [
+      'ห่อ child แต่ละตัวด้วย Padding',
+      'แทรก SizedBox(width: 8) ระหว่าง child แต่ละตัวด้วยตัวเอง',
+      'ตั้ง spacing: 8 บน Row',
+      'ตั้ง gap: 8 บน Row',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="widgets/layout-row-column" questions={quizLayout} />
+
+<ProgressTracker client:visible id="widgets/layout-row-column" />

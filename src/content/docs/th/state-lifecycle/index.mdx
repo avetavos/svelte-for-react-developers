@@ -1,0 +1,66 @@
+---
+title: 'State & Lifecycle'
+description: 'State อยู่ที่ไหนใน Flutter — StatefulWidget + State — และ lifecycle เปรียบเทียบกับ React hooks และ class component lifecycle อย่างไร'
+---
+
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React นั้น state อยู่ **ภายใน** component เอง — ไม่ว่าจะเป็น hook variable จาก `useState` หรือ `this.state` ใน class component เมื่อ state เปลี่ยน React จะ re-render component function (หรือเรียก `render()`)
+
+Flutter แยกความรับผิดชอบออกจากกันต่างออกไป `StatefulWidget` คือ object การกำหนดค่าที่ไม่เปลี่ยนแปลง (เหมือน props/JSX tag) และ class `State<T>` ที่เป็นคู่กันจะเก็บ state ที่เปลี่ยนแปลงได้และเป็นเจ้าของ method `build()` ทั้งสองทำงานร่วมกัน: widget ให้ identity และ configuration; state ให้ความจำและ lifecycle
+
+## ทำไมต้องแยก?
+
+Widget tree ของ Flutter ถูก rebuild บ่อยมาก — การ rebuild ของ ancestor ใดก็ตามสามารถสร้าง widget objects ใหม่ได้ ถ้า state อยู่บน widget เองมันจะถูกทำลายทุกครั้งที่ rebuild ด้วยการเก็บ state ไว้ใน object `State` แยกต่างหากที่มีอายุยาวกว่าซึ่ง Flutter จัดการ การสร้าง widget description ใหม่ราคาถูกในขณะที่ state ยังคงอยู่ข้ามการ rebuild
+
+| แนวคิดจาก React | เทียบเท่าใน Flutter |
+|---|---|
+| `useState` / `this.state` | fields บน class `State<T>` |
+| `setState(newVal)` | `setState(() { field = newVal; })` |
+| Component function / `render()` | `State.build(BuildContext)` |
+| `useEffect(fn, [])` — mount | `initState()` |
+| `useEffect(fn, [dep])` — prop change | `didUpdateWidget(oldWidget)` |
+| `useEffect(() => cleanup, [])` — unmount | `dispose()` |
+| `useContext` / React Context | `InheritedWidget` / `BuildContext` |
+| React `key` prop | Flutter `Key` บน widget |
+
+## บทเรียนในโมดูลนี้
+
+1. **State & Lifecycle overview** ← คุณอยู่ที่นี่
+2. **setState vs useState** — mutable state API
+3. **build() vs render()** — pure rebuild model ของ Flutter
+4. **Lifecycle เชิงลึก** — `initState`, `didChangeDependencies`, `didUpdateWidget`, `dispose`
+5. **Rebuilds & Keys** — `const` widgets, identity, และ reconciliation
+
+export const quizIndex = [
+  {
+    q: 'ทำไม Flutter ต้องแยก StatefulWidget ออกจาก State class?',
+    options: [
+      'เพื่อบังคับใช้ immutability บน widget tree ในขณะที่ state ยังคงอยู่ข้ามการ rebuild',
+      'เพราะ Dart ไม่รองรับ fields บน abstract classes',
+      'เพื่อให้ hot reload ทำงานได้',
+      'เพื่อให้ widget สามารถแชร์ข้ามหลาย tree ได้',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'React hook ใดที่ใกล้เคียงกับ initState() ของ Flutter มากที่สุด?',
+    options: [
+      'useCallback',
+      'useMemo',
+      'useEffect ที่มี dependency array ว่าง',
+      'useReducer',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Flutter method ใดที่เทียบเท่ากับ cleanup function ของ useEffect?',
+    options: ['initState', 'build', 'dispose', 'setState'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="state-lifecycle/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="state-lifecycle/index" />

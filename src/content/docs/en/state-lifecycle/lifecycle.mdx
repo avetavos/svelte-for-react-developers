@@ -1,0 +1,317 @@
+---
+title: 'The Flutter Lifecycle'
+description: 'initState, didChangeDependencies, didUpdateWidget, setState, and dispose — mapped to React hooks and class component lifecycle methods.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+Flutter's `State<T>` class exposes a set of lifecycle methods that fire in a well-defined order. If you have used React hooks or class components, every single one of these has a direct equivalent. Once you internalize the mapping you will know exactly when to put each piece of logic.
+
+## The complete mapping table
+
+| Flutter method | When it fires | React equivalent |
+|---|---|---|
+| `createState()` | Once — widget first inserted into tree | Component function first call / `constructor()` |
+| `initState()` | Once — State object created, before first `build()` | `useEffect(() => { /* setup */ }, [])` — mount phase |
+| `didChangeDependencies()` | After `initState()`, and when an `InheritedWidget` the State depends on changes | `useEffect(() => { /* context */ }, [contextValue])` |
+| `build()` | Every time the widget needs to redraw | Component function body / `render()` |
+| `didUpdateWidget(oldWidget)` | Parent rebuilds and passes a new widget configuration | `useEffect(() => { /* sync */ }, [prop])` |
+| `setState(() { ... })` | Called by your code to mutate state and trigger a rebuild | `const [x, setX] = useState(...)` setter call |
+| `deactivate()` | Widget removed from tree temporarily (uncommon) | _(no direct equivalent — rarely needed)_ |
+| `dispose()` | State permanently destroyed | `useEffect(() => { return () => cleanup(); }, [])` |
+
+## Step-by-step lifecycle flow
+
+```
+createState()
+    ↓
+initState()          ← mount: start controllers, subscriptions, fetch initial data
+    ↓
+didChangeDependencies()  ← first call, then fires again if InheritedWidget changes
+    ↓
+build()              ← pure UI description; runs every rebuild
+    ↑  ↓
+setState()           ← loops back to build() until widget is removed
+    ↓
+didUpdateWidget()    ← fires when parent passes new widget config (new props)
+    ↓
+deactivate()         ← tree removal (usually temporary)
+    ↓
+dispose()            ← permanent teardown: cancel timers, close streams, dispose controllers
+```
+
+## Side-by-side comparison
+
+export const lcReact = `import { useState, useEffect, useRef } from 'react';
+
+function TimerWidget({ label }) {
+  const [seconds, setSeconds] = useState(0);
+  const intervalRef = useRef(null);
+
+  // Mount — equivalent to initState
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      setSeconds(s => s + 1);
+    }, 1000);
+
+    // Unmount cleanup — equivalent to dispose
+    return () => clearInterval(intervalRef.current);
+  }, []);
+
+  // Prop change — equivalent to didUpdateWidget
+  useEffect(() => {
+    console.log('label changed to', label);
+    // re-sync any logic that depends on label
+  }, [label]);
+
+  return (
+    <div>
+      <p>{label}: {seconds}s</p>
+    </div>
+  );
+}`;
+
+export const lcFlutter = `class TimerWidget extends StatefulWidget {
+  final String label;
+  const TimerWidget({super.key, required this.label});
+
+  @override
+  State<TimerWidget> createState() => _TimerWidgetState();
+}
+
+class _TimerWidgetState extends State<TimerWidget> {
+  int _seconds = 0;
+  Timer? _timer;
+
+  // Mount — runs once before first build()
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _seconds++);
+    });
+  }
+
+  // Prop change — old config available via oldWidget
+  @override
+  void didUpdateWidget(TimerWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.label != widget.label) {
+      debugPrint('label changed to \${widget.label}');
+    }
+  }
+
+  // Unmount — permanent teardown
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text('\${widget.label}: \$_seconds s',
+        style: const TextStyle(fontSize: 24));
+  }
+}`;
+
+<ReactFlutter client:visible react={lcReact} flutter={lcFlutter} />
+
+<Diff title="React hooks lifecycle → Flutter State lifecycle">
+
+- **`initState()` = `useEffect(fn, [])`** — called exactly once after the `State` object is created, before the first `build()`. Use it to start timers, subscribe to streams, create `AnimationController`s, or kick off the initial data fetch. Always call `super.initState()` first.
+- **`didChangeDependencies()` = `useEffect(fn, [contextValue])`** — called after `initState()` and again whenever an `InheritedWidget` the State reads via `context.dependOnInheritedWidgetOfExactType` changes. `Theme.of(context)` and `MediaQuery.of(context)` trigger this. It is safe to access the context here (unlike `initState`, where `context` must be used carefully).
+- **`didUpdateWidget(oldWidget)` = `useEffect(fn, [prop])`** — called when the parent rebuilds and provides a new widget instance. The previous configuration is passed as `oldWidget`. Compare `oldWidget.X != widget.X` to decide whether to re-sync. The `State` object itself is *not* replaced — only the widget configuration changes.
+- **`dispose()` = the cleanup return of `useEffect`** — called when the `State` is permanently removed from the tree. Cancel `Timer`s, close `StreamSubscription`s, call `.dispose()` on `AnimationController`, `TextEditingController`, `ScrollController`, and similar resources. Always call `super.dispose()` last.
+- **`mounted` guard.** After any `await`, always check `if (mounted)` before calling `setState`. The `State` may have been disposed while the async operation was in flight.
+- **Order matters.** `super.initState()` must be the first call in `initState()`; `super.dispose()` must be the last call in `dispose()`. Violating this order causes subtle bugs.
+
+</Diff>
+
+## Runnable example — Timer with full lifecycle
+
+export const lcCode = `import 'dart:async';
+import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
+      home: const LifecycleDemoScreen(),
+    );
+  }
+}
+
+class LifecycleDemoScreen extends StatefulWidget {
+  const LifecycleDemoScreen({super.key});
+  @override
+  State<LifecycleDemoScreen> createState() => _LifecycleDemoScreenState();
+}
+
+class _LifecycleDemoScreenState extends State<LifecycleDemoScreen> {
+  bool _showTimer = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Lifecycle Demo')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_showTimer) const TimerWidget(label: 'Elapsed'),
+            const SizedBox(height: 32),
+            FilledButton(
+              onPressed: () => setState(() => _showTimer = !_showTimer),
+              child: Text(_showTimer ? 'Unmount timer (dispose)' : 'Mount timer (initState)'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// The widget that demonstrates the full lifecycle
+class TimerWidget extends StatefulWidget {
+  final String label;
+  const TimerWidget({super.key, required this.label});
+
+  @override
+  State<TimerWidget> createState() => _TimerWidgetState();
+}
+
+class _TimerWidgetState extends State<TimerWidget> {
+  int _seconds = 0;
+  Timer? _timer;
+  final List<String> _log = [];
+
+  // ═══════════════ initState ═══════════════
+  // Equivalent to: useEffect(() => { start timer }, [])
+  @override
+  void initState() {
+    super.initState();
+    _log.add('initState — timer started');
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {
+          _seconds++;
+          _log.add('setState — rebuild #\$_seconds');
+        });
+      }
+    });
+  }
+
+  // ═══════════════ didChangeDependencies ═══════════════
+  // Fires after initState and on InheritedWidget changes
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Safe to call Theme.of(context) here
+    _log.add('didChangeDependencies');
+  }
+
+  // ═══════════════ didUpdateWidget ═══════════════
+  // Equivalent to: useEffect(() => { sync }, [label])
+  @override
+  void didUpdateWidget(TimerWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.label != widget.label) {
+      _log.add('didUpdateWidget — label changed');
+    }
+  }
+
+  // ═══════════════ dispose ═══════════════
+  // Equivalent to: useEffect(() => { return () => cleanup() }, [])
+  @override
+  void dispose() {
+    _timer?.cancel();
+    // Note: setState cannot be called here — widget is being torn down
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '\${widget.label}: \$_seconds s',
+          style: TextStyle(
+            fontSize: 48,
+            fontWeight: FontWeight.bold,
+            color: scheme.primary,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          width: 320,
+          height: 160,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: SingleChildScrollView(
+            reverse: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _log
+                  .map((entry) => Text(entry,
+                      style: TextStyle(fontSize: 12, color: scheme.onSurface)))
+                  .toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}`;
+
+<DartPad client:visible code={lcCode} />
+
+export const quizLc = [
+  {
+    q: 'Which lifecycle method is equivalent to useEffect(() => { ... }, []) — the mount-only effect?',
+    options: ['didUpdateWidget', 'build', 'initState', 'dispose'],
+    answer: 2,
+  },
+  {
+    q: 'What is the correct place to cancel a Timer or close a StreamSubscription?',
+    options: ['build()', 'initState()', 'didChangeDependencies()', 'dispose()'],
+    answer: 3,
+  },
+  {
+    q: 'didUpdateWidget(oldWidget) fires when:',
+    options: [
+      'setState() is called inside the State',
+      'The parent widget rebuilds and provides a new widget configuration object',
+      'An InheritedWidget above the State changes',
+      'The app goes to the background',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why must you call super.dispose() at the END (not the start) of your dispose() override?',
+    options: [
+      'Dart requires super calls at the end by syntax',
+      'So that your cleanup (timer cancel, controller dispose) runs before the framework tears down the State internals',
+      'To prevent the State from rebuilding one final time',
+      'Because super.dispose() is asynchronous',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="state-lifecycle/lifecycle" questions={quizLc} />
+
+<ProgressTracker client:visible id="state-lifecycle/lifecycle" />

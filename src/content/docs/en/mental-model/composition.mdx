@@ -1,0 +1,220 @@
+---
+title: 'Composition over Configuration'
+description: 'Flutter and React both prefer composition over inheritance. Learn how wrapping widgets maps to React children props, HOCs, and render props.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React's composition model — small components that accept `children`, higher-order components that wrap behavior, and render props — maps cleanly onto Flutter's widget model. In Flutter you compose behavior by wrapping widgets: `Padding(child: ...)`, `GestureDetector(child: ...)`, `Opacity(child: ...)`. There is no equivalent to CSS class inheritance or widget subclassing for visual customization. Everything is composition.
+
+## Wrapping behavior
+
+export const reactComposition = `// React — children prop
+function Card({ children, elevated }) {
+  return (
+    <div
+      style={{
+        padding: 16,
+        borderRadius: 12,
+        boxShadow: elevated ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Usage
+<Card elevated>
+  <h3>Hello</h3>
+  <p>Composed content</p>
+</Card>`;
+
+export const flutterComposition = `// Flutter — wrapper widget with child
+class AppCard extends StatelessWidget {
+  final Widget child;
+  final bool elevated;
+  const AppCard({super.key, required this.child, this.elevated = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: elevated
+            ? [BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 12,
+                offset: const Offset(0, 4))]
+            : [],
+      ),
+      child: child,
+    );
+  }
+}
+
+// Usage
+AppCard(
+  elevated: true,
+  child: Column(
+    children: [
+      Text('Hello', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      Text('Composed content'),
+    ],
+  ),
+)`;
+
+<ReactFlutter client:visible react={reactComposition} flutter={flutterComposition} />
+
+export const compositionCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.grey[100],
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AppCard(
+                elevated: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text('Getting Started', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 4),
+                    Text('Learn the basics of Flutter composition.', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              AppCard(
+                elevated: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text('Widget Tree', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 4),
+                    Text('Everything is a widget — compose, not configure.', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              AppCard(
+                elevated: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text('Declarative UI', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 4),
+                    Text('UI = f(state) — the same idea you know from React.', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AppCard extends StatelessWidget {
+  final Widget child;
+  final bool elevated;
+  const AppCard({super.key, required this.child, this.elevated = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: elevated
+            ? [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                )
+              ]
+            : [],
+      ),
+      child: child,
+    );
+  }
+}`;
+
+<DartPad client:visible code={compositionCode} />
+
+<Diff title="React children / HOCs → Flutter composition">
+
+- **`{children}` in JSX** → `child: Widget` (single child) or `children: List<Widget>` (multiple children) constructor parameter.
+- **HOC wrapping behavior** → Wrap with a widget: `GestureDetector(onTap: ..., child: myWidget)`. Each wrapper adds one behavior.
+- **Render props** → Pass a `Widget Function(...)` as a constructor parameter. The parent calls it and uses the returned widget.
+- **`React.Children.map`** → `children` is a plain `List<Widget>` — call `.map()` on it directly.
+- **No inheritance for visual customization** — always compose, never extend. You cannot style a widget by subclassing it.
+
+</Diff>
+
+export const quizComposition = [
+  {
+    q: "What is the Flutter equivalent of React's children prop?",
+    options: [
+      'A list called childWidgets',
+      'The child: Widget or children: List<Widget> constructor parameter',
+      'A special this.props.children field',
+      'There is no equivalent — Flutter uses inheritance',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'In Flutter, how do you add a tap handler to any widget?',
+    options: [
+      'Call widget.addClickListener()',
+      'Add onTap: directly to every widget',
+      'Wrap the widget in GestureDetector(onTap: ..., child: widget)',
+      'Use a TapProvider higher up in the tree',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'React render props (passing a function that returns JSX) map to Flutter as:',
+    options: [
+      'Passing a Widget Function(...) as a constructor parameter',
+      'Using a builder: callback on StatelessWidget',
+      'A plugin from pub.dev',
+      'setState callbacks',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'Why does Flutter prefer composition over inheritance for visual customization?',
+    options: [
+      'Dart does not support class inheritance',
+      'The Flutter framework forbids extends on widget classes',
+      'Composition is more flexible — small reusable widgets are easier to combine than deep class hierarchies',
+      'For performance reasons only',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="mental-model/composition" questions={quizComposition} />
+
+<ProgressTracker client:visible id="mental-model/composition" />

@@ -1,0 +1,182 @@
+---
+title: 'build() vs render()'
+description: 'Flutter build() runs on every rebuild just like a React render — keep it pure, cheap, and free of side effects.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React, the component function (or `render()` in class components) is called every time state or props change. It must be a **pure function**: given the same state and props it returns the same JSX, with no side effects inside the body.
+
+Flutter's `build()` method follows exactly the same contract. It is called by the framework on every rebuild triggered by `setState`, a parent rebuild, or an `InheritedWidget` change. It must be **pure and cheap**: no network calls, no `Future.wait`, no heavy computation — just a description of the UI.
+
+The practical rule is identical in both frameworks: **describe, don't do**.
+
+## Side-by-side comparison
+
+export const bvReact = `// React — component function is the "render"
+function UserCard({ userId }) {
+  const [user, setUser] = useState(null);
+
+  // Side effects go in useEffect, NOT in render body
+  useEffect(() => {
+    fetchUser(userId).then(setUser);
+  }, [userId]);
+
+  // render body: pure description only
+  if (!user) return <p>Loading...</p>;
+  return (
+    <div className="card">
+      <h2>{user.name}</h2>
+      <p>{user.email}</p>
+    </div>
+  );
+}`;
+
+export const bvFlutter = `class UserCard extends StatefulWidget {
+  final String userId;
+  const UserCard({super.key, required this.userId});
+
+  @override
+  State<UserCard> createState() => _UserCardState();
+}
+
+class _UserCardState extends State<UserCard> {
+  User? _user;
+
+  // Side effects go in initState / didUpdateWidget, NOT in build()
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final u = await fetchUser(widget.userId);
+    if (mounted) setState(() => _user = u);
+  }
+
+  // build(): pure description only
+  @override
+  Widget build(BuildContext context) {
+    if (_user == null) return const CircularProgressIndicator();
+    return Card(
+      child: Column(children: [
+        Text(_user!.name,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(_user!.email),
+      ]),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={bvReact} flutter={bvFlutter} />
+
+<Diff title="React render body → Flutter build()">
+
+- **Same purity contract.** Both must be side-effect free. Never call `setState` inside `build()` — that creates an infinite rebuild loop. Never start a network request inside `build()`.
+- **`build()` can be called very frequently.** Flutter may call `build()` dozens of times per second during animations. Expensive work (parsing, sorting, heavy allocation) must be moved to `initState`, `didUpdateWidget`, or a dedicated compute isolate.
+- **`const` widgets short-circuit the call entirely.** If a sub-widget is `const`, Flutter reuses the cached instance and never calls its `build()` again — a stronger optimization than React's `React.memo` because it applies at the language level with zero boilerplate.
+- **`mounted` guard for async.** After an `await` inside a State method, the widget may have been disposed. Always check `if (mounted)` before calling `setState` in async code. React equivalent: cleanup functions in `useEffect` (cancel the fetch or ignore the result if the component unmounted).
+- **`widget.X` to read config inside State.** Inside the `State` class, the current widget's configuration is accessed via the `widget` property (e.g., `widget.userId`). React equivalent: the props argument or `this.props` in class components.
+
+</Diff>
+
+## Runnable example
+
+export const bvCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
+      home: const Scaffold(body: Center(child: RebuildDemo())),
+    );
+  }
+}
+
+// This widget counts how many times build() is called —
+// demonstrating that build() is cheap and runs frequently.
+class RebuildDemo extends StatefulWidget {
+  const RebuildDemo({super.key});
+
+  @override
+  State<RebuildDemo> createState() => _RebuildDemoState();
+}
+
+class _RebuildDemoState extends State<RebuildDemo> {
+  int _counter = 0;
+  int _buildCount = 0; // incremented inside build to show frequency
+
+  @override
+  Widget build(BuildContext context) {
+    // Tracking rebuild count — this is the ONLY acceptable "side effect"
+    // in build(): a synchronous field increment for demo purposes.
+    _buildCount++;
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Counter: \$_counter',
+              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('build() called: \$_buildCount times',
+              style: const TextStyle(color: Colors.grey)),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => setState(() => _counter++),
+            child: const Text('Increment (triggers rebuild)'),
+          ),
+        ],
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={bvCode} />
+
+export const quizBv = [
+  {
+    q: 'What is the Flutter equivalent of the React rule "no side effects in the render body"?',
+    options: [
+      'Never import packages inside build()',
+      'Never call setState, start async work, or perform heavy computation inside build()',
+      'Always return a const widget from build()',
+      'Never use BuildContext inside build()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why must you check `if (mounted)` before calling setState after an await?',
+    options: [
+      'Because setState is not available until the widget is fully painted',
+      'Because the widget may have been disposed between the await and the setState call',
+      'Because await always runs on a different isolate',
+      'Because mounted controls whether the widget is visible on screen',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How do you access the StatefulWidget\'s configuration fields from inside the State class?',
+    options: [
+      'Via this.props',
+      'Via context.widget',
+      'Via the widget property (e.g., widget.userId)',
+      'By passing them to the State constructor',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="state-lifecycle/build-vs-render" questions={quizBv} />
+
+<ProgressTracker client:visible id="state-lifecycle/build-vs-render" />

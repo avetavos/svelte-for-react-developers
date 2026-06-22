@@ -1,0 +1,143 @@
+---
+title: 'Widget Testing'
+description: 'flutter test + testWidgets เทียบกับ jest + React Testing Library — pumpWidget, WidgetTester, find และ expect เทียบกับ render, screen, fireEvent'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React คุณทดสอบ components ด้วย jest และ React Testing Library: `render()` mount component, `screen.getByText()` query มัน, `fireEvent.click()` โต้ตอบกับมัน Testing API ของ Flutter แมปแทบหนึ่งต่อหนึ่ง: `testWidgets()` คือ block `test()` ของคุณ, `pumpWidget()` คือ `render()`, `find.text()` คือ `screen.getByText()`, และ `tester.tap()` คือ `fireEvent.click()` mental model เหมือนกันทุกประการ — แค่ syntax ต่างกัน
+
+> **หมายเหตุเกี่ยวกับการทดสอบ:** Widget tests ต้องใช้ runner ของ `flutter test` — ไม่สามารถรันใน DartPad ได้ รันในเครื่องด้วย `flutter test`
+
+## การตั้งค่าทดสอบ
+
+Flutter tests อยู่ใน `test/` ที่ root ของโปรเจกต์ ซึ่งสอดคล้องกับวิธีที่คุณอาจวาง tests ไว้ใน `src/__tests__/` หรือ colocate ไฟล์ `*.test.tsx` naming convention คือ `*_test.dart` — test runner ของ Flutter จะค้นหาไฟล์ที่ลงท้ายด้วย `_test.dart` ใน `test/` โดยอัตโนมัติ
+
+รัน tests ด้วย:
+
+```bash
+# Run all tests
+flutter test
+
+# Run a single file
+flutter test test/counter_test.dart
+```
+
+package `flutter_test` ฝังอยู่ใน SDK แล้ว — ไม่ต้องใช้ `npm install` นำเข้าในทุกไฟล์ทดสอบ:
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+```
+
+ห่อ widget ที่ทดสอบด้วย `MaterialApp(home: Scaffold(body: ...))` นี่คือ Flutter equivalent ของการห่อ component ใน `Provider`, `ThemeProvider`, หรือ custom `render` wrapper ใน RTL — มันตอบสนอง widgets ที่อ่าน `Theme`, `MediaQuery`, หรือ `Navigator` จาก ancestor context
+
+## การแมป Core API
+
+| React Testing Library | Flutter widget test | วัตถุประสงค์ |
+|---|---|---|
+| `render(<MyWidget />)` | `await tester.pumpWidget(const MaterialApp(home: MyWidget()))` | Mount widget |
+| `screen.getByText('Hi')` | `find.text('Hi')` | ค้นหาด้วย text |
+| `screen.getByType(Button)` | `find.byType(ElevatedButton)` | ค้นหาด้วย type |
+| `screen.getByKey('my-key')` | `find.byKey(const Key('my-key'))` | ค้นหาด้วย key |
+| `fireEvent.click(el)` | `await tester.tap(find.byType(ElevatedButton))` | Tap |
+| `userEvent.type(el, 'Hello')` | `await tester.enterText(find.byType(TextField), 'Hello')` | พิมพ์ text |
+| `await waitFor(...)` | `await tester.pumpAndSettle()` | รอ animations/async |
+| `expect(el).toBeInTheDocument()` | `expect(find.text('Hi'), findsOneWidget)` | ยืนยันการมีอยู่ |
+| `expect(el).not.toBeInTheDocument()` | `expect(find.text('Hi'), findsNothing)` | ยืนยันการไม่มีอยู่ |
+
+export const testReact = `// React + React Testing Library
+import { render, screen, fireEvent } from '@testing-library/react';
+import Counter from './Counter';
+
+test('increments count on button click', () => {
+  render(<Counter />);
+
+  expect(screen.getByText('Count: 0')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: /increment/i }));
+
+  expect(screen.getByText('Count: 1')).toBeInTheDocument();
+});`;
+
+export const testFlutter = `// Flutter testWidgets
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:my_app/counter.dart';
+
+void main() {
+  testWidgets('increments count on button tap', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: Counter())),
+    );
+
+    expect(find.text('Count: 0'), findsOneWidget);
+
+    await tester.tap(find.byType(ElevatedButton));
+    await tester.pump();
+
+    expect(find.text('Count: 1'), findsOneWidget);
+  });
+}`;
+
+<ReactFlutter client:visible react={testReact} flutter={testFlutter} reactTitle="React + RTL" flutterTitle="Flutter testWidgets" />
+
+<Diff title="สิ่งที่เปลี่ยนแปลงเมื่อคุณย้ายจาก RTL ไปสู่ Flutter widget tests">
+
+- **`testWidgets()` ห่อทุก Flutter widget test** callback รับ `WidgetTester` — object นั้นคือ handle ของคุณสำหรับทุกอย่าง: mounting widgets, triggering interactions, และการรัน frames ไม่มีการ import แยกต่างหากสำหรับ `tester` — มันถูกส่งเข้ามาโดยอัตโนมัติ
+- **`await` อยู่ทุกที่** `pumpWidget`, `tap`, `enterText`, และ `pumpAndSettle` ล้วนเป็น async การลืม `await` คือสาเหตุที่พบบ่อยที่สุดของ Flutter tests ที่ไม่เสถียร — action ดูเหมือนทำงาน แต่ UI ยังไม่ได้อัปเดต
+- **`pump()` ทริกเกอร์หนึ่ง frame ของการ render** เรียกใช้หลัง synchronous state change (เช่น การ tap ปุ่มที่เรียก `setState`) `pumpAndSettle()` รัน frames จนกว่า widget tree จะเสถียร — ใช้หลัง animations, `Future`s, หรือ `Stream` updates เหมือนกับที่คุณใช้ `await waitFor(...)` ใน RTL
+- **ต้องใช้ `MaterialApp` wrapper** สำหรับ widget ใดก็ตามที่อ่านจาก `Theme`, `MediaQuery`, `Navigator`, หรือ inherited widget อื่นๆ ที่ `MaterialApp` มอบให้ การละเว้นมันจะเกิด error `No MaterialLocalizations found` — Flutter equivalent ของการลืมห่อ component ใน `Provider` ที่จำเป็น
+- **`find` คืนค่า `Finder` ไม่ใช่ widget instance** คุณไม่เคยถือ reference ไปยัง widget เองโดยตรง แต่ส่ง `Finder` ไปยัง `expect()`, `tester.tap()`, `tester.enterText()` และอื่นๆ แทน ซึ่งคล้ายคลึงกับที่ `screen.getByText()` ใน RTL คืนค่า DOM element ที่คุณส่งต่อไปยัง `fireEvent`
+- **`findsOneWidget`, `findsNothing`, `findsNWidgets(3)`** คือ Flutter matchers ที่แทน `toBeInTheDocument()`, `not.toBeInTheDocument()`, และ length assertions ของ jest อ่านได้เป็นธรรมชาติใน `expect(find.text('Hello'), findsOneWidget)`
+
+</Diff>
+
+export const quizWidgetTests = [
+  {
+    q: "Flutter equivalent ของฟังก์ชัน render() ของ RTL คืออะไร?",
+    options: [
+      'tester.build()',
+      'await tester.pumpWidget()',
+      'tester.mount()',
+      'await tester.render()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'await tester.pumpAndSettle() ทำอะไร?',
+    options: [
+      'ล้าง widget tree',
+      'ส่ง form',
+      'รัน animation frames จนกว่า UI จะเสถียร (คล้าย waitFor)',
+      'โหลดแอปใหม่จาก main()',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'matcher ใดยืนยันว่า widget ไม่มีอยู่ใน tree?',
+    options: [
+      'findsZeroWidgets',
+      'findsNothing',
+      'findsNone',
+      'isAbsent',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ทำไม widgets ที่ทดสอบต้องถูกห่อใน MaterialApp?',
+    options: [
+      'Flutter ต้องการมันสำหรับ hot reload',
+      'หลาย widgets อ่าน Theme, MediaQuery, หรือ Navigator จาก ancestor context',
+      'มันป้องกัน state รั่วไหลระหว่างการทดสอบ',
+      'MaterialApp มอบ test runner',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="tooling/widget-tests" questions={quizWidgetTests} />
+
+<ProgressTracker client:visible id="tooling/widget-tests" />

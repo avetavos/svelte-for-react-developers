@@ -1,0 +1,165 @@
+---
+title: 'Flutter Setup & Toolchain'
+description: 'Install Flutter and configure your editor — mapped to npm, Vite, and VS Code concepts you already know.'
+---
+
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+> **Playground note:** This is a setup and toolchain lesson — no runnable in-browser snippet applies here. Follow the steps in your terminal.
+
+Setting up Flutter is closer to installing the Go or Rust toolchain than to `npm install`. You download one SDK, add it to your `PATH`, and the `flutter` CLI handles everything else — dependency management, device emulation, builds, and hot reload.
+
+## Install Flutter
+
+Visit [flutter.dev/docs/get-started/install](https://flutter.dev/docs/get-started/install) and follow the guide for your OS (macOS, Windows, or Linux).
+
+**macOS shortcut (Homebrew):**
+
+```bash
+brew install --cask flutter
+```
+
+After installation, run the doctor to verify your environment:
+
+```bash
+flutter doctor
+```
+
+`flutter doctor` is Flutter's equivalent of `npx create-react-app --check` — it scans for missing dependencies (Xcode, Android Studio, connected devices) and tells you exactly what to fix.
+
+## The `flutter` CLI vs npm / Vite
+
+| npm / Vite / CRA | `flutter` CLI | Purpose |
+|---|---|---|
+| `npm create vite@latest my-app` | `flutter create my_app` | Scaffold a new project |
+| `npm install` | `flutter pub get` | Install dependencies |
+| `npm run dev` | `flutter run` | Start dev server + hot reload |
+| `npm run build` | `flutter build apk` / `flutter build web` | Production build |
+| `npm install package` | `flutter pub add package` | Add a dependency |
+| `npm test` | `flutter test` | Run tests |
+| `npx eslint .` | `flutter analyze` | Lint / static analysis |
+
+### Scaffold a new project
+
+```bash
+flutter create my_app
+cd my_app
+flutter run
+```
+
+`flutter create` generates a project similar to what `create-react-app` produces: an entry point, a sample widget, and all the platform-specific boilerplate (iOS Xcode project, Android Gradle files, web `index.html`).
+
+## Project structure vs React
+
+```
+my_app/
+├── lib/
+│   └── main.dart          # entry point  (≈ src/main.tsx)
+├── test/
+│   └── widget_test.dart   # tests        (≈ src/__tests__/)
+├── pubspec.yaml           # dependencies (≈ package.json)
+├── android/               # Android native shell
+├── ios/                   # iOS native shell
+└── web/                   # Web shell
+```
+
+Your Dart code lives entirely in `lib/`. You almost never touch `android/` or `ios/` unless you need platform-specific native code.
+
+## `pubspec.yaml` vs `package.json`
+
+```yaml
+# pubspec.yaml
+name: my_app
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.4.0          # HTTP client  (≈ axios)
+  go_router: ^13.0.0   # routing      (≈ react-router-dom)
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+```
+
+After editing `pubspec.yaml` run `flutter pub get` (≈ `npm install`) to fetch packages from [pub.dev](https://pub.dev) — Dart's npm registry.
+
+### Adding a package
+
+```bash
+flutter pub add dio
+```
+
+This edits `pubspec.yaml` and runs `pub get` in one step — equivalent to `npm install dio`.
+
+## Editor setup
+
+**VS Code** (recommended for React developers):
+1. Install the **Flutter** extension (includes Dart language support).
+2. Open the command palette → **Flutter: Select Device** to pick a simulator/emulator.
+3. Press `F5` or run **Flutter: Run** to start with hot reload.
+
+**Android Studio / IntelliJ**: Install the Flutter and Dart plugins. This is the preferred IDE for Android-heavy work.
+
+### Hot Reload vs Fast Refresh
+
+Both work the same way: edit a source file, save, and the running app updates in under a second without losing state. In Flutter:
+
+- **Hot Reload** (`r` in the terminal, or `Ctrl+S` in VS Code with the extension) — injects updated code, preserves widget state.
+- **Hot Restart** (`R`) — full restart, resets state. Equivalent to `Ctrl+C` + `npm run dev`.
+
+## Running on a device or emulator
+
+```bash
+# list available devices
+flutter devices
+
+# run on a specific device
+flutter run -d "iPhone 16"
+flutter run -d chrome
+flutter run -d macos
+```
+
+<Diff title="React toolchain → Flutter toolchain">
+
+- **No `node_modules/` folder.** Packages are stored in the global pub cache (`~/.pub-cache`). Your project folder stays lean.
+- **`pubspec.lock`** is the equivalent of `package-lock.json` / `yarn.lock`. Commit it.
+- **Platform folders (`android/`, `ios/`) are generated** by `flutter create` and managed by Flutter. You do not write Gradle or Xcode config unless you need native plugins.
+- **`flutter analyze`** is the built-in linter. No separate ESLint setup required.
+- **`flutter test`** runs all files matching `test/**/*_test.dart` — no Jest config needed.
+
+</Diff>
+
+export const quizSetup = [
+  {
+    q: 'What is the Flutter equivalent of `npm install`?',
+    options: ['flutter install', 'flutter pub get', 'dart pub install', 'flutter fetch'],
+    answer: 1,
+  },
+  {
+    q: 'Where does your Dart application code live in a Flutter project?',
+    options: ['src/', 'dart/', 'lib/', 'app/'],
+    answer: 2,
+  },
+  {
+    q: 'Which command adds a new package to a Flutter project and updates pubspec.yaml?',
+    options: ['flutter install <pkg>', 'flutter pub add <pkg>', 'dart add <pkg>', 'pub install <pkg>'],
+    answer: 1,
+  },
+  {
+    q: "Flutter's Hot Reload preserves widget state. What does Hot Restart do?",
+    options: [
+      'Saves the current state to disk',
+      'Only reloads changed files',
+      'Performs a full restart and resets all state',
+      'Rebuilds the native app binary',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/setup" questions={quizSetup} />
+
+<ProgressTracker client:visible id="intro/setup" />

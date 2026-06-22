@@ -1,0 +1,247 @@
+---
+title: 'FutureBuilder และ StreamBuilder'
+description: 'UI async แบบ declarative ด้วย FutureBuilder และ StreamBuilder เทียบกับ useEffect+fetch, react-query และ Suspense'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React คุณใช้ `useEffect` + `useState`, react-query หรือ Suspense เพื่อจัดการ async data ใน UI Flutter มี `FutureBuilder` และ `StreamBuilder` — widget ที่จัดการ loading, error และ data states แบบ declarative ตรงในตัว widget tree แทนที่จะต้องตั้ง flags และ effects คุณแค่ส่ง `Future` หรือ `Stream` ให้ widget แล้วอธิบายว่าจะ render อะไรสำหรับแต่ละ state
+
+## FutureBuilder
+
+`FutureBuilder` คือคำตอบของ Flutter สำหรับ `useEffect` + `fetch` + loading boolean คุณส่ง `Future` และ callback `builder` ที่รับ `AsyncSnapshot` มาให้มัน snapshot นั้นมี enum `connectionState` (`waiting`, `done`) และ `data` หรือ `error` — ไม่ต้องจัดการ flag เองเลย
+
+export const fbReact = `// React: useEffect + fetch + loading flag
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(\`/api/users/\${userId}\`)
+      .then(r => r.json())
+      .then(data => { if (!cancelled) setUser(data); })
+      .catch(err => { if (!cancelled) setError(err); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  if (loading) return <Spinner />;
+  if (error) return <p>Error: {error.message}</p>;
+  return <p>{user.name}</p>;
+}`;
+
+export const fbFlutter = `// Flutter: FutureBuilder — ไม่มี flags, ไม่มี effects
+class UserProfile extends StatelessWidget {
+  final String userId;
+  const UserProfile({super.key, required this.userId});
+
+  Future<String> _fetchUser() async {
+    // จำลอง network call
+    await Future.delayed(const Duration(seconds: 1));
+    return 'Ava Tavos';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _fetchUser(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CircularProgressIndicator();
+        }
+        if (snapshot.hasError) {
+          return Text('Error: \${snapshot.error}');
+        }
+        return Text(snapshot.data ?? '');
+      },
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={fbReact} flutter={fbFlutter} />
+
+## StreamBuilder
+
+`StreamBuilder` คือ `FutureBuilder` สำหรับข้อมูลต่อเนื่อง — เช่น WebSocket feeds, real-time database updates หรือ interval timers ใน React คุณอาจใช้ WebSocket, EventSource หรือ RxJS observable ที่ครอบด้วย `useEffect` ใน Flutter คุณส่ง `Stream` โดยตรงให้ widget
+
+export const sbReact = `// React: WebSocket feed via useEffect
+function LivePrice({ symbol }) {
+  const [price, setPrice] = useState(null);
+
+  useEffect(() => {
+    const ws = new WebSocket(\`wss://prices.example.com/\${symbol}\`);
+    ws.onmessage = e => setPrice(JSON.parse(e.data).price);
+    return () => ws.close(); // cleanup on unmount / symbol change
+  }, [symbol]);
+
+  if (price === null) return <p>Connecting…</p>;
+  return <p>\${price.toFixed(2)}</p>;
+}`;
+
+export const sbFlutter = `// Flutter: StreamBuilder — stream ต่อเชื่อมโดยตรงกับ tree
+class LivePrice extends StatelessWidget {
+  final Stream<double> priceStream;
+  const LivePrice({super.key, required this.priceStream});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<double>(
+      stream: priceStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Text('Connecting…');
+        }
+        if (snapshot.hasError) {
+          return Text('Error: \${snapshot.error}');
+        }
+        final price = snapshot.data ?? 0.0;
+        return Text('\$\${price.toStringAsFixed(2)}');
+      },
+    );
+  }
+}
+
+// การใช้งาน — ส่ง Stream<double> ใดก็ได้
+// StreamBuilder จะต่อเชื่อมตัวเองกับ stream โดยไม่ต้องมี cleanup code`;
+
+<ReactFlutter client:visible react={sbReact} flutter={sbFlutter} />
+
+## ตัวอย่างที่รันได้
+
+export const fbCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: DataFetchDemo(),
+        ),
+      ),
+    );
+  }
+}
+
+class DataFetchDemo extends StatelessWidget {
+  const DataFetchDemo({super.key});
+
+  Future<String> _loadData() async {
+    await Future.delayed(const Duration(seconds: 2));
+    return 'Data loaded!';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _loadData(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Fetching data…', style: TextStyle(color: Colors.grey)),
+            ],
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Card(
+            color: Colors.red.shade50,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'Error: \${snapshot.error}',
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
+          );
+        }
+
+        return Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 48),
+                const SizedBox(height: 12),
+                Text(
+                  snapshot.data ?? '',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'The Future resolved successfully.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}`;
+
+<DartPad client:visible code={fbCode} />
+
+<Diff title="FutureBuilder vs useEffect+fetch">
+
+- **Declarative vs imperative.** `FutureBuilder` อธิบายสิ่งที่จะ render สำหรับแต่ละ async state โดยตรงใน widget tree ด้วย `useEffect` คุณต้องตั้ง loading/error/data flags แบบ imperative และกระจาย rendering logic ไปทั่ว component
+- **`ConnectionState` enum vs loading boolean.** `AsyncSnapshot.connectionState` ของ Flutter ให้ `none`, `waiting`, `active` และ `done` — state machine ที่ละเอียดกว่า `isLoading: boolean` เพียงตัวเดียว `active` มีประโยชน์เป็นพิเศษกับ `StreamBuilder` เพื่อแยกระหว่าง "เชื่อมต่อแล้วแต่ยังไม่มีข้อมูล" กับ "ได้รับ event แรกแล้ว"
+- **Automatic teardown vs cleanup function.** `FutureBuilder` และ `StreamBuilder` ยกเลิก subscriptions และเพิกเฉยต่อข้อมูลที่มาช้าโดยอัตโนมัติเมื่อ widget ออกจาก tree ด้วย `useEffect` คุณต้อง return cleanup function และป้องกัน stale closures (รูปแบบ `cancelled` flag)
+- **Error slot vs try/catch ใน effect.** `snapshot.hasError` และ `snapshot.error` เป็น API first-class — ไม่ต้องใช้ `try/catch` หรือตัวแปร error state แยกต่างหาก framework จับ errors ที่ throw จาก `Future`/`Stream` และแสดงผ่าน snapshot
+
+</Diff>
+
+export const quizFb = [
+  {
+    q: 'ConnectionState ใดที่ FutureBuilder builder ได้รับขณะที่ Future ยังทำงานอยู่?',
+    options: ['ConnectionState.active', 'ConnectionState.waiting', 'ConnectionState.running', 'ConnectionState.loading'],
+    answer: 1,
+  },
+  {
+    q: 'ข้อดีหลักของ FutureBuilder เทียบกับ useEffect + useState คืออะไร?',
+    options: [
+      'FutureBuilder ทำงานได้เร็วกว่า',
+      'FutureBuilder จัดการ loading/error/data states แบบ declarative โดยไม่ต้องใช้ state variables หลายตัว',
+      'FutureBuilder รองรับ network requests ในตัว',
+      'FutureBuilder ไม่ต้องการ StatefulWidget',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'StreamBuilder เหมาะสมกว่า FutureBuilder เมื่อใด?',
+    options: [
+      'เมื่อต้องการ async operation เดียว',
+      'เมื่อข้อมูล emit ค่าหลายครั้งเมื่อเวลาผ่านไป (WebSocket, timer)',
+      'เมื่อต้องการ HTTP GET request',
+      'เมื่อต้องการ parse JSON',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="data/futurebuilder-streambuilder" questions={quizFb} />
+
+<ProgressTracker client:visible id="data/futurebuilder-streambuilder" />

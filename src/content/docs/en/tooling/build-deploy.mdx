@@ -1,0 +1,215 @@
+---
+title: 'Building & Deploying'
+description: "flutter build apk/ipa/web, release signing, and a GitHub Actions CI pipeline vs React's npm run build and Vercel/Netlify deploys."
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React, deploying means running `npm run build` to get a static `dist/` folder, then pushing it to Vercel, Netlify, or S3. Flutter has three build targets — Android (APK/AAB), iOS (IPA), and web — each with its own command and signing requirements. The CI pipeline logic is almost identical to a React pipeline; only the action steps differ.
+
+## Build commands
+
+Flutter's build commands map directly to `npm run build`, but you specify the target platform as a subcommand:
+
+```bash
+# Android
+flutter build apk              # Debug APK (for testing)
+flutter build apk --release    # Release APK (signed)
+flutter build appbundle        # Android App Bundle (Play Store preferred)
+
+# iOS (requires macOS + Xcode)
+flutter build ipa              # iOS Archive for App Store / TestFlight
+flutter build ipa --export-method ad-hoc  # Ad-hoc distribution
+
+# Web
+flutter build web              # Output to build/web/
+flutter build web --release    # Minified production build
+
+# Desktop
+flutter build macos
+flutter build windows
+flutter build linux
+```
+
+The web build outputs to `build/web/` — a static folder equivalent to Vite's `dist/`. You can deploy it to any CDN or static host without modification.
+
+## Release signing — Android
+
+Android release builds must be signed with a keystore. This is equivalent to code-signing in native app development — unsigned builds cannot be distributed through the Play Store.
+
+Create a keystore with the Java `keytool` utility:
+
+```bash
+keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+Then create `android/key.properties` to reference the keystore:
+
+```properties
+storePassword=<your-store-password>
+keyPassword=<your-key-password>
+keyAlias=upload
+storeFile=<path-to>/upload-keystore.jks
+```
+
+Finally, reference `key.properties` in `android/app/build.gradle` so the release build picks up the signing config automatically.
+
+Treat `key.properties` and the `.jks` file exactly like `.env` files containing secrets — never commit them to git. Add both to `.gitignore`.
+
+## Release signing — iOS
+
+iOS signing requires an Apple Developer account, a provisioning profile, and a signing certificate managed through Xcode. You can use Xcode's "Automatically manage signing" for most cases — it handles profile creation and certificate rotation.
+
+`flutter build ipa` generates a `.xcarchive` and then exports it to a `.ipa` file. The export method (`--export-method`) controls the distribution channel: `app-store` for App Store / TestFlight, `ad-hoc` for direct device distribution, and `development` for local testing.
+
+## Web deploy
+
+`flutter build web --release` produces a minified static build in `build/web/`. The folder contains an `index.html`, compiled JavaScript, and any assets you declared in `pubspec.yaml`. Deploy it anywhere you would deploy a Vite `dist/`:
+
+```bash
+# Firebase Hosting
+firebase deploy --only hosting
+
+# Or drag-drop build/web/ to Netlify's deploy UI
+# Or push to Vercel via the Vercel CLI
+```
+
+No server required. The output is a pure static site.
+
+## GitHub Actions CI
+
+A React CI pipeline installs Node, runs `npm ci`, lints, tests, and builds. A Flutter CI pipeline does the same with `subosito/flutter-action` in place of `actions/setup-node`.
+
+export const ciReact = `name: React CI
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test -- --watchAll=false
+      - run: npm run build`;
+
+export const ciFlutter = `name: Flutter CI
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test --coverage
+      - run: flutter build web --release`;
+
+<ReactFlutter client:visible react={ciReact} flutter={ciFlutter} reactTitle="React / GitHub Actions" flutterTitle="Flutter / GitHub Actions" />
+
+Here is a full CI workflow with branch triggers for both `main` and feature branches:
+
+```yaml
+name: Flutter CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test --coverage
+
+      - name: Build web
+        run: flutter build web --release
+```
+
+<Diff title="npm run build → flutter build">
+
+- **Platform is explicit.** `npm run build` always targets the web. `flutter build` requires a platform subcommand (`apk`, `ipa`, `web`, `macos`, etc.). There is no single command that builds all targets at once.
+- **`appbundle` over `apk` for the Play Store.** An Android App Bundle lets Google Play serve device-specific APKs, reducing download size by 15–30%. Use `flutter build apk` for local testing and sideloading; use `flutter build appbundle` for Play Store submissions.
+- **Signing is a prerequisite for release builds.** `npm run build` produces a deployable artifact with no extra steps. `flutter build apk --release` and `flutter build ipa` both fail or produce invalid artifacts if signing is not configured. Plan for this before your first release.
+- **`subosito/flutter-action` replaces `actions/setup-node`.** The action pins the Flutter SDK version and channel, ensuring reproducible CI builds. Use `channel: 'stable'` for production pipelines.
+- **`flutter pub get` replaces `npm ci`.** There is no `--frozen-lockfile` flag equivalent; `flutter pub get` always uses `pubspec.lock` when it exists, so the behavior is the same as `npm ci` for reproducibility.
+- **`flutter analyze` replaces both `npm run lint` and `npx tsc --noEmit`.** One command, one step.
+
+</Diff>
+
+export const quizBuildDeploy = [
+  {
+    q: 'Which command builds a Flutter app for the web?',
+    options: [
+      'flutter build html',
+      'flutter build web',
+      'flutter deploy web',
+      'flutter export web',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the Flutter equivalent of actions/setup-node in GitHub Actions?',
+    options: [
+      'flutter/setup-action',
+      'actions/setup-flutter',
+      'subosito/flutter-action',
+      'dart-lang/setup-dart',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What does flutter build appbundle produce, and why prefer it over APK for the Play Store?',
+    options: [
+      'A debug APK — preferred for testing',
+      'A signed IPA — required for the App Store',
+      'An Android App Bundle — smaller download size because Google Play serves device-specific APKs',
+      'A universal APK — works on all Android versions',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Where should you NEVER commit your Android keystore or key.properties file?',
+    options: [
+      'build/ directory',
+      'pubspec.yaml',
+      'git repository (treat like .env secrets)',
+      'test/ directory',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="tooling/build-deploy" questions={quizBuildDeploy} />
+
+<ProgressTracker client:visible id="tooling/build-deploy" />

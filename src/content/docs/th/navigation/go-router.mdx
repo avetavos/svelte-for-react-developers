@@ -1,0 +1,128 @@
+---
+title: 'go_router'
+description: 'Declarative routing แบบ URL-aware ใน Flutter ด้วย go_router — สิ่งที่เทียบเท่ากับ React Router v6 สำหรับแอป Flutter'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+`Navigator` แบบ built-in ของ Flutter เป็น imperative และไม่มีแนวคิดของ URL path หรือ nested route สำหรับทุกอย่างที่เกินกว่า simple push/pop flow — deep links, URL params, nested navigation, web URLs — คุณต้องใช้แพ็กเกจ `go_router` อย่างเป็นทางการ มันนำ declarative route configuration มาซึ่งตรงกับ `createBrowserRouter` ของ React Router v6 เกือบทุกประการ
+
+`go_router` ดูแลโดย Flutter team และเป็น routing solution ที่แนะนำอย่างเป็นทางการสำหรับแอป Flutter ใน production
+
+> **หมายเหตุ:** `go_router` ต้องเพิ่มลงใน `pubspec.yaml` ของคุณ ไม่สามารถรันใน DartPad ได้ ดังนั้น code ในบทเรียนนี้มีไว้สำหรับอ้างอิงเท่านั้น
+
+## การเปรียบเทียบแบบ side-by-side
+
+export const goReact = `// React Router v6
+import { createBrowserRouter, RouterProvider,
+         useParams } from 'react-router-dom';
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <RootLayout />,
+    children: [
+      { index: true,        element: <HomeScreen /> },
+      { path: 'products',   element: <ProductList /> },
+      { path: 'products/:id', element: <ProductDetail /> },
+    ],
+  },
+]);
+
+// In ProductDetail:
+const { id } = useParams();`;
+
+export const goFlutter = `// go_router
+import 'package:go_router/go_router.dart';
+
+final router = GoRouter(
+  routes: [
+    ShellRoute(
+      builder: (context, state, child) =>
+          RootLayout(child: child),
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const HomeScreen(),
+        ),
+        GoRoute(
+          path: '/products',
+          builder: (context, state) => const ProductList(),
+        ),
+        GoRoute(
+          path: '/products/:id',
+          builder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return ProductDetail(id: id);
+          },
+        ),
+      ],
+    ),
+  ],
+);
+
+// Navigate:
+context.go('/products/42');`;
+
+<ReactFlutter client:visible react={goReact} flutter={goFlutter} />
+
+<Diff title="React Router v6 → go_router">
+
+- **`GoRouter` vs `createBrowserRouter`** — ทั้งคู่รับ list ของ route definition และ return router object ที่คุณส่งให้ root widget ใน Flutter คุณส่ง `GoRouter` instance ให้ `MaterialApp.router`
+- **`GoRoute` vs `{ path, element }`** — แต่ละ `GoRoute` มี `path` และ `builder` builder ได้รับ `GoRouterState` (เทียบเท่ากับ loader params + `useParams` ของ React Router)
+- **`state.pathParameters['id']`** — URL segment ที่มีชื่อเช่น `:id` ถูกดึงออกจาก `GoRouterState.pathParameters` เทียบเท่ากับ `useParams()` ใน React Router
+- **`context.go(path)` vs `navigate(path)`** — `go_router` ขยาย `BuildContext` ด้วย method `.go()`, `.push()`, และ `.pop()` `context.go('/path')` แทนที่ route ปัจจุบัน (เหมือน `navigate` ที่มี `replace: true`) `context.push('/path')` stack บนสุด
+- **`ShellRoute` vs nested `<Outlet />`** — `ShellRoute` wraps child route ด้วย persistent shell widget (เช่น scaffold ที่มี bottom nav bar) เทียบเท่ากับ layout route ใน React Router
+- **Deep links และ web URLs** — `go_router` sync route กับ platform URL บน Flutter Web และจัดการ OS deep link บนมือถือ `Navigator` แบบ imperative ไม่ทำสิ่งนี้โดยตรง
+
+</Diff>
+
+export const quizGoRouter = [
+  {
+    q: 'สิ่งที่เทียบเท่ากับ useParams() ของ React Router v6 ใน go_router คืออะไร?',
+    options: [
+      'context.params',
+      'state.pathParameters จาก GoRouterState',
+      'GoRoute.params',
+      'Navigator.params(context)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ความแตกต่างระหว่าง context.go() และ context.push() ใน go_router คืออะไร?',
+    options: [
+      'go() นำทางในแท็บเดิม; push() เปิดแท็บใหม่',
+      'go() แทนที่ route ปัจจุบัน; push() stack route ใหม่ทับ',
+      'go() สำหรับ named routes; push() สำหรับ path-based routes',
+      'เหมือนกันทุกประการ — go() เป็นแค่ alias ที่สั้นกว่า',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ShellRoute ใน go_router ใช้ทำอะไร?',
+    options: [
+      'กำหนด error/404 fallback routes',
+      'Wrap child route ด้วย persistent shell widget เช่น bottom navigation bar',
+      'เพิ่ม authentication guard ให้กลุ่ม route',
+      'เปิดใช้งาน deep link handling จาก OS',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'go_router แตกต่างจาก Flutter built-in named routes สำหรับ web app อย่างไร?',
+    options: [
+      'go_router ใช้ stack; built-in named routes ใช้ flat map',
+      'go_router sync route กับ browser URL และจัดการ deep link; built-in named routes ไม่ทำ',
+      'go_router ต้องการ Dart 3; built-in named routes ทำงานกับ Dart ทุกเวอร์ชัน',
+      'เหมือนกันสำหรับ web — ความแตกต่างเดียวคือ mobile deep-link support',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="navigation/go-router" questions={quizGoRouter} />
+
+<ProgressTracker client:visible id="navigation/go-router" />

@@ -1,0 +1,186 @@
+---
+title: 'pub & pubspec.yaml'
+description: 'flutter pub add and pubspec.yaml vs npm and package.json — dependencies, version constraints, and asset declarations.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React you manage dependencies through npm and package.json. In Flutter, `pub` is the package manager and `pubspec.yaml` is the project manifest. The registry is [pub.dev](https://pub.dev) instead of npmjs.com, but the workflow is the same: find a package, add it to the manifest, fetch it, import it in code.
+
+## pubspec.yaml structure
+
+A minimal pubspec.yaml has five sections that map directly to package.json concepts:
+
+```yaml
+name: my_app
+description: A Flutter application.
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  mocktail: ^1.0.4
+
+flutter:
+  assets:
+    - assets/images/
+    - assets/icons/app_icon.png
+```
+
+`name` and `description` are identical to package.json. `version` uses a `major.minor.patch+build` format — the `+1` is a build number used by app stores and has no npm equivalent. `environment.sdk` pins the Dart SDK range (no Node engine field in package.json does this by default, but it is the same intent). `dependencies` and `dev_dependencies` mirror npm's `dependencies` and `devDependencies`. The `flutter:` block is unique — it is where you register assets so the framework can bundle them.
+
+## Version constraints
+
+Flutter uses the same caret semantics as npm:
+
+- `^1.2.0` means `>=1.2.0 <2.0.0` — compatible with the current major version.
+- `^0.4.3` means `>=0.4.3 <0.5.0` — for pre-1.0 packages, the minor is the breaking boundary.
+- `any` accepts all versions. Use it sparingly; it makes reproducible builds fragile.
+- `>=1.0.0 <2.0.0` is the explicit form that `^1.0.0` expands to.
+
+`pubspec.lock` pins the resolved versions, exactly like `package-lock.json` or `yarn.lock`. Always commit it.
+
+## Adding packages from the CLI
+
+```bash
+# Add a runtime dependency (like npm install http)
+flutter pub add http
+
+# Add a dev dependency (like npm install --save-dev mocktail)
+flutter pub add --dev mocktail
+
+# Fetch all dependencies after editing pubspec.yaml manually
+flutter pub get
+
+# Upgrade dependencies within their constraints
+flutter pub upgrade
+
+# Check for outdated packages
+flutter pub outdated
+```
+
+`flutter pub add http` does two things in one step: it edits pubspec.yaml to add the entry under `dependencies`, then runs `pub get` to download the package. There is no separate "save" flag — the manifest is always updated.
+
+## Assets: no bundler import needed
+
+In a React/Vite project you import images directly in JavaScript:
+
+```js
+import logo from './assets/logo.svg';
+```
+
+Vite handles the bundling. In Flutter there is no bundler import. Instead, you declare asset paths in pubspec.yaml under `flutter: assets:`, and then reference them by string path in Dart:
+
+```dart
+Image.asset('assets/images/logo.png')
+```
+
+You can declare a whole directory (`assets/images/`) to include every file inside it, or list individual files for fine-grained control. Flutter will bundle exactly what you declare and nothing else.
+
+## Side-by-side: package.json vs pubspec.yaml
+
+export const pkgReact = `{
+  "name": "my-app",
+  "version": "1.0.0",
+  "dependencies": {
+    "react": "^18.2.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.0.0",
+    "vite": "^5.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "jest"
+  }
+}`;
+
+export const pkgFlutter = `name: my_app
+version: 1.0.0+1
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  mocktail: ^1.0.4
+flutter:
+  assets:
+    - assets/images/
+    - assets/icons/app_icon.png`;
+
+<ReactFlutter client:visible react={pkgReact} flutter={pkgFlutter} />
+
+<Diff title="package.json → pubspec.yaml">
+
+- **YAML, not JSON.** pubspec.yaml uses indentation for nesting instead of braces and brackets. There are no quotes around keys, and strings only need quoting when they contain special YAML characters (colons, leading `>`, etc.).
+- **version includes a build number.** `1.0.0+1` — the `+1` suffix is the build number consumed by the App Store and Google Play. npm has no direct equivalent.
+- **sdk constraint is explicit.** The `environment: sdk:` field pins the Dart SDK range. This is closer to the `engines` field in package.json than to a normal dependency.
+- **`flutter:` assets block replaces bundler imports.** Vite/webpack discover assets through `import` statements. Flutter requires you to enumerate them in pubspec.yaml. Missing this step is the most common reason `Image.asset()` throws at runtime.
+- **No `scripts:` section.** Flutter's CLI commands (`flutter run`, `flutter build`, `flutter test`, `flutter analyze`) are built-in verbs — there is no equivalent of defining custom npm scripts. If you need a custom task runner, the community uses `melos` for monorepos or shell scripts.
+- **`flutter_test` is the RTL equivalent.** It ships with the SDK, so it appears as an `sdk: flutter` dependency rather than a version-pinned pub.dev package.
+
+</Diff>
+
+export const quizPubPubspec = [
+  {
+    q: "What is the pubspec.yaml equivalent of npm's devDependencies?",
+    options: [
+      'flutter_dependencies',
+      'dev_dependencies',
+      'test_dependencies',
+      'build_dependencies',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does the version constraint "^1.2.0" mean in pubspec.yaml?',
+    options: [
+      'Exactly 1.2.0',
+      '>=1.2.0 and <2.0.0',
+      '>=1.2.0 and <1.3.0',
+      'Any version',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How do you add a package AND update pubspec.yaml in one command?',
+    options: [
+      'flutter pub install http',
+      'flutter pub add http',
+      'dart pub add http --save',
+      'flutter add http',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Where do you declare image assets in a Flutter project?',
+    options: [
+      'In an import statement in Dart code',
+      'In webpack.config.js',
+      'Under flutter: assets: in pubspec.yaml',
+      'In a separate assets.json file',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="tooling/pub-pubspec" questions={quizPubPubspec} />
+
+<ProgressTracker client:visible id="tooling/pub-pubspec" />

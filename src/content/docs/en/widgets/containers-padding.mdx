@@ -1,0 +1,170 @@
+---
+title: 'Containers & Padding'
+description: "Container, Padding, EdgeInsets, and SizedBox — Flutter's answer to the CSS box model."
+---
+
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In CSS every HTML element is a box with `padding`, `margin`, `border`, `width`, and `height`. Flutter does not have a CSS box model — instead it has **dedicated widgets** for each concern. This sounds verbose at first, but it makes the layout intent explicit and composable.
+
+The three widgets you will reach for most often are `Container` (all-in-one box), `Padding` (spacing only), and `SizedBox` (fixed dimensions or gaps).
+
+## The Flutter box vocabulary
+
+| CSS property | Flutter widget / property |
+|---|---|
+| `padding: 16px` | `Padding(padding: EdgeInsets.all(16))` |
+| `padding: 8px 16px` | `EdgeInsets.symmetric(vertical: 8, horizontal: 16)` |
+| `padding: 4px 8px 12px 16px` | `EdgeInsets.only(top: 4, right: 8, bottom: 12, left: 16)` |
+| `margin: 8px` | Wrap parent in `Padding`, or use `Container(margin: ...)` |
+| `width: 200px; height: 100px` | `SizedBox(width: 200, height: 100)` |
+| `width: 100%` | `SizedBox(width: double.infinity)` |
+| `background-color`, `border-radius`, `box-shadow`, `border` | `Container(decoration: BoxDecoration(...))` |
+| `width: 200px; background: blue; border-radius: 8px` | `Container(width: 200, decoration: BoxDecoration(color: Colors.blue, borderRadius: ...))` |
+
+## Three box widgets and when to use each
+
+**`Padding`** — use when you only need spacing around a child. It is lighter than `Container` because it has no painting cost.
+
+**`SizedBox`** — use when you need a fixed size, or as a gap between widgets (`SizedBox(height: 16)` is idiomatic vertical spacing).
+
+**`Container`** — use when you need multiple visual properties at once: color, padding, margin, border, border-radius, or shadow. Do not use `Container` just for padding — use `Padding` instead.
+
+## Runnable example
+
+export const containerCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        appBar: AppBar(title: const Text('Containers & Padding')),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),   // Padding on ScrollView
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 16,
+            children: [
+              // ------- Padding only -------
+              const _Label('Padding — all sides 16px'),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Container(color: Colors.blue[100],
+                    child: const Text('Content with padding')),
+              ),
+
+              // ------- SizedBox as gap + fixed size -------
+              const _Label('SizedBox — fixed 200x60'),
+              Center(
+                child: SizedBox(
+                  width: 200, height: 60,
+                  child: Container(color: Colors.green[200],
+                      alignment: Alignment.center,
+                      child: const Text('200 x 60')),
+                ),
+              ),
+
+              // ------- Container — full box model -------
+              const _Label('Container — color + border-radius + shadow'),
+              Container(
+                padding: const EdgeInsets.all(20),
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.08),
+                        blurRadius: 10, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: const Text('This card uses BoxDecoration'),
+              ),
+
+              // ------- EdgeInsets.only -------
+              const _Label('EdgeInsets.only — asymmetric padding'),
+              Container(
+                color: Colors.orange[100],
+                padding: const EdgeInsets.only(
+                    top: 4, right: 8, bottom: 12, left: 24),
+                child: const Text('top:4 right:8 bottom:12 left:24'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Label extends StatelessWidget {
+  final String text;
+  const _Label(this.text);
+
+  @override
+  Widget build(BuildContext context) => Text(text,
+      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12,
+          color: Colors.grey));
+}`;
+
+<DartPad client:visible code={containerCode} />
+
+<Diff title="CSS box model → Flutter box widgets">
+
+- **No `margin` on arbitrary widgets.** In CSS every element has `margin`. In Flutter only `Container` has a `margin` property. For other widgets, add outer `Padding` or `SizedBox` in the parent layout.
+- **`BoxDecoration` replaces visual CSS rules.** `background-color`, `border-radius`, `border`, and `box-shadow` are all properties of one `BoxDecoration` object assigned to `Container(decoration: ...)`. You cannot set `decoration` and `color` on a `Container` at the same time — `color` is a shorthand that becomes `BoxDecoration(color: ...)` internally; mixing both throws an assertion.
+- **`Padding` is a widget, not a property.** In CSS `padding` is a property of any element. In Flutter padding is applied by *wrapping* a child in a `Padding` widget. This makes padding an explicit, inspectable node in the widget tree.
+- **`double.infinity` = `100%`.** There is no percentage-based sizing. `SizedBox(width: double.infinity)` tells the widget to take all available width, equivalent to `width: 100%`.
+- **Prefer `SizedBox` over `Container` for gaps.** Using `SizedBox(height: 16)` as a spacer is idiomatic and lightweight. `Container(height: 16)` works but carries unnecessary paint overhead.
+
+</Diff>
+
+export const quizContainers = [
+  {
+    q: 'Which widget should you use when you only need to add padding around a child, with no other visual styling?',
+    options: ['Container', 'SizedBox', 'Padding', 'DecoratedBox'],
+    answer: 2,
+  },
+  {
+    q: 'What is the Flutter equivalent of `width: 100%` in CSS?',
+    options: [
+      'SizedBox(width: 1.0)',
+      'SizedBox(width: double.infinity)',
+      'Container(width: double.maxFinite)',
+      'Expanded()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What happens if you set both `color` and `decoration` on the same `Container`?',
+    options: [
+      'The color is silently ignored',
+      'The decoration is silently ignored',
+      'Flutter throws an assertion error at runtime',
+      'Both are applied — color fills the background and decoration adds the border',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the idiomatic Flutter way to add a 16-pixel gap between two Column children?',
+    options: [
+      'Column(gap: 16)',
+      'SizedBox(height: 16) between the children',
+      'Padding(padding: EdgeInsets.only(bottom: 16)) on the first child',
+      'Spacer(flex: 16)',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="widgets/containers-padding" questions={quizContainers} />
+
+<ProgressTracker client:visible id="widgets/containers-padding" />

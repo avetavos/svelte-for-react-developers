@@ -1,0 +1,112 @@
+---
+title: 'Handling Data in Flutter'
+description: 'Overview of async data, HTTP fetching, JSON models, FutureBuilder, and Provider — what this module covers and how Flutter handles data vs React.'
+---
+
+import DartPad from '../../../../components/DartPad.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React and Flutter solve the same fundamental data problems — fetch something async, hold it in state, propagate it through the tree — but the APIs look different at every layer. This module maps the React mental model you already have onto Flutter's equivalents so you can skip the confusion and get productive fast.
+
+## React → Flutter concept map
+
+If you know what React tool you reach for, here is the Flutter equivalent:
+
+| React concept | Flutter equivalent | Notes |
+|---|---|---|
+| `Promise` | `Future<T>` | Same single-value async wrapper. `async`/`await` works identically. |
+| `async`/`await` | `async`/`await` | Dart syntax is nearly identical to JS. |
+| `fetch` / `axios` | `http` package (`http.get`) | Add `http` to `pubspec.yaml`. Returns a `Future<Response>`. |
+| `useEffect` + `setState` | `FutureBuilder<T>` | Declarative widget that rebuilds on `Future` state changes. |
+| `React.createContext` + `useContext` | `Provider` / `InheritedWidget` | `provider` package is the idiomatic choice. |
+| `react-query` / SWR | `riverpod` (AsyncNotifier) | Caching, background refresh, error states — same ideas. |
+| `JSON.parse` | `jsonDecode` + model `.fromJson` | Dart is typed, so you map the decoded map to a class manually (or with `json_serializable`). |
+| `Promise.all` | `Future.wait` | Runs multiple Futures concurrently, resolves when all complete. |
+| `try`/`catch` in async | `try`/`catch` in async | Identical pattern. `Future` also has `.catchError()` for chain-style handling. |
+
+## What this module covers
+
+- **Futures and async/await** — the `Promise` ↔ `Future` mapping in depth, `.then()`, `.catchError()`, and `try`/`catch` patterns.
+- **HTTP and JSON** — using the `http` package to fetch real data and parsing typed Dart models from JSON.
+- **FutureBuilder** — Flutter's declarative way to render async state (loading / error / data) without `useEffect`.
+- **Provider** — sharing data across the widget tree, the Flutter equivalent of React Context.
+
+## A quick async taste
+
+The snippet below simulates an async data load using `Future.delayed` — no network needed. It mirrors the `useEffect(() => fetch(...), [])` pattern you write in React, but expressed as a `FutureBuilder` widget.
+
+export const indexCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(child: AsyncGreeting()),
+      ),
+    );
+  }
+}
+
+// Simulates an async data fetch — like useEffect + fetch in React.
+Future<String> fetchGreeting() {
+  return Future.delayed(
+    const Duration(seconds: 2),
+    () => 'Hello from the Flutter data layer!',
+  );
+}
+
+class AsyncGreeting extends StatelessWidget {
+  const AsyncGreeting({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: fetchGreeting(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading...', style: TextStyle(color: Colors.grey)),
+            ],
+          );
+        }
+        if (snapshot.hasError) {
+          return Text('Error: \${snapshot.error}',
+              style: const TextStyle(color: Colors.red));
+        }
+        return Text(
+          snapshot.data ?? '',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        );
+      },
+    );
+  }
+}`;
+
+<DartPad client:visible code={indexCode} />
+
+export const quizIndex = [
+  {
+    q: 'What is the Flutter equivalent of a JavaScript Promise?',
+    options: ['Stream', 'Future<T>', 'Completer', 'async void'],
+    answer: 1,
+  },
+  {
+    q: 'Which Flutter widget declaratively handles the loading / error / data states of an async operation?',
+    options: ['AsyncWidget', 'StreamBuilder', 'FutureBuilder', 'StatefulWidget'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="data/index" />

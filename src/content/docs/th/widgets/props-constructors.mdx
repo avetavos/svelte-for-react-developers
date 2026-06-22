@@ -1,0 +1,191 @@
+---
+title: 'Props & Constructors'
+description: 'การส่งข้อมูลให้ widget ผ่าน named constructor parameter — สิ่งที่เทียบเท่ากับ props ของ React ใน Flutter'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React คุณส่งข้อมูลให้ component ผ่าน **props** ซึ่งเป็น object ธรรมดาที่ destructure ใน signature ของฟังก์ชัน ส่วนใน Flutter คุณส่งข้อมูลให้ widget ผ่าน **constructor parameter** ที่ประกาศเป็น field แบบ `final` บน class ทั้งสองโมเดลแก้ปัญหาเดียวกันเป๊ะ คือทำให้ widget ปรับแต่งได้จากภายนอกโดยไม่ผูกติดกับแหล่งข้อมูลใดแหล่งข้อมูลหนึ่ง
+
+Flutter ใช้ **named parameter** ของ Dart อย่างหนัก named parameter เป็นแบบ opt-in คือเมื่อห่อด้วย `{}` มันจะกลายเป็น keyword argument ตอนเรียกใช้ ถ้าทำเครื่องหมายตัวใดเป็น `required` Dart จะบังคับใช้ตอน compile ไม่ต้องพึ่ง `PropTypes` หรือ `Required<>` ของ TypeScript อีกต่อไป
+
+## เปรียบเทียบแบบเคียงข้างกัน
+
+export const propsReact = `// React — TypeScript props
+interface BadgeProps {
+  label: string;
+  color?: string;      // optional, has default
+  count: number;       // required
+}
+
+function Badge({ label, color = 'blue', count }: BadgeProps) {
+  return (
+    <span style={{ background: color }}>
+      {label} ({count})
+    </span>
+  );
+}
+
+// Usage
+<Badge label="Notifications" count={5} />
+<Badge label="Alerts" color="red" count={2} />`;
+
+export const propsFlutter = `// Flutter — constructor params
+class Badge extends StatelessWidget {
+  final String label;
+  final Color color;   // optional with default
+  final int count;     // required
+
+  const Badge({
+    super.key,
+    required this.label,
+    this.color = Colors.blue,  // default value
+    required this.count,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        '\$label (\$count)',
+        style: const TextStyle(color: Colors.white),
+      ),
+    );
+  }
+}
+
+// Usage
+Badge(label: 'Notifications', count: 5)
+Badge(label: 'Alerts', color: Colors.red, count: 2)`;
+
+<ReactFlutter client:visible react={propsReact} flutter={propsFlutter} />
+
+<Diff title="Props → Constructor parameters">
+
+- **Named parameter ด้วย `{}`** การห่อพารามิเตอร์ด้วยปีกกาทำให้มันกลายเป็น named parameter ตอนเรียกใช้คุณเขียน `Badge(label: 'x', count: 3)` แทนแบบ positional อย่าง `Badge('x', 3)` ซึ่งเทียบเท่ากับ object props ที่ destructure ของ React
+- **คีย์เวิร์ด `required`** คือสิ่งที่เทียบเท่ากับ required prop ของ TypeScript ในระดับ compile-time Dart จะปฏิเสธการ compile ถ้าผู้เรียกละเว้นพารามิเตอร์ที่เป็น `required`
+- **`this.fieldName` แบบย่อ** แทนที่จะเขียน `this.label = label` ใน body ของ constructor Dart ให้คุณเขียน `this.label` (หรือแค่ `required this.label`) ตรงในรายการพารามิเตอร์ได้เลย มันประกาศและ assign ค่าให้ field ในขั้นตอนเดียว
+- **field แบบ `final`** field ของ widget เป็น `final` เสมอ `StatelessWidget` เป็น immutable คุณแก้ค่า `this.label` หลังจากสร้างไม่ได้ ซึ่งสะท้อนกฎของ React ที่ห้ามแก้ props โดยตรง
+- **ค่า default** ใช้ `= value` ต่อท้ายชื่อพารามิเตอร์ เหมือนกับค่า default parameter ของ TypeScript เป๊ะ
+- **`super.key`** ใส่ตัวนี้เป็นตัวแรกในรายการ named parameter เสมอ เพื่อให้ผู้เรียกส่ง `Key` มาใช้สำหรับการ reconcile ได้
+
+</Diff>
+
+## ตัวอย่างที่รันได้
+
+export const propsCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.grey[100],
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              StatusBadge(label: 'Active', status: BadgeStatus.success),
+              SizedBox(height: 12),
+              StatusBadge(label: 'Pending', status: BadgeStatus.warning),
+              SizedBox(height: 12),
+              StatusBadge(label: 'Failed', status: BadgeStatus.error),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum BadgeStatus { success, warning, error }
+
+class StatusBadge extends StatelessWidget {
+  final String label;
+  final BadgeStatus status;
+  final double fontSize;
+
+  const StatusBadge({
+    super.key,
+    required this.label,
+    required this.status,
+    this.fontSize = 14,
+  });
+
+  Color get _color {
+    switch (status) {
+      case BadgeStatus.success: return Colors.green;
+      case BadgeStatus.warning: return Colors.orange;
+      case BadgeStatus.error:   return Colors.red;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: _color.withOpacity(0.15),
+        border: Border.all(color: _color),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: _color, fontSize: fontSize,
+            fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={propsCode} />
+
+export const quizProps = [
+  {
+    q: 'คุณประกาศ named parameter แบบ required ใน constructor ของ Flutter widget อย่างไร?',
+    options: [
+      'required String label',
+      '@required String label',
+      'String! label',
+      'final String label',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'ทำไม field ของ widget จึงประกาศเป็น `final` ใน Flutter?',
+    options: [
+      'final ถูกบังคับโดย Dart compiler สำหรับทุก field ของ class',
+      'widget เป็น immutable — field ของมันเปลี่ยนไม่ได้หลังการสร้าง ซึ่งสะท้อนกฎของ React ที่ห้ามแก้ props',
+      'final ทำให้ field ใช้เป็น named parameter ได้',
+      'field ที่เป็น final จะ serialize เป็น JSON ได้อัตโนมัติ',
+    ],
+    answer: 1,
+  },
+  {
+    q: '`this.fieldName` แบบย่อในรายการพารามิเตอร์ของ Dart constructor ทำอะไร?',
+    options: [
+      'มันสร้าง getter ที่ return field นั้น',
+      'มันทำเครื่องหมายว่า field เป็น nullable',
+      'มันทั้งประกาศ instance field และ assign ค่าพารามิเตอร์ในขั้นตอนเดียว',
+      'มันคัดลอก field จาก parent widget',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="widgets/props-constructors" questions={quizProps} />
+
+<ProgressTracker client:visible id="widgets/props-constructors" />

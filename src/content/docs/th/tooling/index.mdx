@@ -1,0 +1,76 @@
+---
+title: 'ภาพรวม Tooling, Testing & Deployment'
+description: 'เปรียบเทียบ toolchain ของ Flutter กับ Node/React: pub, flutter CLI, DevTools, testing และ deployment ในรูปแบบที่คุณคุ้นเคย'
+---
+
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React workflow ของคุณหมุนรอบ npm/Yarn, Vite/CRA, jest, React DevTools และ CI pipeline ที่รัน `npm run build` Flutter มี toolchain คู่ขนานในแต่ละขั้นตอน เครื่องมือมีชื่อต่างกันและอยู่คนละที่ แต่ mental model แทบจะถ่ายทอดได้ตรงตัว: มี package manager, project manifest, คำสั่ง dev, คำสั่ง build, test runner, inspector และ CI action
+
+ตารางด้านล่างคือ Rosetta Stone ของ module นี้ เปิดทิ้งไว้ขณะอ่านบทเรียนแต่ละหัวข้อ
+
+## React → Flutter toolchain map
+
+| React / Node | Flutter / Dart | Purpose |
+|---|---|---|
+| npm / Yarn | pub (`flutter pub`) | Package manager |
+| package.json | pubspec.yaml | Project manifest & dependencies |
+| node_modules/ | .pub-cache/ + .dart_tool/ | Dependency cache |
+| `npm install` | `flutter pub get` | Fetch dependencies |
+| `npm run dev` | `flutter run` | Dev server / hot reload |
+| `npm run build` | `flutter build apk/ipa/web` | Production build |
+| jest + RTL | `flutter test` + `testWidgets` | Unit & widget tests |
+| React DevTools | Flutter DevTools | Inspector, profiler, memory |
+| GitHub Actions + node setup | GitHub Actions + subosito/flutter-action | CI/CD |
+
+## แต่ละบทเรียนครอบคลุมอะไรบ้าง
+
+**pub & pubspec.yaml** — เปรียบได้กับ npm + package.json มากที่สุด คุณจะได้เรียนรู้โครงสร้างของ pubspec.yaml, วิธีที่ version constraints ทำงาน (ใช้ caret semantics เหมือนกับ npm), วิธีเพิ่ม dependencies จาก command line และวิธีที่ Flutter จัดการ assets ภายใน manifest แทนการ import ผ่าน bundler
+
+**flutter test & testWidgets** — jest รัน JavaScript functions; `flutter test` รัน Dart functions ความแตกต่างที่สำคัญคือ API ของ `testWidgets` ซึ่งให้ `WidgetTester` สำหรับ pump widgets เข้าสู่ virtual frame, trigger events และค้นหา elements — เป็น analogue โดยตรงของ React Testing Library รูปแบบ `render` + `screen` + `fireEvent`
+
+**Flutter DevTools** — panel บน browser (คล้าย React DevTools แต่ built-in มากับ SDK) ครอบคลุม widget inspector, performance timeline, memory profiler และ network tab คุณรู้จักแต่ละ panel อยู่แล้ว เพียงแค่ต้องเรียนรู้ว่า Flutter นำเสนอข้อมูลเดียวกันที่ไหน
+
+**CI/CD with GitHub Actions** — action `subosito/flutter-action` ตั้งค่า Flutter ในแบบเดียวกับที่ `actions/setup-node` ตั้งค่า Node ส่วนที่เหลือของ pipeline — lint, test, build artifact — แมปคำสั่งต่อคำสั่งกับสิ่งที่คุณเขียนอยู่แล้วสำหรับ React apps
+
+## วิธีอ่าน module นี้
+
+แต่ละบทเรียนเริ่มจาก mental model ของ React จากนั้นพาผ่าน Flutter equivalent แล้วแสดง side-by-side comparison หรือ diff หากคุณมี React workflow ที่ใช้งานได้อยู่แล้ว เป้าหมายไม่ใช่การแทนที่ แต่คือการให้ Flutter workflow ที่คล่องแคล่วพอๆ กัน
+
+export const quizToolingIndex = [
+  {
+    q: 'Flutter equivalent ของ package.json คืออะไร?',
+    options: [
+      'node_modules/',
+      'pubspec.yaml',
+      'flutter.json',
+      'dart_tool.json',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คำสั่งใดที่ fetch Flutter dependencies (เทียบเท่ากับ npm install)?',
+    options: [
+      'flutter install',
+      'dart pub install',
+      'flutter pub get',
+      'flutter fetch',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Flutter equivalent ของ npm run dev สำหรับการพัฒนาแบบ live คืออะไร?',
+    options: [
+      'flutter start',
+      'flutter run',
+      'flutter serve',
+      'flutter dev',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="tooling/index" questions={quizToolingIndex} />
+
+<ProgressTracker client:visible id="tooling/index" />

@@ -1,0 +1,171 @@
+---
+title: 'Stateless Widget'
+description: 'StatelessWidget and build() vs a React function component returning JSX — the Flutter equivalent you already know.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React, a function component is a function that receives props and returns JSX. Flutter's equivalent is a `StatelessWidget`: a class with a single `build()` method that receives a `BuildContext` and returns a `Widget`. The rendering model is identical — both describe what the UI should look like given some input, and the framework re-runs the description when inputs change.
+
+The main differences are syntax-deep: instead of a function you write a class, instead of `return <div>` you return `Widget` objects, and instead of JSX angle-brackets you nest constructor calls.
+
+## Side-by-side comparison
+
+export const slwReact = `// React function component
+function Greeting({ name }) {
+  return (
+    <div style={{ padding: 16 }}>
+      <h2>Hello, {name}!</h2>
+      <p>Welcome to Flutter for React Devs.</p>
+    </div>
+  );
+}
+
+// Usage
+<Greeting name="Ava" />`;
+
+export const slwFlutter = `// Flutter StatelessWidget
+class Greeting extends StatelessWidget {
+  final String name;
+  const Greeting({super.key, required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Hello, \$name!',
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const Text('Welcome to Flutter for React Devs.'),
+        ],
+      ),
+    );
+  }
+}
+
+// Usage
+const Greeting(name: 'Ava')`;
+
+<ReactFlutter client:visible react={slwReact} flutter={slwFlutter} />
+
+<Diff title="Function component → StatelessWidget">
+
+- **Class, not function.** A `StatelessWidget` is a Dart class that `extends StatelessWidget`. You override `build()` instead of writing a plain function body.
+- **`BuildContext context`** is always the first argument of `build()`. It gives access to the widget tree above this widget (theme, locale, navigator). React developers can think of it as a mix of React context and the component's position in the tree.
+- **`const` constructors.** Marking the constructor `const` lets Flutter short-circuit rebuilds when inputs have not changed — the same optimization `React.memo` provides, but automatic at the language level.
+- **`super.key`** is Flutter's equivalent of React's internal `key` prop. Always forward it via `super.key` in your constructors so Flutter can reconcile the widget tree correctly.
+- **No JSX.** Widget composition is Dart constructor calls: `Padding(padding: ..., child: ...)`. It looks more verbose at first, but it is fully type-checked and IDE-autocompleted.
+
+</Diff>
+
+## Runnable example
+
+export const slwCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: ProfileCard(
+            name: 'Ava Tavos',
+            role: 'React → Flutter Developer',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ProfileCard extends StatelessWidget {
+  final String name;
+  final String role;
+
+  const ProfileCard({super.key, required this.name, required this.role});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircleAvatar(radius: 36, backgroundColor: Colors.blue,
+              child: Icon(Icons.person, size: 36, color: Colors.white)),
+          const SizedBox(height: 12),
+          Text(name,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(role,
+              style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={slwCode} />
+
+export const quizSlw = [
+  {
+    q: 'What is the Flutter equivalent of a React function component with no local state?',
+    options: ['StatefulWidget', 'StatelessWidget', 'InheritedWidget', 'RenderBox'],
+    answer: 1,
+  },
+  {
+    q: 'What does the `BuildContext context` parameter in `build()` provide?',
+    options: [
+      'The component props',
+      'The current route',
+      'Access to the widget tree above this widget (theme, locale, navigator)',
+      'The list of child widgets',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Why should you mark widget constructors `const` in Flutter?',
+    options: [
+      'It is mandatory — Flutter will throw without it',
+      'It prevents the Dart compiler from tree-shaking the widget',
+      'It lets Flutter skip rebuilding the widget when its inputs have not changed',
+      'It makes the widget immutable at the type level',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the purpose of `super.key` in a Flutter widget constructor?',
+    options: [
+      'It stores the widget\'s display name for debugging',
+      'It forwards Flutter\'s reconciliation key so the framework can match widgets across rebuilds',
+      'It marks the widget as the root of a sub-tree',
+      'It is an alias for the widget\'s hashCode',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="widgets/stateless-widget" questions={quizSlw} />
+
+<ProgressTracker client:visible id="widgets/stateless-widget" />

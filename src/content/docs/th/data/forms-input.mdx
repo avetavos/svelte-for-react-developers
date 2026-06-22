@@ -1,0 +1,237 @@
+---
+title: 'Forms และ Input'
+description: 'TextField, TextEditingController, Form validation เทียบกับ React controlled inputs และ onChange handlers'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React form inputs เป็นแบบ "controlled" — คุณผูก `value` prop เข้ากับ state และอัปเดต state นั้นผ่าน `onChange` handler Flutter ใช้แนวทางที่แตกต่างกันเล็กน้อย: `TextEditingController` ทำหน้าที่เหมือน ref ที่เก็บค่าข้อความปัจจุบัน และคุณแนบมันเข้ากับ `TextField` การอ่านค่าคือ `controller.text` แทนที่จะเป็น `event.target.value` และไม่จำเป็นต้อง re-render เพื่อดักจับ input
+
+สำหรับการ validate form แบบสมบูรณ์ Flutter มี `Form` widget คู่กับ `GlobalKey<FormState>` แต่ละ `TextFormField` ภายในรับ `validator` callback การเรียก `formKey.currentState!.validate()` จะ trigger ทุก validator พร้อมกันและคืนค่า `true` เฉพาะเมื่อทุกตัวผ่าน — เทียบเท่ากับการสะสม error state แบบ per-field และตรวจสอบด้วยตนเองใน React
+
+## Controlled Input vs TextField
+
+export const fiReact = `import { useState } from 'react';
+
+function LoginForm() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!email.includes('@')) { alert('Invalid email'); return; }
+    if (password.length < 6) { alert('Password too short'); return; }
+    console.log('Login:', email);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" />
+      <input value={password} onChange={e => setPassword(e.target.value)}
+             type="password" placeholder="Password" />
+      <button type="submit">Login</button>
+    </form>
+  );
+}`;
+
+export const fiFlutter = `class LoginForm extends StatefulWidget {
+  const LoginForm({super.key});
+  @override
+  State<LoginForm> createState() => _LoginFormState();
+}
+
+class _LoginFormState extends State<LoginForm> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          TextFormField(
+            controller: _emailController,
+            decoration: const InputDecoration(labelText: 'Email'),
+            validator: (v) => v != null && v.contains('@') ? null : 'Invalid email',
+          ),
+          TextFormField(
+            controller: _passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Password'),
+            validator: (v) => v != null && v.length >= 6 ? null : 'Min 6 characters',
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_formKey.currentState!.validate()) {
+                // submit
+              }
+            },
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={fiReact} flutter={fiFlutter} />
+
+## ตัวอย่างที่รันได้จริง
+
+export const fiCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: LoginScreen(),
+    );
+  }
+}
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Login successful! Welcome \${_emailController.text}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login Form Demo')),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Email is required';
+                  if (!value.contains('@')) return 'Enter a valid email';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Password is required';
+                  if (value.length < 6) return 'Password must be at least 6 characters';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _submit,
+                  child: const Text('Login'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={fiCode} />
+
+<Diff title="Controlled input vs TextEditingController">
+
+- **การอ่านค่า** ใน React คุณอ่าน `event.target.value` ภายใน `onChange` ใน Flutter คุณอ่าน `controller.text` ได้ทุกเวลา — ไม่จำเป็นต้องมี event คุณยังสามารถ listen การเปลี่ยนแปลงผ่าน `controller.addListener(callback)` หรือ `ValueListenableBuilder` ได้อีกด้วย
+- **การ cleanup lifecycle** `TextEditingController` จัดสรร resource; คุณต้อง call `controller.dispose()` ใน `dispose()` React controlled inputs ไม่มีขั้นตอน cleanup เทียบเท่า
+- **ตำแหน่งของ validation** `TextFormField` รับ `validator` callback ที่อยู่ใกล้กับ field ใน widget tree นักพัฒนา React มักเก็บ error state ใน `useState` และ validate ใน handler function — Flutter เก็บ rule และ UI ไว้ด้วยกัน
+- **การ trigger validation** `formKey.currentState!.validate()` วน loop ผ่านทุก `TextFormField` ใน `Form` และแสดง error ในการเรียกเดียว ใน React คุณสะสม field error ด้วยตนเองและตรวจสอบว่า object ที่ได้นั้นว่างเปล่าหรือไม่
+- **การแสดง error** Flutter render string error ที่ `validator` return โดยตรงด้านล่าง field ผ่าน `InputDecoration` — ไม่จำเป็นต้องมี conditional `{errors.field && <span>}` แบบ React
+
+</Diff>
+
+export const quizFi = [
+  {
+    q: 'วิธีอ่านค่าปัจจุบันจาก TextField ใน Flutter คืออะไร?',
+    options: [
+      'textField.value',
+      'controller.text',
+      'onChanged callback value',
+      'setState(() => text)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'validator ควร return อะไรเมื่อ input valid?',
+    options: [
+      'true',
+      "''",
+      'null',
+      "'valid'",
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ทำไมต้อง dispose TextEditingController?',
+    options: [
+      'เพื่อ trigger rebuild',
+      'เพื่อ prevent memory leaks เมื่อ widget ถูกลบจาก tree',
+      'เพื่อ reset ค่า',
+      'เพื่อ enable validation',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="data/forms-input" questions={quizFi} />
+
+<ProgressTracker client:visible id="data/forms-input" />

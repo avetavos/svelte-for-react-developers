@@ -1,0 +1,216 @@
+---
+title: 'Flutter App แรก — Counter'
+description: 'Default Flutter counter app อธิบายผ่าน React counter — setState vs useState, widget lifecycle, และ build method'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+เมื่อรัน `flutter create my_app` app ที่ generate ขึ้นมาคือ counter — "Hello World" เดียวกับที่ React tutorial ใช้แนะนำ `useState` logic เหมือนกันทุกประการ แค่ syntax ต่างกัน บทเรียนนี้จะ walk through ทั้งสองแบบ side by side เพื่อให้เห็นว่า React knowledge ของคุณ map ตรงไหน
+
+## React counter (baseline ของคุณ)
+
+export const reactCounter = `import { useState } from 'react';
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div style={{ textAlign: 'center', marginTop: 60 }}>
+      <h2>Count: {count}</h2>
+      <button onClick={() => setCount(c => c + 1)}>
+        Increment
+      </button>
+    </div>
+  );
+}`;
+
+export const flutterCounter = `// Flutter counter — the default generated app
+import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(home: CounterPage());
+  }
+}
+
+// StatefulWidget = component ที่มี useState
+class CounterPage extends StatefulWidget {
+  const CounterPage({super.key});
+
+  @override
+  State<CounterPage> createState() => _CounterPageState();
+}
+
+class _CounterPageState extends State<CounterPage> {
+  int _count = 0; // ≈ const [count, setCount] = useState(0)
+
+  void _increment() {
+    setState(() {         // ≈ setCount(c => c + 1)
+      _count++;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Count: \$_count',
+                style: const TextStyle(fontSize: 28)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _increment,
+              child: const Text('Increment'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}`;
+
+<ReactFlutter react={reactCounter} flutter={flutterCounter} />
+
+<Diff title="useState counter → StatefulWidget counter">
+
+- **สอง class ไม่ใช่หนึ่ง** `StatefulWidget` แบ่งเสมอเป็น widget class (`CounterPage`) และ state class (`_CounterPageState`) Widget class คือ immutable configuration ส่วน state class เก็บ mutable data และ `build` method
+- **`setState(() { ... })`** คือ `setCount` ของ Flutter คุณ mutate variable ใน callback แล้ว Flutter schedule rebuild — เหมือนกับการเรียก state setter ใน React
+- **`_count` (underscore prefix)** คือ convention ของ Dart สำหรับ private field — เหมือน `#count` private field ใน modern JS class แต่เป็น library-private
+- **`Scaffold`** คือ Material page shell มี slot สำหรับ `AppBar`, `body`, `FloatingActionButton`, และ `SnackBar` คิดว่ามันคือ pre-wired page layout component
+- **`Column` + `SizedBox`** แทนที่ `<div style="marginTop: 16">` ใน Flutter คุณ compose layout ด้วย widget ไม่ใช่ CSS
+
+</Diff>
+
+## Default app แบบสมบูรณ์ — รันได้จริง
+
+App ด้านล่างคือ default Flutter counter ที่ polish เล็กน้อย กดปุ่มแล้วดู count อัปเดต — เหมือน React version ทุกประการ
+
+export const fullCounterCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Counter',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        useMaterial3: true,
+      ),
+      home: const CounterPage(title: 'Flutter Counter'),
+    );
+  }
+}
+
+class CounterPage extends StatefulWidget {
+  final String title;
+  const CounterPage({super.key, required this.title});
+
+  @override
+  State<CounterPage> createState() => _CounterPageState();
+}
+
+class _CounterPageState extends State<CounterPage> {
+  int _counter = 0;
+
+  void _increment() {
+    setState(() {
+      _counter++;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(widget.title),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('You have pushed the button this many times:'),
+            Text(
+              '\$_counter',
+              style: Theme.of(context).textTheme.displayMedium,
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _increment,
+        tooltip: 'Increment',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={fullCounterCode} />
+
+## `setState` มีข้อจำกัด (teaser)
+
+`setState` ทำงานได้ดีสำหรับ local UI state — เหมือน `useState` แต่เมื่อ state ต้องแชร์ระหว่าง widget หลายตัว Flutter developer จะใช้ **Riverpod** (หรือ Provider/Bloc) — เหตุผลเดียวกับที่ React developer ย้ายจาก `useState` ไป Zustand หรือ Redux สำหรับ shared state module **State & Lifecycle** จะครอบคลุมเรื่องนี้อย่างละเอียด
+
+export const quizFirstApp = [
+  {
+    q: 'Flutter StatefulWidget แบ่งเป็นสอง class แต่ละ class เก็บอะไร?',
+    options: [
+      'หนึ่งเก็บ UI อีกหนึ่งเก็บ theme',
+      'Widget class เก็บ immutable config; state class เก็บ mutable data และ build()',
+      'หนึ่งสำหรับ AppBar อีกหนึ่งสำหรับ body',
+      'Widget class เก็บ state; state class เก็บ constructor',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Flutter equivalent ของการเรียก React state setter (`setCount`) คืออะไร?',
+    options: [
+      'เรียก rebuild()',
+      'เรียก setState(() { ... })',
+      'เรียก update()',
+      'เรียก forceUpdate()',
+    ],
+    answer: 1,
+  },
+  {
+    q: '`Scaffold` widget ให้อะไรบ้าง?',
+    options: [
+      'Scrollable list',
+      'Material page shell ที่มี AppBar, body, FAB, และ SnackBar slots',
+      'Full-screen image background',
+      'Navigation drawer เท่านั้น',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ใน Dart underscore นำหน้าชื่อ field (เช่น `_counter`) หมายความว่าอะไร?',
+    options: [
+      'Field นั้น final',
+      'Field นั้น static',
+      'Field นั้น library-private',
+      'Field นั้น deprecated',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/first-app" questions={quizFirstApp} />
+
+<ProgressTracker client:visible id="intro/first-app" />

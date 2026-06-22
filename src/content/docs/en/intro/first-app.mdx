@@ -1,0 +1,216 @@
+---
+title: 'Your First Flutter App — The Counter'
+description: 'The default Flutter counter app explained through the lens of a React counter — setState vs useState, widget lifecycle, and the build method.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+When you run `flutter create my_app`, the generated app is a counter — the same "Hello World" that React tutorials use to introduce `useState`. The logic is identical; the syntax is different. This lesson walks through both side by side so you see exactly where your React knowledge maps.
+
+## The React counter (your baseline)
+
+export const reactCounter = `import { useState } from 'react';
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div style={{ textAlign: 'center', marginTop: 60 }}>
+      <h2>Count: {count}</h2>
+      <button onClick={() => setCount(c => c + 1)}>
+        Increment
+      </button>
+    </div>
+  );
+}`;
+
+export const flutterCounter = `// Flutter counter — the default generated app
+import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(home: CounterPage());
+  }
+}
+
+// StatefulWidget = component with useState
+class CounterPage extends StatefulWidget {
+  const CounterPage({super.key});
+
+  @override
+  State<CounterPage> createState() => _CounterPageState();
+}
+
+class _CounterPageState extends State<CounterPage> {
+  int _count = 0; // ≈ const [count, setCount] = useState(0)
+
+  void _increment() {
+    setState(() {         // ≈ setCount(c => c + 1)
+      _count++;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Count: \$_count',
+                style: const TextStyle(fontSize: 28)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _increment,
+              child: const Text('Increment'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}`;
+
+<ReactFlutter react={reactCounter} flutter={flutterCounter} />
+
+<Diff title="useState counter → StatefulWidget counter">
+
+- **Two classes, not one.** A `StatefulWidget` is always split into a widget class (`CounterPage`) and a state class (`_CounterPageState`). The widget class is immutable configuration; the state class holds mutable data and the `build` method.
+- **`setState(() { ... })`** is Flutter's `setCount`. You mutate the variable inside the callback and Flutter schedules a rebuild — same as calling a state setter in React.
+- **`_count` (underscore prefix)** is Dart's convention for private fields — like a `#count` private field in modern JS classes, but library-private rather than class-private.
+- **`Scaffold`** is the Material page shell: it provides the `AppBar`, `body`, `FloatingActionButton`, and `SnackBar` slots. Think of it as a pre-wired page layout component.
+- **`Column` + `SizedBox`** replaces `<div style="marginTop: 16">`. In Flutter you compose layout with widgets, not CSS.
+
+</Diff>
+
+## The full default app — runnable
+
+The app below is the default Flutter counter with minor polish. Run it, press the button, and watch the count update — exactly like the React version.
+
+export const fullCounterCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Counter',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        useMaterial3: true,
+      ),
+      home: const CounterPage(title: 'Flutter Counter'),
+    );
+  }
+}
+
+class CounterPage extends StatefulWidget {
+  final String title;
+  const CounterPage({super.key, required this.title});
+
+  @override
+  State<CounterPage> createState() => _CounterPageState();
+}
+
+class _CounterPageState extends State<CounterPage> {
+  int _counter = 0;
+
+  void _increment() {
+    setState(() {
+      _counter++;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(widget.title),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('You have pushed the button this many times:'),
+            Text(
+              '\$_counter',
+              style: Theme.of(context).textTheme.displayMedium,
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _increment,
+        tooltip: 'Increment',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={fullCounterCode} />
+
+## Where `setState` falls short (teaser)
+
+`setState` works fine for local UI state — exactly like `useState`. But when state needs to be shared across widgets, Flutter developers reach for **Riverpod** (or Provider/Bloc) — the same reason React developers move from `useState` to Zustand or Redux for shared state. The **State & Lifecycle** module covers this in depth.
+
+export const quizFirstApp = [
+  {
+    q: 'A Flutter StatefulWidget is split into two classes. What does each hold?',
+    options: [
+      'One holds the UI, one holds the theme',
+      'The widget class holds immutable config; the state class holds mutable data and build()',
+      'One for the AppBar, one for the body',
+      'The widget class holds state; the state class holds the constructor',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the Flutter equivalent of calling a React state setter (`setCount`)?',
+    options: [
+      'calling rebuild()',
+      'calling setState(() { ... })',
+      'calling update()',
+      'calling forceUpdate()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does the `Scaffold` widget provide?',
+    options: [
+      'A scrollable list',
+      'A Material page shell with AppBar, body, FAB, and SnackBar slots',
+      'A full-screen image background',
+      'A navigation drawer only',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'In Dart, what does a leading underscore on a field name (e.g. `_counter`) signify?',
+    options: [
+      'The field is final',
+      'The field is static',
+      'The field is library-private',
+      'The field is deprecated',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/first-app" questions={quizFirstApp} />
+
+<ProgressTracker client:visible id="intro/first-app" />

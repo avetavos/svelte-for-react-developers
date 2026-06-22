@@ -1,0 +1,188 @@
+---
+title: 'Core Widgets'
+description: 'Text, Image.network, ElevatedButton, TextButton, Icon, and ListView — the Flutter equivalents of the most common HTML/React elements.'
+---
+
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+Every app needs text, images, buttons, icons, and lists. React relies on HTML elements (`<p>`, `<img>`, `<button>`, `<ul>/<li>`) combined with CSS. Flutter provides first-class widgets for all of these, each with a rich API that combines display and styling in one place.
+
+## HTML / React → Flutter widget map
+
+| HTML / React | Flutter widget |
+|---|---|
+| `<p>`, `<span>`, `<h1>` | `Text` |
+| `<img src="https://...">` | `Image.network('https://...')` |
+| `<button>`, `<Button>` (MUI primary) | `ElevatedButton` |
+| `<button>` (ghost / text) | `TextButton` |
+| `<IconButton>` / FontAwesome | `Icon(Icons.star)` + `IconButton` |
+| `<ul>/<li>` scrollable list | `ListView` / `ListView.builder` |
+| `<FlatList>` (React Native) | `ListView.builder` |
+
+## Key APIs at a glance
+
+**`Text`** — `Text('Hello', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87))`
+
+**`Image.network`** — `Image.network('https://...', width: 100, height: 100, fit: BoxFit.cover)` — `fit` is equivalent to CSS `object-fit`.
+
+**`ElevatedButton`** — `ElevatedButton(onPressed: () {}, child: const Text('Submit'))`
+
+**`TextButton`** — same API as `ElevatedButton` but rendered without elevation.
+
+**`Icon`** — `Icon(Icons.favorite, color: Colors.red, size: 24)` — uses Material Icons built into Flutter.
+
+**`ListView.builder`** — lazy list, renders only visible items. Equivalent to React's `<FlatList>` or a virtualized `<ul>`. Pass `itemCount` and an `itemBuilder` callback.
+
+## Runnable example — a small contacts list
+
+export const coreCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(
+          title: const Text('Core Widgets'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: () {},
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            // Image.network
+            Image.network(
+              'https://picsum.photos/seed/flutter/800/200',
+              height: 140,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+
+            // Text
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Your Contacts',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            ),
+
+            // ListView.builder
+            Expanded(
+              child: ListView.builder(
+                itemCount: _contacts.length,
+                itemBuilder: (context, index) {
+                  final contact = _contacts[index];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: contact.color,
+                      child: Text(contact.initials,
+                          style: const TextStyle(color: Colors.white,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                    title: Text(contact.name),
+                    subtitle: Text(contact.role),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            contact.starred ? Icons.star : Icons.star_border,
+                            color: contact.starred ? Colors.amber : Colors.grey,
+                          ),
+                          onPressed: () {},
+                        ),
+                        TextButton(
+                          onPressed: () {},
+                          child: const Text('Message'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // ElevatedButton
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.person_add),
+                label: const Text('Add Contact'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Contact {
+  final String name, role, initials;
+  final Color color;
+  final bool starred;
+  const _Contact({required this.name, required this.role,
+      required this.initials, required this.color, this.starred = false});
+}
+
+const _contacts = [
+  _Contact(name: 'Ava Tavos', role: 'Flutter Developer',
+      initials: 'AT', color: Colors.blue, starred: true),
+  _Contact(name: 'Ben React', role: 'Frontend Engineer',
+      initials: 'BR', color: Colors.green),
+  _Contact(name: 'Cleo Dart', role: 'Mobile Lead',
+      initials: 'CD', color: Colors.purple, starred: true),
+  _Contact(name: 'Dana State', role: 'UX Designer',
+      initials: 'DS', color: Colors.orange),
+  _Contact(name: 'Eli Widget', role: 'Tech Lead',
+      initials: 'EW', color: Colors.teal),
+];`;
+
+<DartPad client:visible code={coreCode} />
+
+<Diff title="HTML elements → Flutter core widgets">
+
+- **`Text` does not wrap by default.** Unlike `<p>`, a `Text` widget clips if the parent is too narrow. Set `softWrap: true` (default) and `overflow: TextOverflow.ellipsis` to truncate with `...`, or `TextOverflow.fade`.
+- **`Image.network` is async.** The image loads asynchronously. Use `loadingBuilder` to show a placeholder while loading, equivalent to a `<Skeleton>` component in React.
+- **`ListView.builder` is always virtualized.** Unlike mapping an array to `<li>` in JSX (which renders all items), `ListView.builder` only builds widgets for visible items. Use it for any list with unknown or large length — equivalent to `react-virtualized` / `react-window`, but built in.
+- **Buttons require `onPressed`.** If `onPressed` is `null`, the button renders in a disabled state automatically. You do not need to toggle a `disabled` prop.
+- **`Icon` uses an enum-like class, not strings.** `Icons.favorite` is a constant, not `"favorite"` or a font class name. Autocomplete in your IDE shows all available icons.
+
+</Diff>
+
+export const quizCore = [
+  {
+    q: 'What is the Flutter equivalent of `<FlatList>` (React Native) or a virtualized list in React?',
+    options: ['ListView', 'ListView.builder', 'Column with a map()', 'GridView'],
+    answer: 1,
+  },
+  {
+    q: 'What CSS property does `BoxFit.cover` on `Image.network` correspond to?',
+    options: ['background-size: contain', 'object-fit: cover', 'object-fit: fill', 'background-repeat: no-repeat'],
+    answer: 1,
+  },
+  {
+    q: 'How do you render a disabled `ElevatedButton` in Flutter?',
+    options: [
+      'ElevatedButton(disabled: true, ...)',
+      'Set onPressed to null',
+      'Wrap in IgnorePointer',
+      'Set enabled: false on the ButtonStyle',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="widgets/core-widgets" questions={quizCore} />
+
+<ProgressTracker client:visible id="widgets/core-widgets" />

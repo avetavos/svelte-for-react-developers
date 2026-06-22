@@ -1,0 +1,87 @@
+---
+title: 'Widgets & UI — ภาพรวมโมดูล'
+description: 'ทุกอย่างคือ widget โมดูลนี้จะสอนโมเดล UI ของ Flutter โดยยึดทุกแนวคิดไว้กับ React'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React หน้า UI ของคุณคือ tree ของ **component** ส่วนใน Flutter หน้า UI ของคุณคือ tree ของ **widget** นี่คือการเปลี่ยนมุมมองทางความคิด (mental shift) ที่สำคัญที่สุด นั่นคือทุก visual element ทุกตัวช่วยจัด layout แม้กระทั่ง padding และ spacing ล้วนเป็น widget ที่คุณประกอบ (compose) เข้าด้วยกันเป็น tree
+
+ที่นี่ไม่มี HTML ไม่มี CSS ไม่มี stylesheet ไม่มี DOM ทุกอย่าง ไม่ว่าจะเป็น text, button, image, column, padding, theme ล้วนเป็น Dart object ที่อยู่ใน widget tree เดียวกัน ถ้าคุณสร้าง component tree ของ React ได้ คุณก็สร้าง widget tree ของ Flutter ได้แน่นอน
+
+## โมดูลนี้ครอบคลุมอะไรบ้าง
+
+| บทเรียน | สิ่งที่เทียบได้ใน React |
+|---|---|
+| **Stateless Widget** | Function component ที่ return JSX |
+| **Props & Constructors** | Props / arguments ของ component |
+| **Layout: Row & Column** | Flexbox (`display: flex`) |
+| **Containers & Padding** | CSS box model |
+| **Core Widgets** | `<p>`, `<img>`, `<button>`, `<ul>` |
+| **Styling & Theme** | CSS / styled-components / ThemeProvider |
+
+## Widget ตัวแรกของคุณ
+
+ด้านล่างคือ Flutter ที่เทียบเท่ากับ function component "Hello, World" ของ React ลองวางลงใน DartPad แล้วรันดู คุณจะเห็นการ์ดสีฟ้าวางอยู่กึ่งกลางพร้อมข้อความสีขาว
+
+export const firstCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.grey[100],
+        body: Center(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.blue,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text(
+              'Hello, Flutter!',
+              style: TextStyle(color: Colors.white, fontSize: 24),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={firstCode} />
+
+export const quizIndex = [
+  {
+    q: 'ใน Flutter อะไรคือสิ่งที่เทียบเท่ากับ component ของ React?',
+    options: ['Dart class', 'widget', 'scaffold', 'provider'],
+    answer: 1,
+  },
+  {
+    q: 'Flutter class ตัวไหนที่เทียบเท่าโดยตรงกับ function component ของ React ที่ไม่มี state?',
+    options: ['StatefulWidget', 'InheritedWidget', 'StatelessWidget', 'RenderObject'],
+    answer: 2,
+  },
+  {
+    q: 'ใน Flutter เราใส่ styling ให้ widget อย่างไร?',
+    options: [
+      'ผ่าน global CSS stylesheet',
+      'ผ่าน className บน widget แต่ละตัว',
+      'ผ่าน property ของ widget constructor (เช่น TextStyle, BoxDecoration)',
+      'ผ่าน string ของ inline style attribute',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="widgets/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="widgets/index" />

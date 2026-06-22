@@ -1,0 +1,220 @@
+---
+title: 'No JSX'
+description: 'Flutter ไม่มี JSX เรียนรู้ว่า Dart named-parameter constructor calls แทน angle-bracket tags อย่างไร และ render UI แบบ conditional กับ list โดยไม่ใช้ JSX expressions'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+JSX เป็นหนึ่งในฟีเจอร์ที่โดดเด่นที่สุดของ React — คุณเขียน HTML-like tags ที่ Babel แปลงเป็น `React.createElement()` calls Flutter ไม่มี JSX แต่คุณ compose widget โดยการ nest Dart constructor calls ด้วย named parameters เมื่อคุณเห็น mapping แบบ one-to-one ความต่างของ syntax ก็กลายเป็นเรื่องเล็กน้อย
+
+## Tags → constructor calls
+
+export const reactNoJsx = `// React — JSX list
+function FruitList({ fruits }) {
+  return (
+    <ul style={{ padding: 0 }}>
+      {fruits.map((fruit, i) => (
+        <li key={i} style={{ listStyle: 'none', padding: '8px 0' }}>
+          {fruit}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Conditional render
+function Badge({ isNew }) {
+  return (
+    <div>
+      <span>Item</span>
+      {isNew && <span style={{ color: 'green' }}>NEW</span>}
+    </div>
+  );
+}`;
+
+export const flutterNoJsx = `// Flutter — constructor calls + list
+class FruitList extends StatelessWidget {
+  final List<String> fruits;
+  const FruitList({super.key, required this.fruits});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: fruits
+          .map((fruit) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(fruit),
+              ))
+          .toList(),
+    );
+  }
+}
+
+// Conditional widget — collection-if in children list
+class Badge extends StatelessWidget {
+  final bool isNew;
+  const Badge({super.key, required this.isNew});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Text('Item'),
+        if (isNew)
+          const Text('NEW', style: TextStyle(color: Colors.green)),
+      ],
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={reactNoJsx} flutter={flutterNoJsx} />
+
+export const noJsxCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(title: const Text('Fruit List')),
+        body: const Padding(
+          padding: EdgeInsets.all(16),
+          child: FruitList(
+            fruits: ['Apple', 'Banana', 'Cherry', 'Dragonfruit', 'Elderberry'],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class FruitList extends StatelessWidget {
+  final List<String> fruits;
+  const FruitList({super.key, required this.fruits});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: fruits
+          .mapIndexed((i, fruit) => FruitCard(name: fruit, isNew: i == 0))
+          .toList(),
+    );
+  }
+}
+
+class FruitCard extends StatelessWidget {
+  final String name;
+  final bool isNew;
+  const FruitCard({super.key, required this.name, this.isNew = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Text(name, style: const TextStyle(fontSize: 16)),
+          const Spacer(),
+          if (isNew)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.green[100],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text('NEW',
+                  style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+extension IndexedIterable<E> on Iterable<E> {
+  Iterable<T> mapIndexed<T>(T Function(int i, E e) f) {
+    var i = 0;
+    return map((e) => f(i++, e));
+  }
+}`;
+
+<DartPad client:visible code={noJsxCode} />
+
+<Diff title="JSX → Dart constructors">
+
+- **`<MyWidget prop="value">`** → `MyWidget(prop: 'value')` — Named parameters แทน JSX attributes
+- **`<Parent><Child /></Parent>`** → `Parent(child: Child())` — Named parameter `child:` สำหรับ single child
+- **`{cond && <Widget />}`** → `if (cond) Widget()` ภายใน `children` list — Dart collection-if ฝังอยู่ใน list literal
+- **`{items.map(x => <Item key={x} />)}`** → `items.map((x) => Item()).toList()` ส่งให้ `children:`
+- **Ternary `{a ? <A /> : <B />}`** → `condition ? A() : B()` เป็น `child:` value หรือภายใน `children`
+- **ไม่มี Babel, ไม่มี transpilation** — Dart constructors เป็น Dart จริงๆ type-checked ทั้งหมด IDE autocomplete ทุก parameter name
+
+</Diff>
+
+export const quizNoJsx = [
+  {
+    q: 'คุณเขียน widget ที่มี child ใน Dart แทน JSX อย่างไร?',
+    options: [
+      '<Parent><Child /></Parent>',
+      'Parent { Child() }',
+      'Parent(child: Child())',
+      'Parent.child(Child())',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Flutter/Dart equivalent ของ JSX conditional rendering {isNew && <Badge />} คืออะไร?',
+    options: [
+      'isNew ? Badge() : null',
+      'isNew == true { Badge() }',
+      'if (isNew) Badge()  ภายใน children list',
+      'Badge(visible: isNew)',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'คุณ render list of items ใน Flutter (เทียบเท่า .map ใน JSX) อย่างไร?',
+    options: [
+      'ใช้ for loop แล้วเรียก addChild()',
+      'ใช้ items.map((x) => Widget()).toList() เป็น children list',
+      'ใช้ ListView.builder กับ XML templates',
+      'ใช้ children: [for x in items: Widget()]',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Widget constructor calls ของ Flutter เมื่อเทียบกับ JSX คือ:',
+    options: [
+      'Dynamically typed และ evaluated ที่ runtime',
+      'Dart ที่ type-checked อย่างสมบูรณ์ — ไม่ต้อง transpile',
+      'Compile เป็น HTML โดย build tool เหมือน Babel',
+      'ช้ากว่าเพราะไม่มี virtual DOM',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="mental-model/no-jsx" questions={quizNoJsx} />
+
+<ProgressTracker client:visible id="mental-model/no-jsx" />

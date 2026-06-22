@@ -1,0 +1,182 @@
+---
+title: 'build() vs render()'
+description: 'Flutter build() ทำงานทุก rebuild เหมือน React render — ต้องเป็น pure, ราคาถูก, และปราศจาก side effects'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React component function (หรือ `render()` ใน class components) ถูกเรียกทุกครั้งที่ state หรือ props เปลี่ยน มันต้องเป็น **pure function**: ถ้า state และ props เหมือนกันมันต้อง return JSX เหมือนกัน โดยไม่มี side effects ใน body
+
+`build()` method ของ Flutter ปฏิบัติตาม contract เดียวกันทุกประการ มันถูกเรียกโดย framework ทุกครั้งที่ rebuild ถูก trigger โดย `setState`, parent rebuild, หรือการเปลี่ยนแปลง `InheritedWidget` มันต้องเป็น **pure และราคาถูก**: ห้าม network calls, ห้าม `Future.wait`, ห้าม computation หนัก — เป็นแค่การบรรยาย UI
+
+กฎจริงของทั้งสอง framework นั้นเหมือนกัน: **describe, don't do** (บรรยาย อย่าทำ)
+
+## การเปรียบเทียบแบบ side-by-side
+
+export const bvReact = `// React — component function คือ "render"
+function UserCard({ userId }) {
+  const [user, setUser] = useState(null);
+
+  // Side effects ไปอยู่ใน useEffect ไม่ใช่ใน render body
+  useEffect(() => {
+    fetchUser(userId).then(setUser);
+  }, [userId]);
+
+  // render body: pure description เท่านั้น
+  if (!user) return <p>Loading...</p>;
+  return (
+    <div className="card">
+      <h2>{user.name}</h2>
+      <p>{user.email}</p>
+    </div>
+  );
+}`;
+
+export const bvFlutter = `class UserCard extends StatefulWidget {
+  final String userId;
+  const UserCard({super.key, required this.userId});
+
+  @override
+  State<UserCard> createState() => _UserCardState();
+}
+
+class _UserCardState extends State<UserCard> {
+  User? _user;
+
+  // Side effects ไปอยู่ใน initState / didUpdateWidget ไม่ใช่ใน build()
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final u = await fetchUser(widget.userId);
+    if (mounted) setState(() => _user = u);
+  }
+
+  // build(): pure description เท่านั้น
+  @override
+  Widget build(BuildContext context) {
+    if (_user == null) return const CircularProgressIndicator();
+    return Card(
+      child: Column(children: [
+        Text(_user!.name,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(_user!.email),
+      ]),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={bvReact} flutter={bvFlutter} />
+
+<Diff title="React render body → Flutter build()">
+
+- **Purity contract เหมือนกัน** ทั้งคู่ต้องปราศจาก side effects อย่าเรียก `setState` ใน `build()` — มันสร้าง infinite rebuild loop อย่าเริ่ม network request ใน `build()`
+- **`build()` อาจถูกเรียกบ่อยมาก** Flutter อาจเรียก `build()` หลายสิบครั้งต่อวินาทีระหว่าง animations งานหนัก (parsing, sorting, allocation หนัก) ต้องย้ายไปที่ `initState`, `didUpdateWidget`, หรือ compute isolate แยก
+- **`const` widgets ข้ามการเรียกทั้งหมด** ถ้า sub-widget เป็น `const` Flutter ใช้ instance ที่ cache ไว้และไม่เรียก `build()` อีก — เป็น optimization ที่แข็งแกร่งกว่า `React.memo` เพราะทำงานที่ระดับภาษาโดยไม่ต้องเขียน boilerplate
+- **`mounted` guard สำหรับ async** หลัง `await` ใน State method widget อาจถูก dispose ไปแล้ว ตรวจ `if (mounted)` เสมอก่อนเรียก `setState` ใน async code เทียบเท่า React: cleanup functions ใน `useEffect` (cancel fetch หรือ ignore result ถ้า component unmounted)
+- **`widget.X` เพื่ออ่าน config ใน State** ใน `State` class configuration ของ widget ปัจจุบันเข้าถึงได้ผ่าน property `widget` (เช่น `widget.userId`) เทียบเท่า React: argument props หรือ `this.props` ใน class components
+
+</Diff>
+
+## ตัวอย่างที่รันได้
+
+export const bvCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
+      home: const Scaffold(body: Center(child: RebuildDemo())),
+    );
+  }
+}
+
+// Widget นี้นับว่า build() ถูกเรียกกี่ครั้ง —
+// แสดงให้เห็นว่า build() ราคาถูกและทำงานบ่อย
+class RebuildDemo extends StatefulWidget {
+  const RebuildDemo({super.key});
+
+  @override
+  State<RebuildDemo> createState() => _RebuildDemoState();
+}
+
+class _RebuildDemoState extends State<RebuildDemo> {
+  int _counter = 0;
+  int _buildCount = 0; // เพิ่มใน build เพื่อแสดงความถี่
+
+  @override
+  Widget build(BuildContext context) {
+    // ติดตาม rebuild count — นี่คือ "side effect" ที่ยอมรับได้เพียงอย่างเดียว
+    // ใน build(): การเพิ่ม field แบบ synchronous เพื่อ demo
+    _buildCount++;
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Counter: \$_counter',
+              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('build() called: \$_buildCount times',
+              style: const TextStyle(color: Colors.grey)),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => setState(() => _counter++),
+            child: const Text('Increment (triggers rebuild)'),
+          ),
+        ],
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={bvCode} />
+
+export const quizBv = [
+  {
+    q: 'เทียบเท่า Flutter ของกฎ React "ห้าม side effects ใน render body" คืออะไร?',
+    options: [
+      'ห้าม import packages ใน build()',
+      'ห้ามเรียก setState, เริ่ม async work, หรือทำ heavy computation ใน build()',
+      'ต้อง return const widget จาก build() เสมอ',
+      'ห้ามใช้ BuildContext ใน build()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ทำไมต้องตรวจ `if (mounted)` ก่อนเรียก setState หลัง await?',
+    options: [
+      'เพราะ setState ไม่พร้อมใช้งานจนกว่า widget จะถูก paint สมบูรณ์',
+      'เพราะ widget อาจถูก dispose ระหว่าง await กับการเรียก setState',
+      'เพราะ await ทำงานบน isolate ต่างกันเสมอ',
+      'เพราะ mounted ควบคุมว่า widget มองเห็นบนหน้าจอหรือไม่',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณเข้าถึง configuration fields ของ StatefulWidget จากใน State class ได้อย่างไร?',
+    options: [
+      'ผ่าน this.props',
+      'ผ่าน context.widget',
+      'ผ่าน property widget (เช่น widget.userId)',
+      'ด้วยการส่งผ่าน State constructor',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="state-lifecycle/build-vs-render" questions={quizBv} />
+
+<ProgressTracker client:visible id="state-lifecycle/build-vs-render" />

@@ -1,0 +1,60 @@
+---
+title: Flutter สำหรับนักพัฒนา React
+description: เรียน Flutter แบบเร็ว — เทียบทุกแนวคิดกับ React ที่คุณรู้อยู่แล้ว
+template: splash
+hero:
+  tagline: คุณคิดเป็น component, props, state และ hooks อยู่แล้ว คอร์สนี้จับคู่ทุกอย่างเข้ากับ Flutter — อะไรเหมือน อะไรต่าง — เพื่อให้คุณลงมือทำได้เร็ว
+  actions:
+    - text: เริ่มที่นี่
+      link: /flutter-for-react-developers/th/intro/
+      icon: right-arrow
+      variant: primary
+    - text: ข้ามไป Widgets
+      link: /flutter-for-react-developers/th/widgets/
+      icon: open-book
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## สิ่งที่คุณจะได้เรียน
+
+<CardGrid>
+  <Card title="บทแนะนำ & การติดตั้ง" icon="rocket">
+    ทำไมต้อง Flutter, Dart สำหรับนัก JS/TS, toolchain, แอปแรกของคุณ [เริ่ม →](/flutter-for-react-developers/th/intro/)
+  </Card>
+  <Card title="React → Flutter: เหมือนและต่าง" icon="random">
+    ทุกอย่างคือ widget, declarative UI, ไม่มี JSX — อะไรย้ายมาได้ อะไรเปลี่ยน [เทียบ →](/flutter-for-react-developers/th/mental-model/)
+  </Card>
+  <Card title="Widgets & UI" icon="open-book">
+    StatelessWidget เทียบ component, props, layout (Row/Column เทียบ flexbox), การจัดสไตล์ [สร้าง UI →](/flutter-for-react-developers/th/widgets/)
+  </Card>
+  <Card title="State & Lifecycle" icon="setting">
+    setState เทียบ useState; initState/dispose เทียบ useEffect — แมป lifecycle ครบ [จัดการ state →](/flutter-for-react-developers/th/state-lifecycle/)
+  </Card>
+  <Card title="การจัดการข้อมูล" icon="laptop">
+    Future เทียบ Promise, การ fetch, FutureBuilder, Provider เทียบ Context/Redux, ฟอร์ม [ดึงข้อมูล →](/flutter-for-react-developers/th/data/)
+  </Card>
+  <Card title="Navigation & Routing" icon="puzzle">
+    Navigator, named route, go_router (เทียบ react-router), ส่งข้อมูล, tab & drawer [นำทาง →](/flutter-for-react-developers/th/navigation/)
+  </Card>
+  <Card title="เครื่องมือ ทดสอบ & Deploy" icon="approve-check">
+    pub/pubspec, flutter CLI, widget test (เทียบ jest/RTL), DevTools, build & CI [ส่งงานจริง →](/flutter-for-react-developers/th/tooling/)
+  </Card>
+</CardGrid>
+
+## คอร์สนี้ทำงานยังไง
+
+<CardGrid>
+  <Card title="เทียบกับ React ก่อนเสมอ" icon="random">
+    ทุกแนวคิดเริ่มจาก React ที่คุณรู้ แล้วค่อยแสดงวิธีของ Flutter — พร้อมชี้จุดที่ต่างกัน
+  </Card>
+  <Card title="รัน Flutter ได้จริง" icon="rocket">
+    ทุกตัวอย่างเป็นแอป Flutter ที่สมบูรณ์ พร้อมปุ่ม "Open in DartPad" (คัดลอกโค้ดให้) เพื่อรันบน editor ออนไลน์อย่างเป็นทางการ
+  </Card>
+  <Card title="แบบทดสอบ & ความคืบหน้า" icon="bars">
+    ทบทวนความเข้าใจหลังแต่ละบท ความคืบหน้าถูกบันทึกไว้ในเครื่อง
+  </Card>
+  <Card title="สองภาษา" icon="translate">
+    มีทั้งภาษาอังกฤษและไทย — สลับได้ตลอดจากแถบด้านบน
+  </Card>
+</CardGrid>

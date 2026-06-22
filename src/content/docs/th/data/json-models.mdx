@@ -1,0 +1,269 @@
+---
+title: 'JSON และ Typed Models'
+description: 'การ parse JSON เป็น typed Dart classes ด้วย fromJson factories เทียบกับ TypeScript interfaces และ JSON.parse'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ระบบ structural type ของ TypeScript ช่วยให้คุณนิยาม `interface` และใช้ผลลัพธ์จาก `JSON.parse` เป็น type นั้นได้ทันที — compiler เชื่อ shape ที่คุณประกาศ Dart ใช้ nominal typing และไม่มี runtime structural casting คุณต้องเขียน `fromJson` factory constructor ที่อ่านแต่ละ field จาก decoded map โดยตรง โค้ดมากกว่า แต่ explicit มากกว่าด้วย: ถ้า field ขาดหายหรือ type ไม่ตรง คุณจะรู้ทันที ไม่ใช่ตอน call site
+
+## เปรียบเทียบแบบ side-by-side
+
+export const jsonReact = `// TypeScript — interface + JSON.parse
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+// TypeScript trusts the shape (no runtime check)
+const user = JSON.parse(raw) as User;
+console.log(user.name);
+
+// With Zod for runtime validation
+import { z } from 'zod';
+
+const UserSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  email: z.string().email(),
+});
+
+const safeUser = UserSchema.parse(JSON.parse(raw));`;
+
+export const jsonFlutter = `// Dart — class with fromJson / toJson
+import 'dart:convert';
+
+class User {
+  final int id;
+  final String name;
+  final String email;
+
+  const User({
+    required this.id,
+    required this.name,
+    required this.email,
+  });
+
+  // Explicit field mapping — no structural magic
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      email: json['email'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'email': email,
+  };
+}
+
+// Usage
+final map = jsonDecode(raw) as Map<String, dynamic>;
+final user = User.fromJson(map);
+print(user.name);`;
+
+<ReactFlutter client:visible react={jsonReact} flutter={jsonFlutter} />
+
+<Diff title="Structural typing vs explicit fromJson">
+
+- **ไม่มี structural casting.** TypeScript ยอมรับ `JSON.parse(raw) as User` เพราะ structurally ตรงกับ interface ตอน compile time Dart ปฏิเสธ pattern นี้ — คุณต้องเรียก `User.fromJson(map)` เพื่อแปลง untyped `Map<String, dynamic>` เป็น `User` instance จริง
+- **`factory` constructors.** keyword `factory` ใน Dart ทำเครื่องหมาย constructor ที่อาจ return cached instance หรือ delegate ไปยัง constructor อื่น — เป็นที่อยู่ตามธรรมเนียมของ `fromJson` เพราะสามารถมี logic ใด ๆ ก่อน call constructor จริง
+- **`as` cast คือ runtime check.** การเขียน `json['id'] as int` ใน Dart จะ throw `TypeError` ตอน runtime ถ้าค่าไม่ใช่ `int` นี่คือ feature ไม่ใช่ bug: คุณได้ error ที่ชัดเจนตั้งแต่ต้น ไม่ใช่ `undefined` แบบเงียบ ๆ ภายหลัง
+- **`toJson` ก็ต้องเขียนเองเช่นกัน.** ไม่มี built-in serialization method `toJson` คืน `Map<String, dynamic>` ที่ `jsonEncode` (จาก `dart:convert`) สามารถแปลงเป็น string ได้
+- **Codegen สำหรับ model ขนาดใหญ่.** สำหรับ production apps พิจารณาใช้ `json_serializable` (generate `fromJson`/`toJson`) หรือ `freezed` (เพิ่ม immutability, `copyWith`, และ union types) ทั้งคู่ช่วยขจัด boilerplate ที่ต้องเขียนมือ เหมือนที่ Zod schema ขจัด validation code ที่ซ้ำซ้อน
+
+</Diff>
+
+## ตัวอย่างที่รันได้จริง
+
+export const dartpadCode = `import 'dart:convert';
+import 'package:flutter/material.dart';
+
+class User {
+  final int id;
+  final String name;
+  final String email;
+
+  const User({
+    required this.id,
+    required this.name,
+    required this.email,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      email: json['email'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'email': email,
+  };
+}
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'JSON Models',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        useMaterial3: true,
+      ),
+      home: const UserModelScreen(),
+    );
+  }
+}
+
+class UserModelScreen extends StatelessWidget {
+  const UserModelScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Hardcoded JSON string — no network needed
+    const rawJson = '{"id": 42, "name": "Ada Lovelace", "email": "ada@babbage.io"}';
+    final map = jsonDecode(rawJson) as Map<String, dynamic>;
+    final user = User.fromJson(map);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('JSON Model Demo'),
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: Card(
+          margin: const EdgeInsets.all(24),
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.teal,
+                      child: Text(
+                        user.name[0],
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      user.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 28),
+                _Field(label: 'ID', value: '\${user.id}'),
+                const SizedBox(height: 8),
+                _Field(label: 'Name', value: user.name),
+                const SizedBox(height: 8),
+                _Field(label: 'Email', value: user.email),
+                const Divider(height: 28),
+                Text(
+                  'toJson(): \${user.toJson()}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Field extends StatelessWidget {
+  final String label;
+  final String value;
+  const _Field({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 60,
+          child: Text(
+            '\$label:',
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.teal,
+            ),
+          ),
+        ),
+        Expanded(child: Text(value)),
+      ],
+    );
+  }
+}`;
+
+<DartPad client:visible code={dartpadCode} />
+
+export const quizJsonModels = [
+  {
+    q: 'ทำไม Dart ถึงต้องการ fromJson factory constructor ในขณะที่ TypeScript ไม่ต้องการ?',
+    options: [
+      'Dart รวดเร็วกว่า TypeScript',
+      'TypeScript ใช้ structural typing ที่ไม่ต้องการ runtime mapping แต่ Dart ต้องการการ map แบบ explicit',
+      'Dart ไม่รองรับ JSON',
+      'TypeScript ไม่รองรับ classes',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ค่าที่ส่งออกมาจาก User.fromJson() คืออะไร?',
+    options: [
+      'Map<String, dynamic>',
+      'String',
+      'User instance',
+      'dynamic',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'เครื่องมือ codegen ใดช่วยสร้าง fromJson/toJson อัตโนมัติใน Dart?',
+    options: [
+      'dart:convert',
+      'retrofit',
+      'json_serializable หรือ freezed',
+      'dart2js',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/json-models" questions={quizJsonModels} />
+
+<ProgressTracker client:visible id="data/json-models" />

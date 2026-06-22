@@ -1,0 +1,186 @@
+---
+title: 'setState vs useState'
+description: 'StatefulWidget + State + setState(() => ...) เปรียบเทียบกับ React useState — ทำไม Flutter ถึงแยก widget ออกจาก state class'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React `useState` คือ hook ที่เก็บค่าและคืน setter กลับมา เรียก setter แล้ว React จะกำหนดเวลา re-render และ component function จะทำงานอีกครั้งพร้อมค่าใหม่ state อยู่ใน slot ซ่อนอยู่ที่ผูกกับ component instance
+
+Flutter ใช้ `setState(() { ... })` เป็นเทียบเท่า แต่ก่อนจะเรียกได้ คุณต้องมีสอง class แทนที่จะเป็นหนึ่ง — คือ `StatefulWidget` และ `State<T>` การแยกนี้ดูยาวเหนื่อยตอนแรก แต่มันแก้ปัญหาเฉพาะ: widget objects ใน Flutter เป็น immutable และ framework สามารถสร้างใหม่ได้ราคาถูก `State` object อยู่ได้นานกว่าและเก็บข้อมูลที่เปลี่ยนแปลงได้จริง
+
+## การเปรียบเทียบแบบ side-by-side
+
+export const ssReact = `import { useState } from 'react';
+
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>
+        Increment
+      </button>
+    </div>
+  );
+}`;
+
+export const ssFlutter = `class Counter extends StatefulWidget {
+  const Counter({super.key});
+
+  @override
+  State<Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<Counter> {
+  int _count = 0;           // state อยู่ที่นี่
+
+  void _increment() {
+    setState(() {           // ครอบ mutation
+      _count++;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text('Count: \$_count'),
+        ElevatedButton(
+          onPressed: _increment,
+          child: const Text('Increment'),
+        ),
+      ],
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={ssReact} flutter={ssFlutter} />
+
+<Diff title="useState → StatefulWidget + setState">
+
+- **สอง class แทนที่จะเป็นหนึ่ง** `StatefulWidget` เก็บ configuration ที่ไม่เปลี่ยนแปลง (เหมือน props) `State<T>` เก็บ mutable fields และเป็นเจ้าของ `build()` Flutter สร้าง `State` object หนึ่งตัวต่อ widget instance และเก็บไว้ข้ามการ rebuild
+- **`setState(() { ... })` รับ callback** ที่ทำ mutation โดยตรงบน field (`_count++`) setter ของ React แทนที่ค่า; callback ของ Flutter เปลี่ยนแปลง in-place Flutter อ่านค่าใหม่จาก field ไม่ใช่จาก snapshot ที่ return มา
+- **`createState()`** คือ factory ที่สร้าง `State` object มันถูกเรียกครั้งเดียวเมื่อ widget ถูกแทรกเข้าไปใน tree ครั้งแรก — เทียบเท่ากับ first render ใน React
+- **Fields ไม่ใช่ destructured tuples** React return `[value, setter]`; Flutter state fields เป็น Dart instance variables ธรรมดา (`int _count = 0`) เครื่องหมาย underscore นำหน้าเป็น convention ของ Dart สำหรับ private members
+- **ขอบเขตการ rebuild** ใน React ทุก `useState` setter call ทำให้ component function ทั้งหมด re-render ใน Flutter `setState` ทำให้ `build()` method บน `State` object เดิม rebuild — ขอบเขตเหมือนกันในทางปฏิบัติสำหรับ single widgets
+
+</Diff>
+
+## ตัวอย่างที่รันได้
+
+export const ssCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Counter',
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo)),
+      home: const Scaffold(
+        body: Center(child: Counter()),
+      ),
+    );
+  }
+}
+
+class Counter extends StatefulWidget {
+  const Counter({super.key});
+
+  @override
+  State<Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<Counter> {
+  int _count = 0;
+
+  void _increment() => setState(() => _count++);
+  void _decrement() => setState(() => _count--);
+  void _reset()     => setState(() => _count = 0);
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          '\$_count',
+          style: TextStyle(
+            fontSize: 72,
+            fontWeight: FontWeight.bold,
+            color: scheme.primary,
+          ),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            FilledButton.tonal(onPressed: _decrement, child: const Text('−')),
+            const SizedBox(width: 12),
+            FilledButton(onPressed: _increment, child: const Text('+')),
+            const SizedBox(width: 12),
+            OutlinedButton(onPressed: _reset, child: const Text('Reset')),
+          ],
+        ),
+      ],
+    );
+  }
+}`;
+
+<DartPad client:visible code={ssCode} />
+
+export const quizSs = [
+  {
+    q: 'setState() ของ Flutter ทำอะไรที่ต่างจาก setter ของ useState ใน React?',
+    options: [
+      'มัน return ค่า state ใหม่กลับมา',
+      'มัน mutate fields in-place แทนที่จะแทนที่ค่า state',
+      'มัน batch หลาย state updates เข้าด้วยกัน',
+      'มันป้องกันไม่ให้ widget rebuild',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'createState() ถูกเรียกกี่ครั้งสำหรับ Counter widget instance เดียว?',
+    options: [
+      'ครั้งเดียวต่อการ rebuild',
+      'ครั้งเดียวต่อการเรียก setState()',
+      'ครั้งเดียวเมื่อ widget ถูกแทรกเข้า tree ครั้งแรก',
+      'สองครั้ง — ครั้งหนึ่งสำหรับ mount และอีกครั้งสำหรับ unmount',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Mutable state fields ใน Flutter StatefulWidget อยู่ที่ไหน?',
+    options: [
+      'บน StatefulWidget class เอง',
+      'ใน external store แยกต่างหาก',
+      'บน subclass State<T>',
+      'ใน BuildContext',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'เทียบเท่า React ของ State<T>.build() ใน Flutter คืออะไร?',
+    options: [
+      'body ของ useEffect hook',
+      'body ของ component function / method render()',
+      'initializer function ของ useState',
+      'callback ของ event handler',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="state-lifecycle/setstate-vs-usestate" questions={quizSs} />
+
+<ProgressTracker client:visible id="state-lifecycle/setstate-vs-usestate" />

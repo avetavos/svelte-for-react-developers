@@ -1,0 +1,76 @@
+---
+title: 'Tooling, Testing & Deployment — Module Overview'
+description: 'Flutter toolchain vs Node/React toolchain: pub, flutter CLI, DevTools, testing, and deployment mapped to your existing mental model.'
+---
+
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React, your workflow orbits npm/Yarn, Vite/CRA, jest, React DevTools, and a CI pipeline that runs `npm run build`. Flutter has a parallel toolchain for each step. The tools have different names and live in different places, but the mental model transfers almost one-for-one: there is a package manager, a project manifest, a dev command, a build command, a test runner, an inspector, and a CI action.
+
+The table below is your Rosetta Stone for this module. Keep it open while you read the individual lessons.
+
+## React → Flutter toolchain map
+
+| React / Node | Flutter / Dart | Purpose |
+|---|---|---|
+| npm / Yarn | pub (`flutter pub`) | Package manager |
+| package.json | pubspec.yaml | Project manifest & dependencies |
+| node_modules/ | .pub-cache/ + .dart_tool/ | Dependency cache |
+| `npm install` | `flutter pub get` | Fetch dependencies |
+| `npm run dev` | `flutter run` | Dev server / hot reload |
+| `npm run build` | `flutter build apk/ipa/web` | Production build |
+| jest + RTL | `flutter test` + `testWidgets` | Unit & widget tests |
+| React DevTools | Flutter DevTools | Inspector, profiler, memory |
+| GitHub Actions + node setup | GitHub Actions + subosito/flutter-action | CI/CD |
+
+## What each lesson covers
+
+**pub & pubspec.yaml** — The closest analogy to npm + package.json. You will learn how pubspec.yaml is structured, how version constraints work (they follow the same caret semantics as npm), how to add dependencies from the command line, and how Flutter handles assets inside the manifest instead of through a bundler import.
+
+**flutter test & testWidgets** — jest runs JavaScript functions; `flutter test` runs Dart functions. The difference that matters is the `testWidgets` API, which gives you a `WidgetTester` to pump widgets into a virtual frame, trigger events, and find elements — a direct analogue of React Testing Library's `render` + `screen` + `fireEvent` pattern.
+
+**Flutter DevTools** — A browser-based panel (like React DevTools but built into the SDK) covering the widget inspector, performance timeline, memory profiler, and network tab. You already know what each panel does; you just need to learn where Flutter surfaces the same information.
+
+**CI/CD with GitHub Actions** — The `subosito/flutter-action` action sets up Flutter the same way `actions/setup-node` sets up Node. The rest of your pipeline — lint, test, build artifact — maps command-for-command to what you already write for React apps.
+
+## How to read this module
+
+Each lesson opens with the React mental model, then walks through the Flutter equivalent, then shows a side-by-side comparison or diff. If you already have a React workflow that works, the goal is not to replace it — it is to give you a Flutter workflow that is equally fluent.
+
+export const quizToolingIndex = [
+  {
+    q: 'What is the Flutter equivalent of package.json?',
+    options: [
+      'node_modules/',
+      'pubspec.yaml',
+      'flutter.json',
+      'dart_tool.json',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which command fetches Flutter dependencies (equivalent to npm install)?',
+    options: [
+      'flutter install',
+      'dart pub install',
+      'flutter pub get',
+      'flutter fetch',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the Flutter equivalent of npm run dev for live development?',
+    options: [
+      'flutter start',
+      'flutter run',
+      'flutter serve',
+      'flutter dev',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="tooling/index" questions={quizToolingIndex} />
+
+<ProgressTracker client:visible id="tooling/index" />

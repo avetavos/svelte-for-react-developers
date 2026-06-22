@@ -1,0 +1,236 @@
+---
+title: 'Styling & Theme'
+description: 'ไม่มี CSS ใน Flutter — ทำ styling ผ่าน property ของ widget, TextStyle, BoxDecoration และ ThemeData เทียบกับ CSS และ styled-components'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ความแตกต่างที่พื้นฐานที่สุดระหว่างการทำงาน UI ของ React กับ Flutter คือสิ่งนี้ **ไม่มี stylesheet** ไม่มีไฟล์ CSS ไม่มี `className` ไม่มี `styled-components` ไม่มี utility class ของ Tailwind การทำ styling ใน Flutter ถูกแสดงออกผ่าน property ของ widget constructor ทั้งหมด ทั้ง color, typography, spacing และ decoration ล้วนเป็น Dart object ที่ซ้อนอยู่ภายใน widget tree
+
+สำหรับ design token ระดับทั้งแอป เช่น สีของแบรนด์ scale ของ text รูปทรงของปุ่ม Flutter ใช้ `ThemeData` ซึ่งคุณตั้งค่าครั้งเดียวที่ `MaterialApp(theme: ...)` แล้วเรียกใช้จากที่ไหนก็ได้ผ่าน `Theme.of(context)` นี่คือสิ่งที่เทียบเท่าโดยตรงกับ `ThemeProvider` ที่ห่อแอป React ของคุณ
+
+## เปรียบเทียบแบบเคียงข้างกัน
+
+export const styleReact = `// React — CSS-in-JS / styled-components style
+
+// 1. Inline styles (like Flutter widget props)
+<p style={{ fontSize: 18, color: '#1a1a1a', fontWeight: 700 }}>
+  Hello
+</p>
+
+// 2. styled-components (design token from ThemeProvider)
+const Heading = styled.h1\`
+  font-size: \${({ theme }) => theme.fontSizes.xl}px;
+  color: \${({ theme }) => theme.colors.primary};
+  font-weight: 700;
+\`;
+
+// 3. ThemeProvider wrapping the app
+<ThemeProvider theme={myTheme}>
+  <App />
+</ThemeProvider>
+
+// 4. Consuming the theme in a component
+const { theme } = useTheme();
+<div style={{ background: theme.colors.surface }}>...</div>`;
+
+export const styleFlutter = `// Flutter — widget properties + ThemeData
+
+// 1. Inline TextStyle (equivalent to inline styles)
+Text(
+  'Hello',
+  style: TextStyle(
+    fontSize: 18,
+    color: Color(0xFF1A1A1A),
+    fontWeight: FontWeight.bold,
+  ),
+)
+
+// 2. BoxDecoration (background, border, radius, shadow)
+Container(
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(12),
+    border: Border.all(color: Colors.grey[300]!),
+  ),
+  child: ...,
+)
+
+// 3. ThemeData wrapping the app (in MaterialApp)
+MaterialApp(
+  theme: ThemeData(
+    colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+    textTheme: const TextTheme(
+      headlineMedium: TextStyle(fontWeight: FontWeight.bold),
+    ),
+  ),
+  home: const MyHome(),
+)
+
+// 4. Consuming the theme anywhere
+final theme = Theme.of(context);
+Container(color: theme.colorScheme.surface, ...)`;
+
+<ReactFlutter client:visible react={styleReact} flutter={styleFlutter} />
+
+<Diff title="CSS / styled-components → Flutter styling">
+
+- **ไม่มี stylesheet ไม่มี className** ทุก visual property เป็น argument ของ constructor `Text('Hi', style: TextStyle(fontSize: 18))` เทียบเท่ากับ `<p style={{ fontSize: 18 }}>Hi</p>`
+- **`TextStyle` = CSS property ด้าน typography** `fontSize`, `fontWeight`, `color`, `letterSpacing`, `height` (line-height), `decoration` (ขีดเส้นใต้ ฯลฯ) ล้วนอยู่บน `TextStyle`
+- **`BoxDecoration` = กฎ CSS เชิงกล่อง** `background-color`, `border-radius`, `border`, `box-shadow` และการเติม gradient ล้วนใส่บน `BoxDecoration` ที่ส่งให้ `Container(decoration: ...)`
+- **`Theme.of(context)` = `useTheme()`** อ่าน theme ปัจจุบันของแอปจากที่ไหนก็ได้ใน widget tree `Theme.of(context).colorScheme.primary` เทียบเท่ากับ `theme.colors.primary` จาก `ThemeProvider`
+- **Material 3 `ColorScheme.fromSeed`** ส่ง `seedColor` ของแบรนด์เพียงสีเดียวแล้ว Flutter จะ derive palette สีที่เข้าถึงได้ (accessible) ครบทั้งชุดให้อัตโนมัติ ไม่ต้องระบุ color token ทั้ง 20 ตัวด้วยมือ
+- **`copyWith` สำหรับ override เฉพาะจุด** `Theme.of(context).textTheme.bodyLarge!.copyWith(color: Colors.red)` override property ตัวเดียวในขณะที่สืบทอดที่เหลือจาก theme เทียบเท่ากับการ spread-merge style object ใน JS
+
+</Diff>
+
+## ตัวอย่างที่รันได้
+
+export const styleCode = `import 'package:flutter/material.dart';
+
+void main() {
+  runApp(
+    MaterialApp(
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0468D7)),
+        useMaterial3: true,
+        textTheme: const TextTheme(
+          headlineSmall: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+          bodyMedium: TextStyle(fontSize: 15, height: 1.6),
+        ),
+      ),
+      home: const StyleDemo(),
+    ),
+  );
+}
+
+class StyleDemo extends StatelessWidget {
+  const StyleDemo({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Scaffold(
+      backgroundColor: cs.surfaceContainerLow,
+      appBar: AppBar(
+        backgroundColor: cs.primary,
+        title: Text('Styling & Theme',
+            style: TextStyle(color: cs.onPrimary, fontWeight: FontWeight.bold)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 16,
+          children: [
+            // TextStyle from theme
+            Text('Headline from ThemeData',
+                style: theme.textTheme.headlineSmall),
+            Text('Body text with theme line-height',
+                style: theme.textTheme.bodyMedium),
+
+            // TextStyle override via copyWith
+            Text('Local color override',
+                style: theme.textTheme.bodyMedium!
+                    .copyWith(color: cs.error, fontWeight: FontWeight.w600)),
+
+            // BoxDecoration card
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: cs.primaryContainer,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 8,
+                children: [
+                  Text('Primary container card',
+                      style: TextStyle(color: cs.onPrimaryContainer,
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text('Colours from ColorScheme.fromSeed',
+                      style: TextStyle(color: cs.onPrimaryContainer)),
+                ],
+              ),
+            ),
+
+            // BoxDecoration with gradient
+            Container(
+              height: 80,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [cs.primary, cs.tertiary],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Text('Gradient via BoxDecoration',
+                  style: TextStyle(color: cs.onPrimary,
+                      fontWeight: FontWeight.bold)),
+            ),
+
+            // Buttons inherit theme automatically
+            Row(
+              spacing: 8,
+              children: [
+                ElevatedButton(onPressed: () {}, child: const Text('Elevated')),
+                TextButton(onPressed: () {}, child: const Text('Text')),
+                OutlinedButton(onPressed: () {}, child: const Text('Outlined')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={styleCode} />
+
+export const quizStyle = [
+  {
+    q: 'styling ทั้งหมดของ Flutter อยู่ที่ไหน — มันถูกใส่ให้ widget อย่างไร?',
+    options: [
+      'ในไฟล์ .css แยกต่างหากที่ import ไว้ด้านบนของไฟล์ Dart',
+      'ผ่าน string ของ className ที่อ้างอิง global stylesheet',
+      'ตรงใน property ของ widget constructor (เช่น TextStyle, BoxDecoration)',
+      'ในไฟล์ theme แบบ JSON ที่อ้างอิงโดย pubspec.yaml',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'อะไรคือสิ่งที่เทียบเท่ากับ `ThemeProvider` + `useTheme()` ของ styled-components ใน Flutter?',
+    options: [
+      'InheritedWidget และ method of()',
+      'ThemeData บน MaterialApp และ Theme.of(context)',
+      'global ThemeNotifier Riverpod provider',
+      'BuildContext.theme',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณต้องการเก็บ property ของ TextStyle ทั้งหมดจาก theme ไว้แต่เปลี่ยนแค่สี อะไรคือ pattern ที่ถูกต้องใน Flutter?',
+    options: [
+      'สร้าง TextStyle ใหม่ทั้งหมดโดยคัดลอกทุก property ด้วยมือ',
+      'ใช้ theme.textTheme.bodyMedium!.copyWith(color: myColor)',
+      'ห่อ Text ด้วย widget DefaultTextStyle',
+      'ส่ง mergedStyle ให้ theme ของ MaterialApp',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Flutter class ตัวไหนที่เก็บ background-color, border-radius, border และ box-shadow สำหรับ Container?',
+    options: ['ContainerStyle', 'BoxDecoration', 'DecorationTheme', 'ShapeDecoration'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="widgets/styling-theme" questions={quizStyle} />
+
+<ProgressTracker client:visible id="widgets/styling-theme" />

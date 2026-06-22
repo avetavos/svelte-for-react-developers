@@ -1,0 +1,128 @@
+---
+title: 'go_router'
+description: 'Declarative, URL-aware routing in Flutter with go_router — the React Router v6 equivalent for Flutter apps.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+Flutter's built-in `Navigator` is imperative and has no concept of URL paths or nested routes. For anything beyond a simple push/pop flow — deep links, URL params, nested navigation, web URLs — you reach for the official `go_router` package. It brings a declarative route configuration that maps almost directly onto React Router v6's `createBrowserRouter`.
+
+`go_router` is maintained by the Flutter team and is the officially recommended routing solution for production Flutter apps.
+
+> **Note:** `go_router` requires adding `go_router` to your `pubspec.yaml`. It cannot be run in DartPad, so code in this lesson is for reference only.
+
+## Side-by-side comparison
+
+export const goReact = `// React Router v6
+import { createBrowserRouter, RouterProvider,
+         useParams } from 'react-router-dom';
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <RootLayout />,
+    children: [
+      { index: true,        element: <HomeScreen /> },
+      { path: 'products',   element: <ProductList /> },
+      { path: 'products/:id', element: <ProductDetail /> },
+    ],
+  },
+]);
+
+// In ProductDetail:
+const { id } = useParams();`;
+
+export const goFlutter = `// go_router
+import 'package:go_router/go_router.dart';
+
+final router = GoRouter(
+  routes: [
+    ShellRoute(
+      builder: (context, state, child) =>
+          RootLayout(child: child),
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const HomeScreen(),
+        ),
+        GoRoute(
+          path: '/products',
+          builder: (context, state) => const ProductList(),
+        ),
+        GoRoute(
+          path: '/products/:id',
+          builder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return ProductDetail(id: id);
+          },
+        ),
+      ],
+    ),
+  ],
+);
+
+// Navigate:
+context.go('/products/42');`;
+
+<ReactFlutter client:visible react={goReact} flutter={goFlutter} />
+
+<Diff title="React Router v6 → go_router">
+
+- **`GoRouter` vs `createBrowserRouter`** — both take a list of route definitions and return a router object that you hand to your root widget. In Flutter you pass the `GoRouter` instance to `MaterialApp.router`.
+- **`GoRoute` vs `{ path, element }`** — each `GoRoute` has a `path` and a `builder`. The builder receives a `GoRouterState` (equivalent to React Router's loader params + `useParams`).
+- **`state.pathParameters['id']`** — named URL segments like `:id` are extracted from `GoRouterState.pathParameters`, equivalent to `useParams()` in React Router.
+- **`context.go(path)` vs `navigate(path)`** — `go_router` extends `BuildContext` with `.go()`, `.push()`, and `.pop()` methods. `context.go('/path')` replaces the current route (like `navigate` with `replace: true`). `context.push('/path')` stacks on top.
+- **`ShellRoute` vs nested `<Outlet />`** — `ShellRoute` wraps child routes with a persistent shell widget (e.g., a scaffold with a bottom nav bar), equivalent to a layout route in React Router.
+- **Deep links and web URLs** — `go_router` syncs routes with the platform URL on Flutter Web and handles OS deep links on mobile. The imperative `Navigator` does not do this out of the box.
+
+</Diff>
+
+export const quizGoRouter = [
+  {
+    q: 'What is the go_router equivalent of React Router v6 useParams()?',
+    options: [
+      'context.params',
+      'state.pathParameters from GoRouterState',
+      'GoRoute.params',
+      'Navigator.params(context)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the difference between context.go() and context.push() in go_router?',
+    options: [
+      'go() navigates within the same tab; push() opens a new tab',
+      'go() replaces the current route; push() stacks a new route on top',
+      'go() is for named routes; push() is for path-based routes',
+      'They are identical — go() is just a shorter alias',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is ShellRoute used for in go_router?',
+    options: [
+      'To define error/404 fallback routes',
+      'To wrap child routes with a persistent shell widget like a bottom navigation bar',
+      'To add authentication guards to a group of routes',
+      'To enable deep link handling from the OS',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How does go_router differ from Flutter built-in named routes for web apps?',
+    options: [
+      'go_router uses a stack; built-in named routes use a flat map',
+      'go_router syncs routes with the browser URL and handles deep links; built-in named routes do not',
+      'go_router requires Dart 3; built-in named routes work on any Dart version',
+      'They are identical for web — the only difference is mobile deep-link support',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="navigation/go-router" questions={quizGoRouter} />
+
+<ProgressTracker client:visible id="navigation/go-router" />

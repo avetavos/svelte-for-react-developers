@@ -1,0 +1,211 @@
+---
+title: 'พื้นฐาน Navigator'
+description: 'Navigator.push และ Navigator.pop เทียบกับ useNavigate และ history.push — อธิบาย navigation stack ของ Flutter สำหรับนักพัฒนา React'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React คุณเรียก `useNavigate()` เพื่อรับฟังก์ชัน `navigate` แล้วเรียก `navigate('/detail')` เพื่อเปลี่ยน route ปัจจุบัน สิ่งที่เทียบเท่ากันใน Flutter คือ `Navigator.push(context, route)` — แต่แทนที่จะเป็น URL string คุณส่ง `Route` object ที่รู้วิธีสร้างหน้าจอถัดไป ความแตกต่างหลักคือ Flutter รักษา **widget stack** จริง ๆ: หน้าจอก่อนหน้ายังคงมีชีวิตอยู่ในหน่วยความจำใต้อันใหม่ เหมือนกับที่ browser history เก็บหน้าก่อนหน้าไว้ใน session ของแท็บ
+
+ปุ่มย้อนกลับ Android และ gesture swipe-back ของ iOS ถูกจัดการโดยอัตโนมัติโดย `Navigator` — คุณไม่จำเป็นต้องเชื่อมต่อ back handler เว้นแต่ต้องการ intercept มัน
+
+## การเปรียบเทียบแบบ side-by-side
+
+export const navReact = `// React — navigate programmatically
+import { useNavigate } from 'react-router-dom';
+
+function HomeScreen() {
+  const navigate = useNavigate();
+
+  return (
+    <button onClick={() => navigate('/detail')}>
+      Go to Detail
+    </button>
+  );
+}
+
+// Go back
+function DetailScreen() {
+  const navigate = useNavigate();
+  return (
+    <button onClick={() => navigate(-1)}>
+      Back
+    </button>
+  );
+}`;
+
+export const navFlutter = `// Flutter — push / pop
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const DetailScreen(),
+          ),
+        );
+      },
+      child: const Text('Go to Detail'),
+    );
+  }
+}
+
+// Go back
+class DetailScreen extends StatelessWidget {
+  const DetailScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: () => Navigator.pop(context),
+      child: const Text('Back'),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={navReact} flutter={navFlutter} />
+
+<Diff title="useNavigate / history.push → Navigator.push">
+
+- **ต้องมี Context.** `Navigator.push` เป็น static method ที่รับ `BuildContext` Flutter resolve `Navigator` ancestor ที่ใกล้ที่สุดจาก context นั้น — คล้ายกับที่ hooks ของ react-router resolve `Router` ที่ใกล้ที่สุดผ่าน React context
+- **โมเดล Stack ไม่ใช่ URL.** `Navigator.push` เพิ่ม entry ใหม่เข้า in-memory stack จริง ๆ ไม่มีการเปลี่ยน URL บนมือถือ (แม้ Flutter Web จะอัปเดต browser URL)
+- **`MaterialPageRoute` คือ route object.** มัน wrap builder function และให้ transition animation ที่เหมาะสมกับ platform (slide บน iOS, fade บน Android) React Router ไม่มีสิ่งที่เทียบตรงกันเพราะเลื่อน transition ให้กับ CSS
+- **`Navigator.pop` vs `navigate(-1)`.** `pop` ลบ entry บนสุดออกจาก Flutter stack `navigate(-1)` ย้อนกลับใน browser history ทั้งคู่ทำให้ "กลับ" ได้ แต่ `pop` เป็น synchronous และไม่ตรวจสอบ URL
+- **Back gesture ได้มาฟรี.** `Navigator` เชื่อมต่อปุ่มย้อนกลับ Android และ edge-swipe ของ iOS โดยอัตโนมัติ ใน react-router คุณต้องจัดการ `history.block` หรือ `useBeforeUnload` เอง
+
+</Diff>
+
+## ตัวอย่างที่รันได้
+
+export const navCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Home')),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'You are on the Home screen.',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DetailScreen(),
+                  ),
+                );
+              },
+              child: const Text('Go to Detail'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DetailScreen extends StatelessWidget {
+  const DetailScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Detail')),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'You are on the Detail screen.',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Go Back'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={navCode} />
+
+export const quizNav = [
+  {
+    q: 'Navigator.push เพิ่มอะไรเข้าไปใน Flutter navigation stack?',
+    options: [
+      'URL entry ใน browser history',
+      'Route object ใหม่บนสุดของ stack โดยที่หน้าจอก่อนหน้ายังคงมีชีวิตอยู่',
+      'Snapshot ของ widget tree ปัจจุบัน',
+      'Platform-level intent (Android) หรือ segue (iOS)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ทำไม Navigator.push จึงต้องการ BuildContext?',
+    options: [
+      'ต้องการ context เพื่ออ่านสี theme ปัจจุบัน',
+      'มัน resolve Navigator ancestor ที่ใกล้ที่สุดใน widget tree จาก context นั้น',
+      'BuildContext บรรจุ route arguments',
+      'จำเป็นตาม Dart type system แต่ไม่ได้ใช้ที่ runtime',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'MaterialPageRoute มีหน้าที่อะไร?',
+    options: [
+      'ลงทะเบียนชื่อ route ใน app route table',
+      'ให้ builder function และ transition animation ที่เหมาะสมกับ platform สำหรับหน้าจอใหม่',
+      'บันทึก navigation history ข้ามการรีสตาร์ทแอป',
+      'จัดการ deep link จาก OS',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Flutter จัดการปุ่มย้อนกลับ Android โดยไม่ต้องเขียน code เพิ่มเติมได้อย่างไร?',
+    options: [
+      'เรียก Navigator.pop อัตโนมัติเมื่อกดปุ่ม',
+      'Restart แอปกลับไปยัง initial route',
+      'พึ่งให้ OS kill the activity',
+      'ส่ง PopRouteIntent ที่คุณต้องจัดการเอง',
+    ],
+    answer: 0,
+  },
+];
+
+<Quiz client:visible id="navigation/navigator-basics" questions={quizNav} />
+
+<ProgressTracker client:visible id="navigation/navigator-basics" />

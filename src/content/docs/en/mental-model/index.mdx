@@ -1,0 +1,56 @@
+---
+title: 'React → Flutter: Mental Model'
+description: 'The six mental shifts every React developer needs to make — and the reassurance that most of your instincts transfer directly.'
+---
+
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+Flutter is not a foreign country — it's a familiar city with different street names. Your React instincts about declarative UI, component composition, props-down/events-up, and state driving renders are all valid in Flutter. What changes is the syntax layer and a handful of framework conventions. This module maps those shifts explicitly so you spend zero time re-learning fundamentals and jump straight to being productive.
+
+## The six shifts
+
+| Lesson | The shift |
+|---|---|
+| **Everything is a Widget** | Layout/spacing/styling are widgets, not CSS |
+| **Declarative UI** | Same idea (`UI = f(state)`) — different reconciler |
+| **No JSX** | Dart constructors instead of angle-bracket tags |
+| **Composition** | Wrapping widgets instead of wrapping components |
+| **Same vs Different** | The explicit lookup table for your muscle memory |
+
+export const quizIndex = [
+  {
+    q: 'What is the single most important mental shift when moving from React to Flutter?',
+    options: [
+      'Learning a new programming language',
+      'Understanding that layout, spacing, and styling are all widgets — there is no CSS',
+      'Switching from functional to class-based programming',
+      'Understanding the Dart type system',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which core React concept maps DIRECTLY onto Flutter with almost no change?',
+    options: [
+      'JSX templates',
+      'CSS-in-JS styling',
+      'Declarative UI (UI = f(state))',
+      'The virtual DOM',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'In Flutter, how do you apply padding to a widget?',
+    options: [
+      'Add a style={{ padding: 16 }} attribute',
+      'Wrap the widget in a Padding widget',
+      'Call .setPadding() on the widget',
+      'Use a CSS class',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="mental-model/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="mental-model/index" />

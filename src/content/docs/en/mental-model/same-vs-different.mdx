@@ -1,0 +1,163 @@
+---
+title: 'Same vs Different: The Lookup Table'
+description: 'A side-by-side reference mapping every React concept to its Flutter equivalent. Bookmark this page.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+{/* DartPad skipped: this is a reference table lesson — all runnable code lives in the other mental-model lessons */}
+
+This is your cheat sheet. The left column shows what you know from React; the right column shows the Flutter equivalent. Most entries map one-to-one; the ones that are genuinely different are called out with a note.
+
+## Concept map
+
+| React concept | Flutter equivalent | Notes |
+|---|---|---|
+| Function component | `StatelessWidget` | Class with `build()` method |
+| Class component | `StatefulWidget` + `State<T>` | Split into two classes |
+| Props | Constructor parameters | Dart named params: `MyWidget(name: 'Ava')` |
+| `useState` | `setState(() { ... })` | Lives in `State<T>` subclass |
+| `useEffect` (mount) | `initState()` | Called once after first build |
+| `useEffect` (unmount) | `dispose()` | Clean up controllers, streams, timers |
+| `useEffect` (deps) | Manual `didUpdateWidget` / Riverpod | No direct equivalent |
+| `useContext` / Context | `InheritedWidget` / Provider package | Provider is the community standard |
+| `React.memo` | `const` constructor | Dart `const` prevents rebuilds |
+| `key` prop | `Key` / `super.key` | Same purpose — tree reconciliation |
+| JSX | Dart constructor calls | `<Text>` → `Text('...')` |
+| CSS / StyleSheet | Widget params + `ThemeData` | `TextStyle`, `BoxDecoration`, etc. |
+| Flexbox | `Row` / `Column` | `mainAxisAlignment` ≈ `justify-content` |
+| `display: none` | Conditional with `if` or `Visibility` | `if (show) MyWidget()` in children list |
+| react-router / Next.js | `Navigator` + routes / go_router | Imperative or declarative routing |
+| npm / package.json | pub / pubspec.yaml | `flutter pub add package_name` |
+| Fast Refresh | Hot Reload (`r` in terminal) | Preserves state; hot restart = full reload |
+| `.map()` in JSX | `.map(...).toList()` in `children` | Returns `List<Widget>` |
+| `styled-components` | `ThemeData` + widget params | No runtime CSS — all compile-time Dart |
+| `React.createContext` | `InheritedWidget` or `ChangeNotifier` | Provider wraps both patterns |
+
+## The two biggest surprises
+
+export const reactSurprise = `// React instinct — what you'd reach for
+function ProfileCard({ name, isAdmin }) {
+  const [liked, setLiked] = useState(false);
+  return (
+    <div className="card" style={{ padding: 16, borderRadius: 12 }}>
+      <h3 style={{ margin: 0 }}>{name}</h3>
+      {isAdmin && <span className="badge">Admin</span>}
+      <button onClick={() => setLiked(l => !l)}>
+        {liked ? '❤️ Liked' : '🤍 Like'}
+      </button>
+    </div>
+  );
+}`;
+
+export const flutterSurprise = `// Flutter equivalent — layout is widgets
+class ProfileCard extends StatefulWidget {
+  final String name;
+  final bool isAdmin;
+  const ProfileCard({super.key, required this.name, this.isAdmin = false});
+
+  @override
+  State<ProfileCard> createState() => _ProfileCardState();
+}
+
+class _ProfileCardState extends State<ProfileCard> {
+  bool _liked = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.name,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          if (widget.isAdmin)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue[100],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text('Admin',
+                  style: TextStyle(color: Colors.blue, fontSize: 12)),
+            ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => setState(() => _liked = !_liked),
+            child: Text(
+              _liked ? '❤️ Liked' : '🤍 Like',
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={reactSurprise} flutter={flutterSurprise} />
+
+<Diff title="The two biggest surprises for React developers">
+
+- **No CSS** — there is no stylesheet, `className`, or `style` prop in Flutter. Every visual property is a Dart value on a widget or in `ThemeData`. The widget tree IS your stylesheet.
+- **`useState` → two classes** — Flutter splits a stateful component into `StatefulWidget` (the immutable config) and `State<T>` (the mutable state). It is more verbose than `useState` but gives Flutter fine-grained rebuild control.
+- **No JSX, no Babel** — your widget tree is just Dart. The IDE autocompletes every constructor param and the Dart compiler catches every type error at compile time, not at JSX transform time.
+
+</Diff>
+
+export const quizSameVsDifferent = [
+  {
+    q: 'What is the Flutter equivalent of npm / package.json?',
+    options: [
+      'bower.json',
+      'pubspec.yaml + the pub package manager',
+      'flutter.json',
+      'cargo.toml',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'In Flutter, how do you achieve the equivalent of CSS display: none to hide a widget conditionally?',
+    options: [
+      "widget.style.display = 'none'",
+      'Set opacity: 0 only',
+      'Use if (condition) MyWidget() inside a children list, or wrap with Visibility(visible: false, ...)',
+      'Call widget.hide()',
+    ],
+    answer: 2,
+  },
+  {
+    q: "React's Fast Refresh maps to which Flutter feature?",
+    options: [
+      'flutter build --watch',
+      'Hot Reload (press r) — preserves app state during code changes',
+      'Cold restart only',
+      'The Dart analyzer',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why does Flutter split a stateful component into StatefulWidget + State<T>?',
+    options: [
+      'Because Dart does not support closures',
+      'To separate the immutable widget config from the mutable state, giving Flutter fine-grained rebuild control',
+      'For historical compatibility with Flutter v1',
+      'To match the React class component lifecycle exactly',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="mental-model/same-vs-different" questions={quizSameVsDifferent} />
+
+<ProgressTracker client:visible id="mental-model/same-vs-different" />

@@ -1,0 +1,203 @@
+---
+title: 'การส่งข้อมูลระหว่างหน้า'
+description: 'ส่งข้อมูลไปข้างหน้าผ่าน constructor, ส่งข้อมูลกลับผ่าน Navigator.pop return value — เทียบกับ route state และ callback ของ React Router'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React Router คุณส่งข้อมูลไปข้างหน้าผ่าน URL params, route state (`navigate('/detail', { state: item })`), หรือ query string คุณส่งข้อมูลกลับโดย lift state ขึ้นและส่ง callback เป็น prop หรือใช้ global store Flutter มีกลไกที่ชัดเจนกว่าสำหรับทั้งสองทิศทาง: ส่งข้อมูล **ไปข้างหน้า** ผ่าน constructor argument ของ widget (วิธีเดียวกับที่คุณส่ง props) และส่งข้อมูล **กลับ** โดย `await` future ของ `Navigator.push` ซึ่ง resolve เป็นค่าใดก็ตามที่หน้าจอถัดไปส่งให้ `Navigator.pop`
+
+## การเปรียบเทียบแบบ side-by-side
+
+export const dataReact = `// React — pass forward via route state
+// navigate('/detail', { state: { product } })
+
+function ProductDetail() {
+  const { state } = useLocation();
+  const { product } = state;
+  return <h1>{product.name}</h1>;
+}
+
+// Pass back via callback prop
+function EditScreen({ onSave }) {
+  return (
+    <button onClick={() => onSave({ name: 'Updated' })}>
+      Save
+    </button>
+  );
+}`;
+
+export const dataFlutter = `// Flutter — pass forward via constructor
+class ProductDetail extends StatelessWidget {
+  final Product product;
+  const ProductDetail({super.key, required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(product.name);
+  }
+}
+
+// Push with data:
+Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (_) => ProductDetail(product: item),
+  ),
+);
+
+// Pass back via pop return value:
+final result = await Navigator.push<Map<String, String>>(
+  context,
+  MaterialPageRoute(builder: (_) => const EditScreen()),
+);
+// result == { 'name': 'Updated' }
+
+// In EditScreen:
+Navigator.pop(context, {'name': 'Updated'});`;
+
+<ReactFlutter client:visible react={dataReact} flutter={dataFlutter} />
+
+<Diff title="Route state / callbacks → constructor args / pop return value">
+
+- **Constructor arg แทน route state.** แทนที่จะ serialize ข้อมูลลงใน route state คุณส่งมันโดยตรงให้ constructor ของ screen widget นี้ถูกตรวจสอบ type อย่างสมบูรณ์ที่ compile time — ไม่มี runtime `useLocation().state as Product` cast
+- **`await Navigator.push<T>`** — `Navigator.push` return `Future<T?>` ที่สำเร็จเมื่อหน้าจอที่ push ถูก pop `T` generic คือประเภทของ return value สิ่งนี้แทนที่ pattern ของ React ในการส่ง callback เป็น prop
+- **`Navigator.pop(context, value)`** — argument ที่สองของ `pop` คือ return value มันได้รับโดย `await`-er บนหน้าจอก่อนหน้า
+- **Type safety ตั้งแต่ต้นจนจบ.** คุณประกาศ return type เป็น generic บนทั้งสองฝั่ง: `Navigator.push<bool>` และ `Navigator.pop(context, true)` ความไม่ตรงกันถูกจับได้ที่ compile time
+- **ทางเลือกของ go_router.** ด้วย `go_router` ใช้ `state.extra` เพื่อส่ง object ไปข้างหน้า และ `context.pop(result)` เพื่อ return ค่า Path parameter เป็น string เสมอ
+
+</Diff>
+
+## ตัวอย่างที่รันได้
+
+export const dataCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(home: ContactListScreen());
+  }
+}
+
+class Contact {
+  final String name;
+  final String email;
+  const Contact({required this.name, required this.email});
+}
+
+const contacts = [
+  Contact(name: 'Alice', email: 'alice@example.com'),
+  Contact(name: 'Bob',   email: 'bob@example.com'),
+  Contact(name: 'Carol', email: 'carol@example.com'),
+];
+
+class ContactListScreen extends StatelessWidget {
+  const ContactListScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Contacts')),
+      body: ListView.builder(
+        itemCount: contacts.length,
+        itemBuilder: (context, index) {
+          final contact = contacts[index];
+          return ListTile(
+            title: Text(contact.name),
+            subtitle: Text(contact.email),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ContactDetailScreen(contact: contact),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class ContactDetailScreen extends StatelessWidget {
+  final Contact contact;
+  const ContactDetailScreen({super.key, required this.contact});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(contact.name)),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Name: \${contact.name}',
+                style: const TextStyle(fontSize: 18)),
+            const SizedBox(height: 8),
+            Text('Email: \${contact.email}',
+                style: const TextStyle(fontSize: 18)),
+          ],
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={dataCode} />
+
+export const quizPassingData = [
+  {
+    q: 'วิธีที่แนะนำในการส่งข้อมูลไปยังหน้าจอใหม่ใน Flutter คืออะไร?',
+    options: [
+      'Serialize มันลงใน route name string',
+      'เก็บไว้ใน global variable ก่อน push',
+      'ส่งผ่าน constructor ของ widget เมื่อสร้าง screen ใน builder',
+      'ใช้ Navigator.arguments เพื่อแนบ metadata กับ route',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'หน้าจอส่งข้อมูลกลับให้ผู้เรียกอย่างไรใน Flutter?',
+    options: [
+      'โดยเรียก setState บน parent widget',
+      'โดยส่ง value เป็น argument ที่สองของ Navigator.pop',
+      'โดยเขียนไปยัง shared preferences',
+      'โดย dispatch custom event บน BuildContext',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'await Navigator.push<bool>(...) return อะไร?',
+    options: [
+      'bool ที่เป็น true ถ้า push สำเร็จ',
+      'Future<bool?> ที่สำเร็จด้วยค่าที่ส่งให้ Navigator.pop',
+      'BuildContext ของหน้าจอที่ push',
+      'Stream ของ navigation events',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'การส่งข้อมูลผ่าน constructor มีข้อดีเหนือกว่า route state ของ React Router อย่างไร?',
+    options: [
+      'Constructor param ถูก serialize อัตโนมัติ ทำให้ deep link ง่ายขึ้น',
+      'Constructor param ถูกตรวจสอบ type อย่างสมบูรณ์ที่ compile time ขจัด runtime cast error',
+      'Constructor param ถูกเก็บไว้ใน navigation history',
+      'Constructor param อนุญาตให้ส่งฟังก์ชัน ซึ่ง route state ทำไม่ได้',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="navigation/passing-data" questions={quizPassingData} />
+
+<ProgressTracker client:visible id="navigation/passing-data" />

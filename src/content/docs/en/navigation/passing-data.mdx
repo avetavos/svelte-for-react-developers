@@ -1,0 +1,203 @@
+---
+title: 'Passing Data Between Screens'
+description: 'Pass data forward via constructors, pass data back via Navigator.pop return values — compared to React Router route state and callbacks.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React Router you pass data forward through URL params, route state (`navigate('/detail', { state: item })`), or query strings. You pass data back by lifting state up and passing a callback as a prop, or by using a global store. Flutter has a more explicit mechanism for both directions: pass data **forward** via widget constructor arguments (the same way you pass props), and pass data **back** by `await`-ing the `Navigator.push` future, which resolves to whatever value the next screen passes to `Navigator.pop`.
+
+## Side-by-side comparison
+
+export const dataReact = `// React — pass forward via route state
+// navigate('/detail', { state: { product } })
+
+function ProductDetail() {
+  const { state } = useLocation();
+  const { product } = state;
+  return <h1>{product.name}</h1>;
+}
+
+// Pass back via callback prop
+function EditScreen({ onSave }) {
+  return (
+    <button onClick={() => onSave({ name: 'Updated' })}>
+      Save
+    </button>
+  );
+}`;
+
+export const dataFlutter = `// Flutter — pass forward via constructor
+class ProductDetail extends StatelessWidget {
+  final Product product;
+  const ProductDetail({super.key, required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(product.name);
+  }
+}
+
+// Push with data:
+Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (_) => ProductDetail(product: item),
+  ),
+);
+
+// Pass back via pop return value:
+final result = await Navigator.push<Map<String, String>>(
+  context,
+  MaterialPageRoute(builder: (_) => const EditScreen()),
+);
+// result == { 'name': 'Updated' }
+
+// In EditScreen:
+Navigator.pop(context, {'name': 'Updated'});`;
+
+<ReactFlutter client:visible react={dataReact} flutter={dataFlutter} />
+
+<Diff title="Route state / callbacks → constructor args / pop return value">
+
+- **Constructor args replace route state.** Instead of serializing data into route state, you pass it directly to the screen widget's constructor. This is fully type-checked at compile time — no runtime `useLocation().state as Product` cast needed.
+- **`await Navigator.push<T>`** — `Navigator.push` returns a `Future<T?>` that completes when the pushed screen is popped. The generic `T` is the type of the return value. This replaces the React pattern of passing a callback as a prop.
+- **`Navigator.pop(context, value)`** — the second argument to `pop` is the return value. It is received by the `await`-er on the previous screen.
+- **Type safety end-to-end.** You declare the return type as a generic on both sides: `Navigator.push<bool>` and `Navigator.pop(context, true)`. Mismatches are caught at compile time.
+- **go_router alternative.** With `go_router`, use `state.extra` to pass objects forward and `context.pop(result)` to return values. Path parameters are always strings.
+
+</Diff>
+
+## Runnable example
+
+export const dataCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(home: ContactListScreen());
+  }
+}
+
+class Contact {
+  final String name;
+  final String email;
+  const Contact({required this.name, required this.email});
+}
+
+const contacts = [
+  Contact(name: 'Alice', email: 'alice@example.com'),
+  Contact(name: 'Bob',   email: 'bob@example.com'),
+  Contact(name: 'Carol', email: 'carol@example.com'),
+];
+
+class ContactListScreen extends StatelessWidget {
+  const ContactListScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Contacts')),
+      body: ListView.builder(
+        itemCount: contacts.length,
+        itemBuilder: (context, index) {
+          final contact = contacts[index];
+          return ListTile(
+            title: Text(contact.name),
+            subtitle: Text(contact.email),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ContactDetailScreen(contact: contact),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class ContactDetailScreen extends StatelessWidget {
+  final Contact contact;
+  const ContactDetailScreen({super.key, required this.contact});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(contact.name)),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Name: \${contact.name}',
+                style: const TextStyle(fontSize: 18)),
+            const SizedBox(height: 8),
+            Text('Email: \${contact.email}',
+                style: const TextStyle(fontSize: 18)),
+          ],
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={dataCode} />
+
+export const quizPassingData = [
+  {
+    q: 'What is the recommended way to pass data forward to a new screen in Flutter?',
+    options: [
+      'Serialize it into the route name string',
+      'Store it in a global variable before pushing',
+      'Pass it via the widget constructor when creating the screen in the builder',
+      'Use Navigator.arguments to attach metadata to the route',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'How does a screen return data back to its caller in Flutter?',
+    options: [
+      'By calling setState on the parent widget',
+      'By passing a value as the second argument to Navigator.pop',
+      'By writing to shared preferences',
+      'By dispatching a custom event on BuildContext',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does await Navigator.push<bool>(...) return?',
+    options: [
+      'A bool that is true if the push succeeded',
+      'A Future<bool?> that completes with the value passed to Navigator.pop',
+      'The BuildContext of the pushed screen',
+      'A Stream of navigation events',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What advantage does passing data via constructors have over React Router route state?',
+    options: [
+      'Constructor params are serialized automatically, making deep links easier',
+      'Constructor params are fully type-checked at compile time, eliminating runtime cast errors',
+      'Constructor params are stored in the navigation history',
+      'Constructor params allow passing functions, which route state does not',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="navigation/passing-data" questions={quizPassingData} />
+
+<ProgressTracker client:visible id="navigation/passing-data" />

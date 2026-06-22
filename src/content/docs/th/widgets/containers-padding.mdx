@@ -1,0 +1,170 @@
+---
+title: 'Containers & Padding'
+description: "Container, Padding, EdgeInsets และ SizedBox — คำตอบของ Flutter ต่อ CSS box model"
+---
+
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน CSS ทุก HTML element คือกล่องที่มี `padding`, `margin`, `border`, `width` และ `height` แต่ Flutter ไม่มี CSS box model แทนที่จะเป็นแบบนั้น มันมี **widget เฉพาะทาง** สำหรับแต่ละเรื่อง ตอนแรกฟังดูเหมือนยืดยาว แต่มันทำให้เจตนาของ layout ชัดเจนและประกอบกันได้
+
+widget สามตัวที่คุณจะหยิบมาใช้บ่อยที่สุดคือ `Container` (กล่องครบในตัวเดียว), `Padding` (เว้นระยะอย่างเดียว) และ `SizedBox` (ขนาดตายตัวหรือใช้เว้นช่องว่าง)
+
+## คำศัพท์เรื่องกล่องของ Flutter
+
+| CSS property | Flutter widget / property |
+|---|---|
+| `padding: 16px` | `Padding(padding: EdgeInsets.all(16))` |
+| `padding: 8px 16px` | `EdgeInsets.symmetric(vertical: 8, horizontal: 16)` |
+| `padding: 4px 8px 12px 16px` | `EdgeInsets.only(top: 4, right: 8, bottom: 12, left: 16)` |
+| `margin: 8px` | ห่อ parent ด้วย `Padding` หรือใช้ `Container(margin: ...)` |
+| `width: 200px; height: 100px` | `SizedBox(width: 200, height: 100)` |
+| `width: 100%` | `SizedBox(width: double.infinity)` |
+| `background-color`, `border-radius`, `box-shadow`, `border` | `Container(decoration: BoxDecoration(...))` |
+| `width: 200px; background: blue; border-radius: 8px` | `Container(width: 200, decoration: BoxDecoration(color: Colors.blue, borderRadius: ...))` |
+
+## widget กล่องสามตัวและควรใช้ตัวไหนเมื่อไหร่
+
+**`Padding`** ใช้เมื่อคุณต้องการแค่เว้นระยะรอบ child เท่านั้น มันเบากว่า `Container` เพราะไม่มีต้นทุนในการวาด (painting cost)
+
+**`SizedBox`** ใช้เมื่อคุณต้องการขนาดตายตัว หรือใช้เป็นช่องว่างระหว่าง widget (`SizedBox(height: 16)` เป็นวิธีเว้นระยะแนวตั้งที่นิยมใช้กัน)
+
+**`Container`** ใช้เมื่อคุณต้องการ visual property หลายอย่างพร้อมกัน เช่น color, padding, margin, border, border-radius หรือ shadow อย่าใช้ `Container` เพียงเพื่อใส่ padding เฉย ๆ ให้ใช้ `Padding` แทน
+
+## ตัวอย่างที่รันได้
+
+export const containerCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        appBar: AppBar(title: const Text('Containers & Padding')),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),   // Padding on ScrollView
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 16,
+            children: [
+              // ------- Padding only -------
+              const _Label('Padding — all sides 16px'),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Container(color: Colors.blue[100],
+                    child: const Text('Content with padding')),
+              ),
+
+              // ------- SizedBox as gap + fixed size -------
+              const _Label('SizedBox — fixed 200x60'),
+              Center(
+                child: SizedBox(
+                  width: 200, height: 60,
+                  child: Container(color: Colors.green[200],
+                      alignment: Alignment.center,
+                      child: const Text('200 x 60')),
+                ),
+              ),
+
+              // ------- Container — full box model -------
+              const _Label('Container — color + border-radius + shadow'),
+              Container(
+                padding: const EdgeInsets.all(20),
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.08),
+                        blurRadius: 10, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: const Text('This card uses BoxDecoration'),
+              ),
+
+              // ------- EdgeInsets.only -------
+              const _Label('EdgeInsets.only — asymmetric padding'),
+              Container(
+                color: Colors.orange[100],
+                padding: const EdgeInsets.only(
+                    top: 4, right: 8, bottom: 12, left: 24),
+                child: const Text('top:4 right:8 bottom:12 left:24'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Label extends StatelessWidget {
+  final String text;
+  const _Label(this.text);
+
+  @override
+  Widget build(BuildContext context) => Text(text,
+      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12,
+          color: Colors.grey));
+}`;
+
+<DartPad client:visible code={containerCode} />
+
+<Diff title="CSS box model → Flutter box widgets">
+
+- **ไม่มี `margin` บน widget ทั่วไป** ใน CSS ทุก element มี `margin` แต่ใน Flutter มีเพียง `Container` เท่านั้นที่มี property `margin` สำหรับ widget อื่น ๆ ให้เพิ่ม `Padding` หรือ `SizedBox` ภายนอกใน layout ของ parent แทน
+- **`BoxDecoration` แทนกฎ CSS เชิงภาพ** `background-color`, `border-radius`, `border` และ `box-shadow` ล้วนเป็น property ของ `BoxDecoration` object ตัวเดียวที่ assign ให้ `Container(decoration: ...)` คุณตั้ง `decoration` และ `color` บน `Container` พร้อมกันไม่ได้ เพราะ `color` เป็นตัวย่อที่ภายในจะกลายเป็น `BoxDecoration(color: ...)` การใส่ทั้งคู่จะทำให้เกิด assertion error
+- **`Padding` เป็น widget ไม่ใช่ property** ใน CSS `padding` เป็น property ของ element ใด ๆ แต่ใน Flutter padding ถูกใส่โดยการ *ห่อ* child ด้วย widget `Padding` ทำให้ padding กลายเป็น node ที่ชัดเจนและตรวจสอบได้ใน widget tree
+- **`double.infinity` = `100%`** ไม่มีการกำหนดขนาดแบบเปอร์เซ็นต์ `SizedBox(width: double.infinity)` บอกให้ widget กินความกว้างที่มีทั้งหมด เทียบเท่ากับ `width: 100%`
+- **เลือก `SizedBox` มากกว่า `Container` สำหรับช่องว่าง** การใช้ `SizedBox(height: 16)` เป็นตัวเว้นระยะเป็นวิธีที่นิยมและเบา `Container(height: 16)` ก็ใช้ได้ แต่มี overhead ในการวาดที่ไม่จำเป็น
+
+</Diff>
+
+export const quizContainers = [
+  {
+    q: 'widget ตัวไหนที่ควรใช้เมื่อคุณต้องการแค่ใส่ padding รอบ child โดยไม่มี styling เชิงภาพอื่น ๆ?',
+    options: ['Container', 'SizedBox', 'Padding', 'DecoratedBox'],
+    answer: 2,
+  },
+  {
+    q: 'อะไรคือสิ่งที่เทียบเท่ากับ `width: 100%` ของ CSS ใน Flutter?',
+    options: [
+      'SizedBox(width: 1.0)',
+      'SizedBox(width: double.infinity)',
+      'Container(width: double.maxFinite)',
+      'Expanded()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'จะเกิดอะไรขึ้นถ้าคุณตั้งทั้ง `color` และ `decoration` บน `Container` ตัวเดียวกัน?',
+    options: [
+      'color จะถูกเพิกเฉยแบบเงียบ ๆ',
+      'decoration จะถูกเพิกเฉยแบบเงียบ ๆ',
+      'Flutter จะ throw assertion error ตอน runtime',
+      'ทั้งคู่ทำงาน — color เติมพื้นหลังและ decoration เพิ่ม border',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'อะไรคือวิธีที่นิยมใน Flutter ในการเพิ่มช่องว่าง 16 พิกเซลระหว่าง child สองตัวของ Column?',
+    options: [
+      'Column(gap: 16)',
+      'SizedBox(height: 16) ระหว่าง child',
+      'Padding(padding: EdgeInsets.only(bottom: 16)) บน child ตัวแรก',
+      'Spacer(flex: 16)',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="widgets/containers-padding" questions={quizContainers} />
+
+<ProgressTracker client:visible id="widgets/containers-padding" />

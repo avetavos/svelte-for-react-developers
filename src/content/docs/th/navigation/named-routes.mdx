@@ -1,0 +1,178 @@
+---
+title: 'Named Routes (เส้นทางที่ตั้งชื่อ)'
+description: "Named routes ของ Flutter — routes: map และ Navigator.pushNamed — เทียบกับ <Route path> config ของ React Router"
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React Router คุณกำหนด route configuration — array หรือ JSX tree ของ `<Route path="..." element={...} />` objects — และ router จะ render component ที่ตรงกันตาม URL ปัจจุบัน Flutter มีสิ่งที่เทียบเคียงได้แบบ built-in ที่เรียบง่ายกว่า: `routes` map บน `MaterialApp` ที่เชื่อมโยง string name กับ builder function การเรียก `Navigator.pushNamed(context, '/detail')` จะค้นหาชื่อใน map และ push หน้าจอที่ตรงกัน
+
+Named routes แก้ปัญหาเดียวกับ path config ของ React Router: คุณแยก navigation call site ออกจาก screen widget จริง ๆ ทำให้สามารถเปลี่ยนชื่อหรือย้าย screen ได้โดยไม่ต้องอัปเดตทุก push call
+
+## การเปรียบเทียบแบบ side-by-side
+
+export const routesReact = `// React Router v6 — route config
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+
+const router = createBrowserRouter([
+  { path: '/',        element: <HomeScreen /> },
+  { path: '/detail',  element: <DetailScreen /> },
+  { path: '/profile', element: <ProfileScreen /> },
+]);
+
+// Navigate by path string
+navigate('/detail');
+navigate('/profile');`;
+
+export const routesFlutter = `// Flutter — named routes map
+MaterialApp(
+  initialRoute: '/',
+  routes: {
+    '/':        (context) => const HomeScreen(),
+    '/detail':  (context) => const DetailScreen(),
+    '/profile': (context) => const ProfileScreen(),
+  },
+);
+
+// Navigate by name
+Navigator.pushNamed(context, '/detail');
+Navigator.pushNamed(context, '/profile');`;
+
+<ReactFlutter client:visible react={routesReact} flutter={routesFlutter} />
+
+<Diff title="React Router path config → Flutter routes map">
+
+- **`routes:` บน `MaterialApp`** — map อยู่บน root `MaterialApp` widget คล้ายกับการวาง router ไว้ที่ top ของ React component tree ของคุณ keys เป็น string; values เป็น builder function `(BuildContext) => Widget`
+- **`initialRoute`** — แทนที่ `index` route ของ React Router มันคือชื่อ route ที่ Flutter push ก่อนเป็นอันดับแรก
+- **`Navigator.pushNamed` vs `navigate(path)`** — ทั้งคู่รับ string key และนำทางไปยัง screen ที่ตรงกัน รูปแบบ API เกือบเหมือนกันทุกประการ
+- **`Navigator.pushReplacementNamed`** — แทนที่ route ปัจจุบันแทนที่จะ push ทับ เทียบเท่ากับ `navigate(path, { replace: true })` ของ React Router
+- **`Navigator.popAndPushNamed`** — pop route ปัจจุบันและ push อันใหม่ทันที มีประโยชน์สำหรับ wizard flows
+- **ข้อจำกัด: ไม่รองรับ URL params ใน named routes.** Named routes แบบ built-in ของ Flutter ไม่รองรับ path parameter เช่น `/detail/:id` สำหรับสิ่งนั้นคุณต้องใช้ `go_router` (ครอบคลุมในบทเรียนถัดไป)
+
+</Diff>
+
+## ตัวอย่างที่รันได้
+
+export const namedCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      initialRoute: '/',
+      routes: {
+        '/':        (context) => const HomeScreen(),
+        '/about':   (context) => const AboutScreen(),
+        '/contact': (context) => const ContactScreen(),
+      },
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Home')),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton(
+              onPressed: () => Navigator.pushNamed(context, '/about'),
+              child: const Text('About'),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () => Navigator.pushNamed(context, '/contact'),
+              child: const Text('Contact'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AboutScreen extends StatelessWidget {
+  const AboutScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('About')),
+      body: const Center(child: Text('About page')),
+    );
+  }
+}
+
+class ContactScreen extends StatelessWidget {
+  const ContactScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Contact')),
+      body: const Center(child: Text('Contact page')),
+    );
+  }
+}`;
+
+<DartPad client:visible code={namedCode} />
+
+export const quizNamedRoutes = [
+  {
+    q: 'คุณกำหนด named routes map ไว้ที่ไหนในแอป Flutter?',
+    options: [
+      'ในไฟล์ router.dart แยกต่างหากที่ import ทุกที่',
+      'ที่ property routes: ของ MaterialApp',
+      'ใน main() function ก่อน runApp',
+      'ภายใน screen widget แต่ละตัว',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'อะไรคือสิ่งที่เทียบเท่ากับ navigate(path, { replace: true }) ของ React Router ใน Flutter?',
+    options: [
+      'Navigator.pushNamed',
+      'Navigator.popAndPushNamed',
+      'Navigator.pushReplacementNamed',
+      'Navigator.replaceNamed',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ข้อจำกัดสำคัญของ Flutter built-in named routes เทียบกับ React Router คืออะไร?',
+    options: [
+      'Named routes ไม่รองรับ animation',
+      'Named routes ใช้กับ StatefulWidget ไม่ได้',
+      'Named routes ไม่รองรับ URL path parameter เช่น /detail/:id',
+      'Named routes ต้องการ third-party package',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'initialRoute ทำอะไรใน Flutter MaterialApp?',
+    options: [
+      'กำหนดชื่อแอปใน OS task switcher',
+      'ระบุว่า named route ไหนที่ถูก push เมื่อแอปเปิดครั้งแรก',
+      'ป้องกันผู้ใช้ไม่ให้นำทางออกจาก screen แรก',
+      'โหลดข้อมูลล่วงหน้าสำหรับ route แรก',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="navigation/named-routes" questions={quizNamedRoutes} />
+
+<ProgressTracker client:visible id="navigation/named-routes" />

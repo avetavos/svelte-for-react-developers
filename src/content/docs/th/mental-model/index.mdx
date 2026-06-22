@@ -1,0 +1,56 @@
+---
+title: 'React → Flutter: Mental Model'
+description: 'หกการเปลี่ยนแปลงทางความคิดที่ React developer ทุกคนต้องทำ — พร้อมความมั่นใจว่า instinct ส่วนใหญ่ของคุณใช้ได้โดยตรง'
+---
+
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+Flutter ไม่ใช่ดินแดนแปลกหน้า — มันเหมือนเมืองที่คุ้นเคยแต่ใช้ชื่อถนนต่างออกไป instinct เกี่ยวกับ declarative UI, component composition, props-down/events-up และ state ที่ขับเคลื่อน render ทั้งหมดล้วนใช้ได้ใน Flutter สิ่งที่เปลี่ยนไปคือ syntax layer และ framework convention เพียงไม่กี่อย่าง module นี้จะ map การเปลี่ยนแปลงเหล่านั้นอย่างชัดเจน เพื่อให้คุณไม่ต้องเสียเวลาเรียนพื้นฐานใหม่และเริ่มทำงานได้ทันที
+
+## หกการเปลี่ยนแปลง
+
+| บทเรียน | การเปลี่ยนแปลง |
+|---|---|
+| **Everything is a Widget** | Layout/spacing/styling เป็น widget ไม่ใช่ CSS |
+| **Declarative UI** | แนวคิดเดิม (`UI = f(state)`) — แต่ใช้ reconciler ต่างกัน |
+| **No JSX** | Dart constructors แทน angle-bracket tags |
+| **Composition** | การ wrap widget แทนการ wrap component |
+| **Same vs Different** | ตาราง lookup สำหรับ muscle memory ของคุณ |
+
+export const quizIndex = [
+  {
+    q: 'การเปลี่ยนแปลงทางความคิดที่สำคัญที่สุดเมื่อย้ายจาก React มา Flutter คืออะไร?',
+    options: [
+      'การเรียนภาษาโปรแกรมใหม่',
+      'การเข้าใจว่า layout, spacing และ styling ล้วนเป็น widget — ไม่มี CSS',
+      'การเปลี่ยนจาก functional เป็น class-based programming',
+      'การเข้าใจ Dart type system',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'แนวคิดหลักของ React ข้อใดที่ map ตรงไปยัง Flutter แทบไม่ต้องเปลี่ยนแปลง?',
+    options: [
+      'JSX templates',
+      'CSS-in-JS styling',
+      'Declarative UI (UI = f(state))',
+      'The virtual DOM',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ใน Flutter คุณเพิ่ม padding ให้ widget อย่างไร?',
+    options: [
+      'เพิ่ม attribute style={{ padding: 16 }}',
+      'Wrap widget ด้วย Padding widget',
+      'เรียก .setPadding() บน widget',
+      'ใช้ CSS class',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="mental-model/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="mental-model/index" />

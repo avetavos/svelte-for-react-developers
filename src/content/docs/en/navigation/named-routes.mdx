@@ -1,0 +1,178 @@
+---
+title: 'Named Routes'
+description: "Flutter's named routes — the routes: map and Navigator.pushNamed — compared to React Router's <Route path> config."
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React Router you define a route configuration — an array or JSX tree of `<Route path="..." element={...} />` objects — and the router renders the matching component based on the current URL. Flutter has a simpler built-in equivalent: a `routes` map on `MaterialApp` that associates string names with builder functions. Calling `Navigator.pushNamed(context, '/detail')` looks up the name in the map and pushes the matching screen.
+
+Named routes solve the same problem as React Router's path config: you decouple the navigation call site from the actual screen widget, so you can rename or move screens without updating every push call.
+
+## Side-by-side comparison
+
+export const routesReact = `// React Router v6 — route config
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+
+const router = createBrowserRouter([
+  { path: '/',        element: <HomeScreen /> },
+  { path: '/detail',  element: <DetailScreen /> },
+  { path: '/profile', element: <ProfileScreen /> },
+]);
+
+// Navigate by path string
+navigate('/detail');
+navigate('/profile');`;
+
+export const routesFlutter = `// Flutter — named routes map
+MaterialApp(
+  initialRoute: '/',
+  routes: {
+    '/':        (context) => const HomeScreen(),
+    '/detail':  (context) => const DetailScreen(),
+    '/profile': (context) => const ProfileScreen(),
+  },
+);
+
+// Navigate by name
+Navigator.pushNamed(context, '/detail');
+Navigator.pushNamed(context, '/profile');`;
+
+<ReactFlutter client:visible react={routesReact} flutter={routesFlutter} />
+
+<Diff title="React Router path config → Flutter routes map">
+
+- **`routes:` on `MaterialApp`** — the map lives on the root `MaterialApp` widget, similar to placing your router at the top of your React component tree. Keys are strings; values are builder functions `(BuildContext) => Widget`.
+- **`initialRoute`** — replaces React Router's `index` route. It is the name of the route Flutter pushes first.
+- **`Navigator.pushNamed` vs `navigate(path)`** — both accept a string key and navigate to the matching screen. The API shape is almost identical.
+- **`Navigator.pushReplacementNamed`** — replaces the current route instead of pushing on top, equivalent to React Router's `navigate(path, { replace: true })`.
+- **`Navigator.popAndPushNamed`** — pops the current route and immediately pushes a new one. Useful for wizard flows.
+- **Limitation: no URL params in named routes.** Flutter's built-in named routes do not support path parameters like `/detail/:id`. For that you need `go_router` (covered in the next lesson).
+
+</Diff>
+
+## Runnable example
+
+export const namedCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      initialRoute: '/',
+      routes: {
+        '/':        (context) => const HomeScreen(),
+        '/about':   (context) => const AboutScreen(),
+        '/contact': (context) => const ContactScreen(),
+      },
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Home')),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton(
+              onPressed: () => Navigator.pushNamed(context, '/about'),
+              child: const Text('About'),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () => Navigator.pushNamed(context, '/contact'),
+              child: const Text('Contact'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AboutScreen extends StatelessWidget {
+  const AboutScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('About')),
+      body: const Center(child: Text('About page')),
+    );
+  }
+}
+
+class ContactScreen extends StatelessWidget {
+  const ContactScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Contact')),
+      body: const Center(child: Text('Contact page')),
+    );
+  }
+}`;
+
+<DartPad client:visible code={namedCode} />
+
+export const quizNamedRoutes = [
+  {
+    q: 'Where do you define the named routes map in a Flutter app?',
+    options: [
+      'In a separate router.dart file that you import everywhere',
+      'On the routes: property of MaterialApp',
+      'In the main() function before runApp',
+      'Inside each individual screen widget',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the Flutter equivalent of navigate(path, { replace: true }) in React Router?',
+    options: [
+      'Navigator.pushNamed',
+      'Navigator.popAndPushNamed',
+      'Navigator.pushReplacementNamed',
+      'Navigator.replaceNamed',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is a key limitation of Flutter built-in named routes compared to React Router?',
+    options: [
+      'Named routes do not support animations',
+      'Named routes cannot be used with StatefulWidgets',
+      'Named routes do not support URL path parameters like /detail/:id',
+      'Named routes require a third-party package',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What does initialRoute do in a Flutter MaterialApp?',
+    options: [
+      'It sets the app title in the OS task switcher',
+      'It specifies which named route is pushed when the app first launches',
+      'It prevents the user from navigating away from the first screen',
+      'It pre-fetches data for the first route',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="navigation/named-routes" questions={quizNamedRoutes} />
+
+<ProgressTracker client:visible id="navigation/named-routes" />

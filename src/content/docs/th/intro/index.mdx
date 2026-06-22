@@ -1,0 +1,133 @@
+---
+title: 'บทนำ — Flutter สำหรับ React Developer'
+description: 'ทำไม Flutter ถึงคุ้มค่าสำหรับ React developer, course นี้ครอบคลุมอะไรบ้าง, และ Flutter app แรกที่รันได้จริง'
+---
+
+import DartPad from '../../../../components/DartPad.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+คุณรู้วิธีสร้าง UI อยู่แล้ว คุณเข้าใจ component, props, state, และแนวคิดที่ว่า framework จะ re-render tree เมื่อข้อมูลเปลี่ยน Flutter ใช้ declarative model เดียวกันทุกประการ — แค่เรียกทุกอย่างว่า **widget** แทน component
+
+ผลตอบแทนคือ: Dart codebase เดียวที่ ship ไปได้ทั้ง iOS, Android, web, macOS, Windows, และ Linux ด้วย **performance ระดับ native** ทุก platform ไม่มี React Native bridge, ไม่มี Cordova WebView Flutter compile เป็น native ARM code และวาดทุก pixel เองด้วย Skia/Impeller graphics engine
+
+## ทำไมต้อง Flutter ถ้ารู้ React อยู่แล้ว?
+
+| React | Flutter |
+|---|---|
+| Codebase เดียว → web | Codebase เดียว → iOS · Android · web · desktop |
+| Virtual DOM diffing | Widget tree + RenderObject layer |
+| Fast Refresh (hot reload) | Hot Reload (แนวคิดเดียวกัน, ไม่ถึงวินาที) |
+| `npm` / Vite / CRA | `pub` / `flutter create` / `flutter run` |
+| JavaScript / TypeScript | Dart (sound null safety, strong types) |
+| Styled-components / Tailwind | Widget properties + ThemeData (Material 3) |
+
+อัตราการถ่ายโอน mental model สูงมาก เมื่อเห็นว่า `StatelessWidget.build()` ≈ React function component ที่ return JSX และ `StatefulWidget` ≈ component ที่มี `useState` ส่วนที่เหลือคือการเรียนรู้ widget vocabulary ของ Flutter เท่านั้น
+
+## Course นี้ครอบคลุมอะไรบ้าง
+
+1. **บทนำ & Setup** (module นี้) — Dart พื้นฐาน, toolchain, app แรก, mental model
+2. **Widgets & UI** — StatelessWidget, props, layout (Row/Column ≈ Flexbox), styling
+3. **State & Lifecycle** — StatefulWidget, `setState`, Riverpod (≈ Zustand/Jotai)
+4. **Handling Data** — Futures/async-await, REST ด้วย Dio, JSON parsing
+5. **Navigation & Routing** — GoRouter (≈ React Router)
+6. **Tooling, Testing & Deployment** — `flutter test`, widget tests, CI/CD
+
+## Flutter app แรกของคุณ
+
+ด้านล่างคือ Flutter app แบบสมบูรณ์ที่รันได้จริง โครงสร้างเหมือน React app: entry point (`main()`), root widget (`MyApp`), และ composed UI tree กด **Run** เพื่อดูผลลัพธ์
+
+export const introCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: const WelcomeScreen(),
+    );
+  }
+}
+
+class WelcomeScreen extends StatelessWidget {
+  const WelcomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: colors.surface,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.flutter_dash, size: 80, color: colors.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Flutter for React Devs',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colors.primary,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your React skills transfer. Let\\'s build.',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Start Learning'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={introCode} />
+
+export const quizIntroIndex = [
+  {
+    q: 'Flutter เรียก React component ว่าอะไร?',
+    options: ['Dart function', 'widget', 'scaffold', 'screen'],
+    answer: 1,
+  },
+  {
+    q: 'Flutter codebase เดียว target ได้กี่ platform?',
+    options: [
+      'iOS และ Android เท่านั้น',
+      'Web เท่านั้น',
+      'iOS, Android, web, macOS, Windows, และ Linux',
+      'iOS, Android, และ web เท่านั้น',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Hot Reload ของ Flutter คล้ายกับ feature ใดของ React?',
+    options: ['React DevTools', 'Fast Refresh', 'Concurrent Mode', 'Suspense'],
+    answer: 1,
+  },
+  {
+    q: 'Package manager ของ Dart ที่เทียบเท่า npm คืออะไร?',
+    options: ['cargo', 'pip', 'pub', 'brew'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/index" questions={quizIntroIndex} />
+
+<ProgressTracker client:visible id="intro/index" />

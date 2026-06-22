@@ -1,0 +1,143 @@
+---
+title: 'Widget Testing'
+description: 'flutter test + testWidgets vs jest + React Testing Library — pumpWidget, WidgetTester, find, and expect mapped to render, screen, fireEvent.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React you test components with jest and React Testing Library: `render()` mounts the component, `screen.getByText()` queries it, `fireEvent.click()` interacts with it. Flutter's testing API maps almost one-to-one: `testWidgets()` is your `test()` block, `pumpWidget()` is `render()`, `find.text()` is `screen.getByText()`, and `tester.tap()` is `fireEvent.click()`. The mental model is identical — only the syntax differs.
+
+> **Testing note:** Widget tests require the `flutter test` runner — they cannot run in DartPad. Run locally with `flutter test`.
+
+## Test setup
+
+Flutter tests live in `test/` at the project root, mirroring the way you might put tests in `src/__tests__/` or colocate `*.test.tsx` files. The naming convention is `*_test.dart` — Flutter's test runner discovers any file ending in `_test.dart` under `test/`.
+
+Run tests with:
+
+```bash
+# Run all tests
+flutter test
+
+# Run a single file
+flutter test test/counter_test.dart
+```
+
+The `flutter_test` package is built into the SDK — no `npm install` required. Import it in every test file:
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+```
+
+Wrap the widget under test in `MaterialApp(home: Scaffold(body: ...))`. This is the Flutter equivalent of wrapping your component in a `Provider`, `ThemeProvider`, or custom `render` wrapper in RTL — it satisfies widgets that read `Theme`, `MediaQuery`, or `Navigator` from their ancestor context.
+
+## Core API mapping
+
+| React Testing Library | Flutter widget test | Purpose |
+|---|---|---|
+| `render(<MyWidget />)` | `await tester.pumpWidget(const MaterialApp(home: MyWidget()))` | Mount the widget |
+| `screen.getByText('Hi')` | `find.text('Hi')` | Find by text |
+| `screen.getByType(Button)` | `find.byType(ElevatedButton)` | Find by type |
+| `screen.getByKey('my-key')` | `find.byKey(const Key('my-key'))` | Find by key |
+| `fireEvent.click(el)` | `await tester.tap(find.byType(ElevatedButton))` | Tap |
+| `userEvent.type(el, 'Hello')` | `await tester.enterText(find.byType(TextField), 'Hello')` | Type text |
+| `await waitFor(...)` | `await tester.pumpAndSettle()` | Wait for animations/async |
+| `expect(el).toBeInTheDocument()` | `expect(find.text('Hi'), findsOneWidget)` | Assert presence |
+| `expect(el).not.toBeInTheDocument()` | `expect(find.text('Hi'), findsNothing)` | Assert absence |
+
+export const testReact = `// React + React Testing Library
+import { render, screen, fireEvent } from '@testing-library/react';
+import Counter from './Counter';
+
+test('increments count on button click', () => {
+  render(<Counter />);
+
+  expect(screen.getByText('Count: 0')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: /increment/i }));
+
+  expect(screen.getByText('Count: 1')).toBeInTheDocument();
+});`;
+
+export const testFlutter = `// Flutter testWidgets
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:my_app/counter.dart';
+
+void main() {
+  testWidgets('increments count on button tap', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: Counter())),
+    );
+
+    expect(find.text('Count: 0'), findsOneWidget);
+
+    await tester.tap(find.byType(ElevatedButton));
+    await tester.pump();
+
+    expect(find.text('Count: 1'), findsOneWidget);
+  });
+}`;
+
+<ReactFlutter client:visible react={testReact} flutter={testFlutter} reactTitle="React + RTL" flutterTitle="Flutter testWidgets" />
+
+<Diff title="What changes when you move from RTL to Flutter widget tests">
+
+- **`testWidgets()` wraps every Flutter widget test.** The callback receives a `WidgetTester` — that object is your handle for everything: mounting widgets, triggering interactions, and running frames. There is no separate import for `tester`; it is passed in automatically.
+- **`await` is everywhere.** `pumpWidget`, `tap`, `enterText`, and `pumpAndSettle` are all async. Forgetting `await` is the most common source of flaky Flutter tests — the action appears to run but the UI has not updated yet.
+- **`pump()` triggers one frame of rendering.** Call it after a synchronous state change (e.g., tapping a button that calls `setState`). `pumpAndSettle()` runs frames until the widget tree is stable — use it after animations, `Future`s, or `Stream` updates, the same way you use `await waitFor(...)` in RTL.
+- **`MaterialApp` wrapper is required** for any widget that reads from `Theme`, `MediaQuery`, `Navigator`, or any other inherited widget that `MaterialApp` provides. Omitting it causes a `No MaterialLocalizations found` error — the Flutter equivalent of forgetting to wrap your component in a required `Provider`.
+- **`find` returns a `Finder`, not a widget instance.** You never hold a reference to the widget itself. Instead, pass the `Finder` to `expect()`, `tester.tap()`, `tester.enterText()`, etc. This is analogous to how `screen.getByText()` in RTL returns a DOM element you then pass to `fireEvent`.
+- **`findsOneWidget`, `findsNothing`, `findsNWidgets(3)`** are the Flutter matchers that replace jest's `toBeInTheDocument()`, `not.toBeInTheDocument()`, and length assertions. They read naturally in `expect(find.text('Hello'), findsOneWidget)`.
+
+</Diff>
+
+export const quizWidgetTests = [
+  {
+    q: "What is the Flutter equivalent of RTL's render() function?",
+    options: [
+      'tester.build()',
+      'await tester.pumpWidget()',
+      'tester.mount()',
+      'await tester.render()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does await tester.pumpAndSettle() do?',
+    options: [
+      'Clears the widget tree',
+      'Submits a form',
+      'Runs animation frames until the UI is stable (like waitFor)',
+      'Reloads the app from main()',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which matcher asserts that a widget is NOT present in the tree?',
+    options: [
+      'findsZeroWidgets',
+      'findsNothing',
+      'findsNone',
+      'isAbsent',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why must widgets under test be wrapped in MaterialApp?',
+    options: [
+      'Flutter requires it for hot reload',
+      'Many widgets read Theme, MediaQuery, or Navigator from their ancestor context',
+      'It prevents state leakage between tests',
+      'MaterialApp provides the test runner',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="tooling/widget-tests" questions={quizWidgetTests} />
+
+<ProgressTracker client:visible id="tooling/widget-tests" />

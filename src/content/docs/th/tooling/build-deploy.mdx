@@ -1,0 +1,214 @@
+---
+title: 'Building & Deploying'
+description: 'flutter build apk/ipa/web, release signing และ GitHub Actions CI pipeline เทียบกับ npm run build และการ deploy แบบ React'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React การ deploy หมายถึงการรัน `npm run build` เพื่อสร้าง static folder `dist/` แล้วนำขึ้น Vercel, Netlify หรือ S3 Flutter มีสาม build targets — Android (APK/AAB), iOS (IPA) และ web — แต่ละอันมีคำสั่งและข้อกำหนด signing ของตัวเอง logic ของ CI pipeline แทบจะเหมือนกับที่คุณเขียนสำหรับ React เพียงแค่เปลี่ยน action steps
+
+## Build commands
+
+```bash
+# Android
+flutter build apk              # Debug APK (สำหรับทดสอบ)
+flutter build apk --release    # Release APK (signed)
+flutter build appbundle        # Android App Bundle (แนะนำสำหรับ Play Store)
+
+# iOS (ต้องใช้ macOS + Xcode)
+flutter build ipa              # iOS Archive สำหรับ App Store / TestFlight
+flutter build ipa --export-method ad-hoc  # Ad-hoc distribution
+
+# Web
+flutter build web              # Output ไปที่ build/web/
+flutter build web --release    # Minified production build
+
+# Desktop
+flutter build macos
+flutter build windows
+flutter build linux
+```
+
+web build จะ output ไปที่ `build/web/` — เป็น static folder เหมือนกับ `dist/` ของ Vite คุณ deploy ไปที่ CDN ใดก็ได้โดยไม่ต้องแก้ไขอะไร
+
+## Release signing — Android
+
+Android release builds ต้องมีการ sign ด้วย keystore เปรียบเหมือน code-signing ในการพัฒนา app native — builds ที่ไม่ได้ sign จะไม่สามารถ distribute ผ่าน Play Store ได้
+
+สร้าง keystore ด้วย Java `keytool`:
+
+```bash
+keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+จากนั้นสร้าง `android/key.properties` เพื่อ reference keystore:
+
+```properties
+storePassword=<your-store-password>
+keyPassword=<your-key-password>
+keyAlias=upload
+storeFile=<path-to>/upload-keystore.jks
+```
+
+สุดท้าย reference `key.properties` ใน `android/app/build.gradle` เพื่อให้ release build ดึง signing config มาโดยอัตโนมัติ
+
+ปฏิบัติกับ `key.properties` และ `.jks` เหมือนกับ `.env` ไฟล์ที่มี secrets — อย่า commit ลง git เด็ดขาด เพิ่มทั้งคู่ลงใน `.gitignore`
+
+## Release signing — iOS
+
+iOS signing ต้องการ Apple Developer account, provisioning profile และ signing certificate ที่จัดการผ่าน Xcode `flutter build ipa` สร้าง `.xcarchive` แล้ว export เป็น `.ipa` วิธีที่ง่ายที่สุดคือเปิด "Automatically manage signing" ใน Xcode ซึ่งจัดการ profile และ certificate ให้โดยอัตโนมัติ
+
+`flutter build ipa` รับ flag `--export-method` เพื่อควบคุม distribution channel: `app-store` สำหรับ App Store/TestFlight, `ad-hoc` สำหรับ direct device distribution
+
+## Web deploy
+
+```bash
+# Build
+flutter build web --release
+
+# Deploy ไปที่ Firebase Hosting
+firebase deploy --only hosting
+
+# หรือลาก build/web/ ไปยัง Netlify deploy UI
+# หรือ push ไปยัง Vercel ผ่าน Vercel CLI
+```
+
+output ของ `build/web/` คือ static site ปกติ — `index.html`, compiled JavaScript และ assets ที่ประกาศใน pubspec.yaml ไม่ต้องมี server
+
+## GitHub Actions CI
+
+React CI pipeline ติดตั้ง Node, รัน `npm ci`, lint, test และ build Flutter CI pipeline ทำเช่นเดียวกันโดยใช้ `subosito/flutter-action` แทน `actions/setup-node`
+
+export const ciReact = `name: React CI
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test -- --watchAll=false
+      - run: npm run build`;
+
+export const ciFlutter = `name: Flutter CI
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test --coverage
+      - run: flutter build web --release`;
+
+<ReactFlutter client:visible react={ciReact} flutter={ciFlutter} reactTitle="React / GitHub Actions" flutterTitle="Flutter / GitHub Actions" />
+
+ตัวอย่าง workflow ที่ครบถ้วนพร้อม branch triggers สำหรับทั้ง `main` และ feature branches:
+
+```yaml
+name: Flutter CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test --coverage
+
+      - name: Build web
+        run: flutter build web --release
+```
+
+<Diff title="npm run build → flutter build">
+
+- **Platform ระบุชัดเจน.** `npm run build` เสมอ target web `flutter build` ต้องการ platform subcommand (`apk`, `ipa`, `web`, `macos` ฯลฯ) ไม่มีคำสั่งเดียวที่ build ทุก targets พร้อมกัน
+- **`appbundle` แทน `apk` สำหรับ Play Store.** Android App Bundle ให้ Google Play ส่ง APK เฉพาะอุปกรณ์ ช่วยลดขนาด download 15–30% ใช้ `flutter build apk` สำหรับทดสอบ local และ sideloading; ใช้ `flutter build appbundle` สำหรับ Play Store
+- **Signing เป็นข้อกำหนดเบื้องต้นสำหรับ release builds.** `npm run build` สร้าง artifact ที่ deploy ได้ทันที `flutter build apk --release` และ `flutter build ipa` ทั้งคู่จะล้มเหลวหรือสร้าง artifacts ที่ invalid หาก signing ไม่ได้ตั้งค่าไว้ วางแผนสิ่งนี้ก่อน release แรก
+- **`subosito/flutter-action` แทน `actions/setup-node`.** action นี้ pin Flutter SDK version และ channel เพื่อให้ CI builds reproducible ใช้ `channel: 'stable'` สำหรับ production pipelines
+- **`flutter pub get` แทน `npm ci`.** ไม่มี flag `--frozen-lockfile` equivalent; `flutter pub get` ใช้ `pubspec.lock` เสมอเมื่อมีอยู่ จึง behave เหมือนกับ `npm ci` ในแง่ reproducibility
+- **`flutter analyze` แทนทั้ง `npm run lint` และ `npx tsc --noEmit`.** คำสั่งเดียว ขั้นตอนเดียว
+
+</Diff>
+
+export const quizBuildDeploy = [
+  {
+    q: 'คำสั่งใดที่ build Flutter app สำหรับ web?',
+    options: [
+      'flutter build html',
+      'flutter build web',
+      'flutter deploy web',
+      'flutter export web',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Flutter equivalent ของ actions/setup-node ใน GitHub Actions คืออะไร?',
+    options: [
+      'flutter/setup-action',
+      'actions/setup-flutter',
+      'subosito/flutter-action',
+      'dart-lang/setup-dart',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'flutter build appbundle สร้างอะไร และทำไมจึงควรใช้แทน APK สำหรับ Play Store?',
+    options: [
+      'Debug APK — แนะนำสำหรับทดสอบ',
+      'Signed IPA — ต้องใช้สำหรับ App Store',
+      'Android App Bundle — ขนาด download เล็กลงเพราะ Google Play ส่ง APK เฉพาะอุปกรณ์',
+      'Universal APK — ใช้ได้กับ Android ทุก version',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ที่ใดที่คุณไม่ควร commit Android keystore หรือ key.properties ไป?',
+    options: [
+      'build/ directory',
+      'pubspec.yaml',
+      'git repository (ปฏิบัติเหมือน .env secrets)',
+      'test/ directory',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="tooling/build-deploy" questions={quizBuildDeploy} />
+
+<ProgressTracker client:visible id="tooling/build-deploy" />

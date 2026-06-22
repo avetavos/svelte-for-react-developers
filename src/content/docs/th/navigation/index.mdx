@@ -1,0 +1,119 @@
+---
+title: 'Navigation — ภาพรวมโมดูล'
+description: 'การนำทางใน Flutter ด้วย Navigator (stack) และ go_router เทียบกับ React Router — แนวคิด routing ที่คุณรู้จักอยู่แล้ว แปลงมาสู่ Flutter'
+---
+
+import DartPad from '../../../../components/DartPad.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React การนำทางมักขับเคลื่อนด้วย URL โดย react-router จับคู่ path กับ component, browser history API บันทึกการเยี่ยมชมแต่ละครั้ง และผู้ใช้สามารถ deep-link ไปยังหน้าใดก็ได้ด้วยการพิมพ์ที่อยู่ Flutter ใช้แนวทางต่างออกไป โดยค่าเริ่มต้น Flutter ใช้ **stack** แบบ imperative ที่จัดการโดย `Navigator` widget — คุณ push route เข้า stack และ pop ออก คล้ายกับการเรียก `history.push` และ `history.back` ใน plain JavaScript แต่ไม่มี URL เข้ามาเกี่ยวข้องบนมือถือ
+
+ทั้งสองโมเดลมาบรรจบกันในสถานการณ์ web และ deep-linking แพ็กเกจ `go_router` ของ Flutter (ครอบคลุมในบทเรียนของตัวเอง) นำ declarative routing แบบ URL-based มาซึ่งตรงกับ react-router v6 เกือบทุกประการ
+
+## โมดูลนี้ครอบคลุมอะไรบ้าง
+
+| บทเรียน | แนวคิด Flutter | สิ่งที่เทียบได้ใน React |
+|---|---|---|
+| พื้นฐาน Navigator | `Navigator.push` / `.pop` | `useNavigate`, `history.push` |
+| Named routes | `routes:` map + `pushNamed` | `<Routes>` + `<Route path="...">` |
+| go\_router | `GoRouter`, `GoRoute` | react-router v6 `createBrowserRouter` |
+| การส่งข้อมูล | Constructor args, `await pop` | Route state, `useParams`, callbacks |
+| Tabs & Drawer | `BottomNavigationBar`, `Drawer` | Tab libs, sidebar components |
+
+## ภาพรวมแบบรันได้: push และ pop
+
+ตัวอย่างด้านล่างแสดง primitive การนำทางหลักของ Flutter: `Navigator.push` รับ `BuildContext` และ `Route` object, push หน้าจอใหม่เข้า stack, และ Flutter เชื่อมต่อปุ่มย้อนกลับให้อัตโนมัติ `Navigator.pop` กลับไปยังหน้าจอก่อนหน้า
+
+export const indexCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Home')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DetailScreen()),
+            );
+          },
+          child: const Text('Go to Detail'),
+        ),
+      ),
+    );
+  }
+}
+
+class DetailScreen extends StatelessWidget {
+  const DetailScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Detail')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Go Back'),
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={indexCode} />
+
+export const quizIndex = [
+  {
+    q: 'โมเดลหลักที่ Flutter ใช้สำหรับการนำทางเริ่มต้นคืออะไร?',
+    options: [
+      'Routing แบบ URL เหมือน browser history API',
+      'Stack แบบ imperative — หน้าจอถูก push เข้าและ pop ออก',
+      'Map แบน ๆ ของ component tree ที่มีชื่อ',
+      'Finite-state machine ที่มี transition',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Flutter widget ตัวไหนที่จัดการ navigation stack?',
+    options: ['Scaffold', 'Router', 'Navigator', 'RouteObserver'],
+    answer: 2,
+  },
+  {
+    q: 'แพ็กเกจ Flutter ตัวไหนที่นำ declarative routing แบบ URL-based สไตล์ react-router v6 มาสู่ Flutter?',
+    options: ['flutter_router', 'auto_route', 'go_router', 'fluro'],
+    answer: 2,
+  },
+  {
+    q: 'ในโมเดล push/pop เมื่อคุณเรียก Navigator.push หน้าจอก่อนหน้าจะเกิดอะไรขึ้น?',
+    options: [
+      'มัน unmount และถูก garbage-collect ทันที',
+      'มันยังคง mount อยู่ใต้หน้าจอใหม่บน stack',
+      'มันถูก serialize ไปยัง shared preferences',
+      'มัน re-run build method ของตัวเอง',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="navigation/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="navigation/index" />

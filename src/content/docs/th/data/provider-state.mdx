@@ -1,0 +1,251 @@
+---
+title: 'Shared State ด้วย Provider'
+description: 'การจัดการ shared app state ด้วย Provider, ChangeNotifier และ context.watch เทียบกับ React Context และ Redux'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React แก้ปัญหา shared state ด้วย Context API หรือ Redux — คุณสร้าง context, ครอบ tree ด้วย provider และ consume จาก descendant ใดก็ได้ Provider package ของ Flutter ทำงานแบบเดียวกัน: คุณกำหนด class `ChangeNotifier` (state ของคุณ), ครอบ tree ด้วย `ChangeNotifierProvider` และอ่านจาก descendant ใดก็ได้ผ่าน `context.watch` หรือ `context.read` ถ้าคุณเคยใช้ React Context กับ `useReducer` มาก่อน Provider จะรู้สึกคุ้นเคยทันที
+
+## การเปรียบเทียบแบบ side-by-side
+
+export const provReact = `// React: Context API + useReducer
+const CounterContext = createContext(null);
+
+function counterReducer(state, action) {
+  switch (action.type) {
+    case 'increment': return { count: state.count + 1 };
+    default: return state;
+  }
+}
+
+export function CounterProvider({ children }) {
+  const [state, dispatch] = useReducer(counterReducer, { count: 0 });
+  return (
+    <CounterContext.Provider value={{ state, dispatch }}>
+      {children}
+    </CounterContext.Provider>
+  );
+}
+
+// Consuming component
+function CounterDisplay() {
+  const { state } = useContext(CounterContext);
+  return <p>Count: {state.count}</p>;
+}
+
+function IncrementButton() {
+  const { dispatch } = useContext(CounterContext);
+  return (
+    <button onClick={() => dispatch({ type: 'increment' })}>
+      Increment
+    </button>
+  );
+}`;
+
+export const provFlutter = `// Flutter: Provider + ChangeNotifier
+class CounterModel extends ChangeNotifier {
+  int _count = 0;
+  int get count => _count;
+
+  void increment() {
+    _count++;
+    notifyListeners(); // เทียบเท่ากับ dispatch / setState
+  }
+}
+
+// ครอบ tree — เหมือนกับ Context.Provider
+void main() {
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => CounterModel(),
+      child: const MyApp(),
+    ),
+  );
+}
+
+// Consuming widgets
+class CounterDisplay extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // context.watch rebuild widget นี้เมื่อ notifyListeners() ถูกเรียก
+    final count = context.watch<CounterModel>().count;
+    return Text('Count: \${count}');
+  }
+}
+
+class IncrementButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // context.read ไม่ subscribe — ปลอดภัยสำหรับ callbacks
+    return ElevatedButton(
+      onPressed: () => context.read<CounterModel>().increment(),
+      child: const Text('Increment'),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={provReact} flutter={provFlutter} />
+
+## ตัวอย่างที่รันได้
+
+export const provCode = `import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+void main() {
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => CounterModel(),
+      child: const MyApp(),
+    ),
+  );
+}
+
+class CounterModel extends ChangeNotifier {
+  int _count = 0;
+  int get count => _count;
+
+  void increment() {
+    _count++;
+    notifyListeners();
+  }
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: CounterPage(),
+        ),
+      ),
+    );
+  }
+}
+
+class CounterPage extends StatelessWidget {
+  const CounterPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: const [
+        CounterDisplay(),
+        SizedBox(height: 24),
+        IncrementButton(),
+      ],
+    );
+  }
+}
+
+class CounterDisplay extends StatelessWidget {
+  const CounterDisplay({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final counter = context.watch<CounterModel>();
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Count',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '\${counter.count}',
+              style: const TextStyle(
+                fontSize: 64,
+                fontWeight: FontWeight.bold,
+                color: Colors.indigo,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class IncrementButton extends StatelessWidget {
+  const IncrementButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      onPressed: () => context.read<CounterModel>().increment(),
+      icon: const Icon(Icons.add),
+      label: const Text('Increment', style: TextStyle(fontSize: 16)),
+    );
+  }
+}`;
+
+<DartPad client:visible code={provCode} />
+
+<Diff title="React Context vs Provider">
+
+- **`ChangeNotifier` vs reducer/useState.** State อยู่ใน Dart class ที่ extends `ChangeNotifier` Properties เป็น plain getters; mutation methods เรียก `notifyListeners()` ที่ท้าย ไม่มี action objects ไม่มี switch statement — มันใกล้เคียงกับ MobX observable class มากกว่า Redux reducer
+- **`notifyListeners()` vs `setState`/`dispatch`.** การเรียก `notifyListeners()` ภายใน method ของ `ChangeNotifier` บอก Provider ให้ rebuild subscribers ทั้งหมดที่ใช้ `context.watch` — บทบาทเดียวกับที่ `setState` เล่นใน local `useState` hook หรือที่ `dispatch` เล่นใน `useReducer`
+- **`context.watch` vs `useContext`.** `context.watch<T>()` subscribe widget ปัจจุบันกับการเปลี่ยนแปลงใน `T` และ trigger rebuild เมื่อ `notifyListeners()` ถูกเรียก มันเทียบเท่าโดยตรงกับการเรียก `useContext(MyContext)` ใน React component
+- **`context.read` vs `useContext` (สำหรับ callbacks).** `context.read<T>()` ดึง model โดย*ไม่* subscribe ใช้ภายใน callbacks (`onPressed`, `onChanged`) ที่คุณไม่ต้องการให้ widget rebuild แค่เพราะ model เปลี่ยน — pattern เดียวกับการดึง `dispatch` ออกจาก context ภายใน event handler
+- **`ChangeNotifierProvider` vs `Context.Provider`.** ทั้งสองครอบ subtree และทำให้ค่าพร้อมใช้งานสำหรับ descendants ความแตกต่างหลักคือ `ChangeNotifierProvider` ยังเป็นเจ้าของ lifecycle ด้วย — มันเรียก `dispose()` บน `ChangeNotifier` ของคุณเมื่อ widget ออกจาก tree ป้องกัน memory leaks โดยไม่ต้องมี cleanup code เพิ่มเติม
+
+</Diff>
+
+Riverpod และ Bloc เป็น alternatives ยอดนิยมที่มี features มากกว่า — Provider เป็นจุดเริ่มต้นที่แนะนำ
+
+export const quizProv = [
+  {
+    q: 'notifyListeners() ใน ChangeNotifier เทียบเท่ากับอะไรใน React?',
+    options: [
+      'useEffect()',
+      'setState() หรือ dispatch() ที่ trigger re-render',
+      'createContext()',
+      'React.memo()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ความแตกต่างระหว่าง context.watch() และ context.read() คืออะไร?',
+    options: [
+      'watch เร็วกว่า read',
+      'watch subscribes to changes และ rebuilds widget; read แค่ดึงค่าโดยไม่ subscribe',
+      'watch ใช้ได้เฉพาะใน StatefulWidget',
+      'ไม่มีความแตกต่าง',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'เราต้องเรียก notifyListeners() เมื่อใดใน ChangeNotifier?',
+    options: [
+      'ทุกครั้งที่ widget build',
+      'หลังจาก mutate state เพื่อบอก listeners ให้ rebuild',
+      'ใน initState เท่านั้น',
+      'ก่อน return ใน build method',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="data/provider-state" questions={quizProv} />
+
+<ProgressTracker client:visible id="data/provider-state" />

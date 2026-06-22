@@ -1,0 +1,258 @@
+---
+title: 'Dart สำหรับ JS/TS Developer'
+description: 'เรียน Dart ผ่าน TypeScript ที่รู้อยู่แล้ว — types, null safety, classes, async/await, และ collections เทียบกันแบบ side-by-side'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+Dart เป็นภาษา strongly typed, sound null-safe ที่ compile ได้ทั้ง native ARM และ JavaScript ถ้ารู้ TypeScript คุณเข้าใจส่วนใหญ่แล้ว — syntax ต่างกันแต่ concept เหมือนกัน บทเรียนนี้ map feature หลักของ Dart เข้ากับ TypeScript equivalent เพื่อให้อ่าน Flutter code ได้ทันที
+
+## Types และ sound null safety
+
+`string | null` union ของ TypeScript กลายเป็น `String?` ใน Dart เครื่องหมาย `?` ต่อท้าย type หมายความว่า "ค่านี้อาจเป็น null" ถ้าไม่มี `?` หมายความว่า non-null และ compiler บังคับที่ทุก assignment
+
+export const tsTypes = `// TypeScript
+let name: string = 'Ava';
+let maybeAge: number | null = null;
+let definiteAge: number = 30;
+
+function greet(n: string): string {
+  return \`Hello, \${n}!\`;
+}`;
+
+export const dartTypes = `// Dart
+String name = 'Ava';
+int? maybeAge = null;
+int definiteAge = 30;
+
+String greet(String n) {
+  return 'Hello, \$n!';
+}`;
+
+<ReactFlutter react={tsTypes} flutter={dartTypes} />
+
+<Diff title="TypeScript types → Dart types">
+
+- **`string` → `String`**, **`number` → `int` / `double`**, **`boolean` → `bool`** ชื่อ type ใน Dart เขียนตัวพิมพ์ใหญ่ (ยกเว้น `int`, `double`, `bool`)
+- **`T | null` → `T?`** Null safety ของ Dart เป็น sound — compiler พิสูจน์ compile time ว่า non-nullable variable จะไม่มีทางเป็น null ไม่มี runtime `TypeError: Cannot read properties of null` อีกต่อไป
+- **Template literals (`` `Hello ${name}` ``) → string interpolation (`'Hello $name'`)** — ใช้ `'$name'` สำหรับตัวแปรธรรมดา และ `'${expr}'` สำหรับ expression
+- **Return types** เขียนก่อนชื่อ function ไม่ใช่หลัง `:`
+
+</Diff>
+
+## `var`, `final`, และ `const`
+
+export const tsVarFinal = `// TypeScript
+let counter = 0;          // mutable
+const MAX = 100;          // runtime constant
+const PI = 3.14159;       // runtime constant
+
+// 'as const' for compile-time literal
+const COLORS = ['red', 'green'] as const;`;
+
+export const dartVarFinal = `// Dart
+var counter = 0;          // mutable, type inferred
+final max = 100;          // runtime constant (set once)
+const pi = 3.14159;       // compile-time constant
+
+// const list = compile-time literal
+const colors = ['red', 'green'];`;
+
+<ReactFlutter react={tsVarFinal} flutter={dartVarFinal} />
+
+<Diff title="let/const → var/final/const">
+
+- **`var`** infer type และ allow reassignment — เหมือน `let` ใน JS/TS
+- **`final`** = assign ครั้งเดียว, ค่ากำหนดตอน runtime ใช้กับ variable ส่วนใหญ่ที่ "จะไม่ reassign" — เทียบเท่า TypeScript `const` สำหรับ object
+- **`const`** = compile-time constant ค่าต้องคำนวณได้ตอน compile time ใน Flutter widget ที่เป็น `const` จะถูก cache และไม่ rebuild โดยไม่จำเป็น
+
+</Diff>
+
+## Classes และ constructors
+
+export const tsClass = `// TypeScript
+class User {
+  readonly id: string;
+  name: string;
+
+  constructor(id: string, name: string) {
+    this.id = id;
+    this.name = name;
+  }
+
+  greet(): string {
+    return \`Hi, I'm \${this.name}\`;
+  }
+}
+
+const u = new User('1', 'Ava');
+console.log(u.greet());`;
+
+export const dartClass = `// Dart
+class User {
+  final String id;
+  String name;
+
+  User(this.id, this.name); // shorthand constructor
+
+  String greet() => 'Hi, I\\'m \$name';
+}
+
+final u = User('1', 'Ava');
+print(u.greet());`;
+
+<ReactFlutter react={tsClass} flutter={dartClass} />
+
+<Diff title="TypeScript class → Dart class">
+
+- **`this.id = id`** กลายเป็น `User(this.id, this.name)` — shorthand constructor ของ Dart ไม่ต้องมี constructor body สำหรับการ assign field ธรรมดา
+- **Named parameters** (convention ของ Flutter): `User({required this.id, required this.name})` call site: `User(id: '1', name: 'Ava')` Named parameters ใน Flutter widget เทียบเท่า React props
+- **Arrow functions `=>`** มีใน Dart เหมือนกัน สำหรับ single-expression function
+- **`new` keyword optional** ใน Dart 2+ — `User('1', 'Ava')` และ `new User('1', 'Ava')` เหมือนกัน code Flutter ละ `new`
+
+</Diff>
+
+## `async` / `await` และ `Future`
+
+export const tsAsync = `// TypeScript
+async function fetchUser(id: string): Promise<User> {
+  const res = await fetch(\`/api/users/\${id}\`);
+  return res.json() as Promise<User>;
+}
+
+// Usage
+const user = await fetchUser('42');`;
+
+export const dartAsync = `// Dart
+Future<User> fetchUser(String id) async {
+  final res = await http.get(Uri.parse('/api/users/\$id'));
+  return User.fromJson(jsonDecode(res.body));
+}
+
+// Usage
+final user = await fetchUser('42');`;
+
+<ReactFlutter react={tsAsync} flutter={dartAsync} />
+
+`Future<T>` คือ `Promise<T>` ของ Dart syntax `async`/`await` เหมือนกันทุกประการ Dart ยังมี `Stream<T>` สำหรับ sequence ของ async value — เทียบเท่า async generator หรือ RxJS `Observable`
+
+## Collections, spreads, และ collection-if
+
+export const tsCollections = `// TypeScript
+const nums: number[] = [1, 2, 3];
+const map: Record<string, number> = { a: 1, b: 2 };
+const set: Set<string> = new Set(['x', 'y']);
+
+// spread
+const more = [...nums, 4, 5];
+
+// conditional item
+const isAdmin = true;
+const items = ['home', ...(isAdmin ? ['admin'] : [])];`;
+
+export const dartCollections = `// Dart
+List<int> nums = [1, 2, 3];
+Map<String, int> map = {'a': 1, 'b': 2};
+Set<String> set = {'x', 'y'};
+
+// spread
+final more = [...nums, 4, 5];
+
+// collection-if (Dart-native syntax)
+final isAdmin = true;
+final items = [
+  'home',
+  if (isAdmin) 'admin',
+];`;
+
+<ReactFlutter react={tsCollections} flutter={dartCollections} />
+
+<Diff title="TS collections → Dart collections">
+
+- **`T[]` → `List<T>`** — ordered list ของ Dart literal หน้าตาเหมือนกัน: `[1, 2, 3]`
+- **`Record<K,V>` → `Map<K,V>`** — key/value pairs ด้วย curly-brace literal
+- **`Set<T>`** มีทั้งสองภาษา — Dart ใช้ curly braces ไม่ต้องมี `new Set(...)` wrapper
+- **Collection-if** (`if (cond) expr`) และ **collection-for** (`for (var x in list) expr`) เป็น Dart syntax ที่ build-in ใน list/map/set literal ไม่ต้อง chain `.filter().map()` — พบบ่อยมากใน `children` array ของ Flutter widget
+
+</Diff>
+
+## Runnable Dart example
+
+export const dartDemoCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+// Pure Dart logic — same as you would write in Node/TS
+List<String> buildGreetings(List<String> names, {bool formal = false}) {
+  return [
+    for (final name in names)
+      formal ? 'Good day, \$name.' : 'Hey, \$name!',
+  ];
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const names = ['Ava', 'Ben', 'Cleo'];
+    final greetings = buildGreetings(names, formal: false);
+
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        appBar: AppBar(title: const Text('Dart for JS Devs')),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            for (final g in greetings)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(g, style: const TextStyle(fontSize: 16)),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={dartDemoCode} />
+
+export const quizDart = [
+  {
+    q: "Dart equivalent ของ TypeScript `string | null` คืออะไร?",
+    options: ['String | null', 'String?', 'nullable String', 'Optional<String>'],
+    answer: 1,
+  },
+  {
+    q: '`final` และ `const` ใน Dart ต่างกันอย่างไร?',
+    options: [
+      'ไม่ต่างกัน — เป็น synonym',
+      '`final` สำหรับ primitive, `const` สำหรับ object',
+      '`final` คือ runtime constant (set ครั้งเดียว); `const` คือ compile-time constant',
+      '`const` allow reassignment; `final` ไม่ allow',
+    ],
+    answer: 2,
+  },
+  {
+    q: "Dart equivalent ของ TypeScript `Promise<T>` คืออะไร?",
+    options: ['Stream<T>', 'Future<T>', 'Observable<T>', 'Async<T>'],
+    answer: 1,
+  },
+  {
+    q: 'Feature ใดของ Dart ที่ใส่ item ใน list literal แบบ conditional ได้โดยไม่ต้องใช้ `.filter()`?',
+    options: ['Null-aware operator', 'Spread operator', 'Collection-if', 'Pattern matching'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/dart-for-js-devs" questions={quizDart} />
+
+<ProgressTracker client:visible id="intro/dart-for-js-devs" />

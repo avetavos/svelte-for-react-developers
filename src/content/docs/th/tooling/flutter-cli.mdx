@@ -1,0 +1,156 @@
+---
+title: 'Flutter CLI'
+description: 'flutter run, build, analyze และ doctor เทียบกับ npm scripts และ Vite — hot reload เทียบกับ Fast Refresh และคำสั่งที่ใช้ทุกวัน'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React workflow ประจำวันของคุณหมุนรอบ npm scripts ที่กำหนดไว้ใน `package.json` — `npm run dev`, `npm run build`, `npm run test` Flutter แทนที่ทั้งหมดด้วย `flutter` CLI และชุดคำสั่งย่อยแบบ first-party ที่ครบครัน ไม่มีไฟล์ config แยกต่างหากสำหรับ scripts: คำสั่งเหล่านี้ฝังอยู่ใน SDK และทำงานเหมือนกันทุกเครื่อง
+
+## คำสั่งหลัก
+
+ตารางด้านล่างคือ cheat-sheet ของคุณ npm script ทุกตัวที่คุณใช้บ่อยมี Flutter equivalent ตรงๆ และในหลายกรณี Flutter รวมคำสั่ง npm หลายตัวไว้เป็นหนึ่งเดียว
+
+| npm / Vite | Flutter CLI | หมายเหตุ |
+|---|---|---|
+| `npm run dev` / `vite` | `flutter run` | เริ่มแอปบนอุปกรณ์หรือ emulator เปิดใช้ hot reload |
+| `npm run build` | `flutter build apk` / `flutter build ipa` / `flutter build web` | Production builds เฉพาะ target |
+| `npm test` | `flutter test` | รันไฟล์ทั้งหมดที่ตรงกับ `test/**/*_test.dart` |
+| `npx eslint .` | `flutter analyze` | Static analysis — lint errors |
+| `npx tsc --noEmit` | `flutter analyze` | คำสั่งเดิมตรวจ type errors ด้วย |
+| *(ไม่มี equivalent)* | `flutter doctor` | วินิจฉัยการตั้งค่า Flutter/toolchain ในเครื่อง |
+| *(ไม่มี equivalent)* | `flutter clean` | ลบ `build/` และ `.dart_tool/` — คล้าย `rm -rf node_modules/.cache` |
+| *(ไม่มี equivalent)* | `flutter pub upgrade` | อัปเกรด dependencies ทั้งหมดเป็นเวอร์ชันที่เข้ากันได้ล่าสุด |
+
+สังเกตว่า `flutter analyze` แทนทั้ง ESLint และ `tsc` เนื่องจาก Dart เป็นภาษาที่มี static typing การวิเคราะห์ผ่านเดียวจึงจัดการทั้ง type errors และ lint rules ไปพร้อมกัน
+
+export const cliReact = `// React — npm scripts in package.json
+{
+  "scripts": {
+    "dev":       "vite",
+    "build":     "vite build",
+    "preview":   "vite preview",
+    "test":      "jest --watch",
+    "lint":      "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  }
+}`;
+
+export const cliFlutter = `# Flutter CLI equivalents
+
+# Start on connected device (hot reload enabled)
+flutter run
+
+# Production builds
+flutter build apk        # Android APK
+flutter build ipa        # iOS archive
+flutter build web        # Web output
+
+# Run all tests
+flutter test
+
+# Static analysis (lint + type check combined)
+flutter analyze
+
+# Diagnose toolchain setup
+flutter doctor
+
+# Clean build artifacts
+flutter clean
+
+# Upgrade dependencies
+flutter pub upgrade`;
+
+<ReactFlutter client:visible react={cliReact} flutter={cliFlutter} reactTitle="React / npm" flutterTitle="Flutter CLI" />
+
+## Hot reload vs Fast Refresh
+
+Fast Refresh ของ React และ hot reload ของ Flutter แก้ปัญหาเดียวกัน: คุณแก้ไขไฟล์ บันทึก แล้วแอปที่รันอยู่สะท้อนการเปลี่ยนแปลงในเวลาไม่ถึงวินาที — โดยไม่สูญเสีย state ของ component/widget
+
+**Flutter hot reload** (`r` ในเทอร์มินัล หรือปุ่ม reload ใน VS Code / Android Studio) ฉีด Dart code ที่อัปเดตแล้วเข้าไปใน VM ที่รันอยู่ State ถูกเก็บรักษาไว้ การเปลี่ยนแปลง widget ส่วนใหญ่ — layout, text, colors, logic — สะท้อนทันทีใน 100–300 ms
+
+**Flutter hot restart** (`R`) ใกล้เคียงกับการโหลดหน้าเว็บเต็มรูปแบบมากกว่า แอปรีสตาร์ทจาก `main()` และ state ทั้งหมดถูกล้าง คุณต้องใช้ hot restart เมื่อ:
+
+- เปลี่ยน `initState` หรือ constructor ของ `StatefulWidget`
+- แก้ไข global หรือ static state
+- เพิ่ม `StatefulWidget` ใหม่ในที่ที่ไม่มีมาก่อน
+
+Fast Refresh ของ React ตรงกับ Flutter hot reload (state ถูกเก็บรักษา) การโหลดหน้าเบราว์เซอร์เต็มรูปแบบ — `Ctrl+R` หรือการรีสตาร์ท `vite` — ตรงกับ Flutter hot restart (state ถูกล้าง)
+
+ความแตกต่างสำคัญหนึ่งอย่าง: Flutter hot reload ทำงานบน **อุปกรณ์จริงผ่าน USB** ไม่ใช่แค่ emulator เท่านั้น ไม่จำเป็นต้องใช้เบราว์เซอร์
+
+## flutter doctor
+
+`flutter doctor` ตรวจสอบ toolchain ในเครื่องทั้งหมดและรายงานสิ่งที่ทำงานได้และสิ่งที่มีปัญหา ครอบคลุม:
+
+- Flutter SDK version และ channel
+- Android toolchain (SDK, `adb`, licenses)
+- Xcode และ iOS tools (macOS เท่านั้น)
+- Chrome (สำหรับ web targets)
+- สถานะ plugin ของ VS Code และ Android Studio
+- อุปกรณ์ที่เชื่อมต่อ
+
+คิดว่ามันเหมือนกับการรัน `node -v && npm -v && tsc -v && xcode-select -p && adb version` พร้อมกันทีเดียว พร้อมสรุปผล pass/fail ที่ชัดเจนสำหรับแต่ละส่วนประกอบ
+
+```bash
+# Standard check
+flutter doctor
+
+# Verbose output — shows exact paths and version numbers
+flutter doctor -v
+```
+
+ตัวอย่าง output:
+
+```
+Doctor summary (to see all details, run flutter doctor -v):
+[✓] Flutter (Channel stable, 3.22.0)
+[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)
+[✗] Xcode - develop for iOS and macOS
+    ✗ Xcode installation is incomplete; a full installation is necessary for iOS
+      and Mac development.
+[✓] Chrome - develop for the web
+[✓] VS Code (version 1.89.0)
+[✓] Connected device (2 available)
+```
+
+รายการ `✗` ใดก็ตามจะมีคำสั่งที่แน่นอนสำหรับการแก้ไข รัน `flutter doctor` หลังทุกครั้งที่อัปเดต SDK หรือเมื่อมีบางอย่างหยุดทำงาน — มักเป็นเส้นทางที่เร็วที่สุดไปยังต้นเหตุของปัญหาเสมอ
+
+export const quizFlutterCli = [
+  {
+    q: 'คำสั่ง flutter ใดที่เทียบเท่ากับ `npm run dev`?',
+    options: [
+      'flutter start',
+      'flutter run',
+      'flutter serve',
+      'flutter dev',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ความแตกต่างระหว่าง flutter hot reload และ hot restart คืออะไร?',
+    options: [
+      'Hot reload ล้าง state; hot restart เก็บรักษา state ไว้',
+      'Hot reload เก็บรักษา state ไว้; hot restart ล้าง state และรีสตาร์ทจาก main()',
+      'ทั้งสองเหมือนกัน',
+      'Hot reload ทำงานได้เฉพาะบน emulator เท่านั้น',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คำสั่งใดรวม type-checking และ linting ไว้ในขั้นตอนเดียวใน Flutter?',
+    options: [
+      'flutter lint',
+      'flutter typecheck',
+      'flutter analyze',
+      'flutter check',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="tooling/flutter-cli" questions={quizFlutterCli} />
+
+<ProgressTracker client:visible id="tooling/flutter-cli" />

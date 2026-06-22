@@ -1,0 +1,219 @@
+---
+title: 'Tabs & Drawer'
+description: 'BottomNavigationBar, TabBar, and Drawer in Flutter — persistent navigation chrome compared to React tab libraries and sidebar components.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React you build tab bars and navigation drawers with third-party libraries or custom components — there is no built-in tab navigation primitive. Flutter ships first-class widgets for every common navigation chrome pattern: `BottomNavigationBar` (or `NavigationBar` in Material 3) for bottom tabs, `TabBar` + `TabBarView` for top tabs, and `Drawer` for a side navigation menu. All three work with `Scaffold`, which reserves the correct layout space automatically.
+
+## Side-by-side comparison
+
+export const tabsReact = `// React — bottom tabs (custom / library)
+import { useState } from 'react';
+
+const tabs = ['Home', 'Search', 'Profile'];
+
+function App() {
+  const [activeTab, setActiveTab] = useState(0);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1 }}>
+        {activeTab === 0 && <HomeScreen />}
+        {activeTab === 1 && <SearchScreen />}
+        {activeTab === 2 && <ProfileScreen />}
+      </div>
+      <nav>
+        {tabs.map((tab, i) => (
+          <button key={tab} onClick={() => setActiveTab(i)}>
+            {tab}
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}`;
+
+export const tabsFlutter = `// Flutter — BottomNavigationBar
+class App extends StatefulWidget {
+  const App({super.key});
+  @override
+  State<App> createState() => _AppState();
+}
+
+class _AppState extends State<App> {
+  int _currentIndex = 0;
+
+  final _screens = const [
+    HomeScreen(),
+    SearchScreen(),
+    ProfileScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _screens[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home),   label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={tabsReact} flutter={tabsFlutter} />
+
+<Diff title="Custom tab component → BottomNavigationBar / Drawer">
+
+- **`Scaffold` reserves the space.** Pass a widget to `Scaffold.bottomNavigationBar` and Flutter automatically reserves bottom padding for it — no manual flex layout needed.
+- **`BottomNavigationBar` vs `NavigationBar`.** `BottomNavigationBar` is the Material 2 version. `NavigationBar` (without "Bottom") is the Material 3 equivalent with a pill indicator. They have the same API shape.
+- **`TabBar` + `TabBarView` + `TabController`** — for top tabs (e.g., a social app with Following / For You tabs). `DefaultTabController` provides the controller automatically, similar to a controlled component with its own state. `TabBarView` is the pager that shows the active tab content.
+- **`Drawer`** — pass a `Drawer` widget to `Scaffold.drawer`. The hamburger icon in the `AppBar` appears automatically. Swipe from the left edge opens it on both platforms.
+- **`IndexedStack` for persistent tab state.** Swap `body: _screens[index]` for `body: IndexedStack(index: index, children: _screens)` to keep all three screens mounted at once — exactly like React keeping off-screen tabs in the DOM when you use CSS `display: none`.
+
+</Diff>
+
+## Runnable example
+
+export const tabsCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(home: MainShell());
+  }
+}
+
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  int _index = 0;
+
+  static const _screens = [
+    _PlaceholderScreen(label: 'Home',    icon: Icons.home,   color: Colors.blue),
+    _PlaceholderScreen(label: 'Search',  icon: Icons.search, color: Colors.green),
+    _PlaceholderScreen(label: 'Profile', icon: Icons.person, color: Colors.purple),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_screens[_index].label),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          children: const [
+            DrawerHeader(
+              decoration: BoxDecoration(color: Colors.blueGrey),
+              child: Text('Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
+            ),
+            ListTile(leading: Icon(Icons.settings), title: Text('Settings')),
+            ListTile(leading: Icon(Icons.help),     title: Text('Help')),
+          ],
+        ),
+      ),
+      body: IndexedStack(index: _index, children: _screens),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _index,
+        onTap: (i) => setState(() => _index = i),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home),   label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlaceholderScreen extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const _PlaceholderScreen({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 64, color: color),
+          const SizedBox(height: 12),
+          Text(label, style: TextStyle(fontSize: 24, color: color,
+              fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={tabsCode} />
+
+export const quizTabsDrawer = [
+  {
+    q: 'Where do you pass a BottomNavigationBar widget in Flutter?',
+    options: [
+      'As a child of Column at the bottom of the body',
+      'To the Scaffold.bottomNavigationBar property',
+      'Inside AppBar.actions',
+      'As the last element of a Stack',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does IndexedStack do differently from switching body: _screens[index]?',
+    options: [
+      'IndexedStack plays a fade animation between tabs',
+      'IndexedStack keeps all child screens mounted, preserving their state when switching tabs',
+      'IndexedStack lazy-loads screens on first visit',
+      'IndexedStack renders screens in a horizontal scroll view',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How does Flutter show the hamburger menu icon for a Drawer automatically?',
+    options: [
+      'You must add an IconButton to AppBar.leading manually',
+      'Scaffold detects the drawer property and adds the leading icon to AppBar automatically',
+      'The Drawer widget renders its own floating button',
+      'You must call Scaffold.of(context).openDrawer() on a button press',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the Material 3 replacement for BottomNavigationBar?',
+    options: ['NavBar', 'NavigationBar', 'BottomBar', 'MaterialNavBar'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="navigation/tabs-drawer" questions={quizTabsDrawer} />
+
+<ProgressTracker client:visible id="navigation/tabs-drawer" />

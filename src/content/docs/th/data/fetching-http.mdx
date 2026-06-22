@@ -1,0 +1,244 @@
+---
+title: 'การดึงข้อมูลด้วย http'
+description: 'แพ็กเกจ http เทียบกับ fetch/axios — GET requests, การ decode response และการจัดการ error ใน Flutter'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React คุณจะใช้ `fetch` หรือ `axios` สำหรับการทำ HTTP requests — ทั้งสองแบบนี้มีอยู่แล้วในเบราว์เซอร์หรือติดตั้งได้ด้วย package เดียว Flutter ไม่มี HTTP client ในตัว ดังนั้น ecosystem จึงใช้ `http` package จากทีม Dart เป็นมาตรฐาน mental model เหมือนกันทุกประการ: ส่ง request, `await` response, ตรวจสอบ status code, และ decode body ความแตกต่างอยู่ที่ API surface เท่านั้น
+
+## เปรียบเทียบแบบ side-by-side
+
+> **หมายเหตุ:** การเรียก network จริงอาจถูกบล็อกใน DartPad sandbox — รันตัวอย่าง `http` จริงบนเครื่องของคุณหลังจากเพิ่ม `http: ^1.2.0` ใต้ `dependencies:` ใน `pubspec.yaml`
+
+export const fetchReact = `// React — fetch (built-in) or axios
+import axios from 'axios';
+
+// Using fetch
+async function getUser(id) {
+  const res = await fetch(\`https://api.example.com/users/\${id}\`);
+  if (!res.ok) throw new Error(\`HTTP error: \${res.status}\`);
+  const data = await res.json();
+  return data;
+}
+
+// Using axios (throws automatically on non-2xx)
+async function getUserAxios(id) {
+  const { data } = await axios.get(
+    \`https://api.example.com/users/\${id}\`
+  );
+  return data;
+}`;
+
+export const fetchFlutter = `// Flutter — package:http
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+Future<Map<String, dynamic>> getUser(int id) async {
+  final uri = Uri.parse(
+    'https://api.example.com/users/\$id',
+  );
+  final response = await http.get(uri);
+
+  if (response.statusCode != 200) {
+    throw Exception('HTTP error: \${response.statusCode}');
+  }
+
+  // response.body is a String — decode manually
+  final data = jsonDecode(response.body)
+      as Map<String, dynamic>;
+  return data;
+}`;
+
+<ReactFlutter client:visible react={fetchReact} flutter={fetchFlutter} />
+
+<Diff title="fetch/axios → http package">
+
+- **เพิ่มใน pubspec.** `http` ไม่ได้ bundle มากับ Flutter เพิ่ม `http: ^1.2.0` ใต้ `dependencies:` ใน `pubspec.yaml` แล้วรัน `flutter pub get`
+- **ไม่มี `fetch` ของเบราว์เซอร์.** Flutter รันบน Dart VM (และ Dart-compiled native binaries) ดังนั้น `fetch` API ของเบราว์เซอร์จึงไม่สามารถใช้ได้ `http.get(Uri)` คือตัวแทนที่ใช้งานได้ข้ามแพลตฟอร์ม
+- **`Uri` ไม่ใช่ plain string.** `http.get` รับ `Uri` object ไม่ใช่ raw string ใช้ `Uri.parse('...')` เพื่อแปลง — ซึ่งจะตรวจสอบ URL ตอน parse ด้วย
+- **ต้องตรวจสอบ status เอง.** ต่างจาก `axios` ตรงที่ `http` package ไม่ throw error สำหรับ non-2xx responses คุณต้องตรวจสอบ `response.statusCode` เอง เหมือนกับการเช็ค `res.ok` ใน `fetch`
+- **`jsonDecode` ไม่ใช่ `.json()`.** `response.body` เป็น `String` ธรรมดา เรียก `jsonDecode(response.body)` จาก `dart:convert` เพื่อ parse — เทียบเท่ากับ `await res.json()` ใน `fetch`
+- **การจัดการ error.** ครอบการเรียกด้วย `try/catch` เพื่อจัดการ `SocketException` (ไม่มีเน็ต), `TimeoutException` หรือ `Exception` ที่คุณ throw เองสำหรับ status code ที่ผิดพลาด
+
+</Diff>
+
+## ตัวอย่างที่รันได้จริง
+
+ตัวอย่าง DartPad ด้านล่างข้ามการเรียก network จริง และใช้ `Future.delayed` เพื่อจำลอง async latency แทน — เหมือนกับที่คุณ mock API ใน Jest test ตรรกะการ decode JSON ด้วย `dart:convert` เป็นโค้ดจริงทั้งหมด
+
+export const dartpadCode = `import 'dart:convert';
+import 'package:flutter/material.dart';
+
+// Simulates a network call — returns after 1 second
+// In production replace this with http.get(uri)
+Future<Map<String, dynamic>> fetchUser() {
+  return Future.delayed(
+    const Duration(seconds: 1),
+    () => jsonDecode('{"id": 1, "name": "Ada Lovelace", "email": "ada@example.com"}')
+        as Map<String, dynamic>,
+  );
+}
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'HTTP Demo',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        useMaterial3: true,
+      ),
+      home: const UserScreen(),
+    );
+  }
+}
+
+class UserScreen extends StatelessWidget {
+  const UserScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Fetch User'),
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+      ),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: fetchUser(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error: \${snapshot.error}',
+                style: const TextStyle(color: Colors.red),
+              ),
+            );
+          }
+          final user = snapshot.data!;
+          return Center(
+            child: Card(
+              margin: const EdgeInsets.all(24),
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 24,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: Colors.indigo,
+                          child: Text(
+                            '\${user['name'][0]}',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          user['name'] as String,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _Row(label: 'ID', value: '\${user['id']}'),
+                    const SizedBox(height: 8),
+                    _Row(label: 'Email', value: user['email'] as String),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _Row extends StatelessWidget {
+  final String label;
+  final String value;
+  const _Row({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 56,
+          child: Text(
+            '\$label:',
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.indigo,
+            ),
+          ),
+        ),
+        Expanded(child: Text(value)),
+      ],
+    );
+  }
+}`;
+
+<DartPad client:visible code={dartpadCode} />
+
+export const quizFetching = [
+  {
+    q: 'เหตุใดจึงต้องตรวจสอบ response.statusCode ใน Flutter แต่ไม่จำเป็นใน fetch()?',
+    options: [
+      'Flutter ใช้ HTTP/2 เท่านั้น',
+      'http package ไม่ throw error สำหรับ non-2xx status codes เหมือน fetch',
+      'Flutter ไม่รองรับ error handling',
+      'ไม่มีความแตกต่าง',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ฟังก์ชันใดใน dart:convert ที่ใช้แปลง JSON string เป็น Dart object?',
+    options: [
+      'JSON.parse()',
+      'jsonDecode()',
+      'parseJson()',
+      'fromJson()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ในตัวอย่าง DartPad เราจำลอง network call ด้วยวิธีใด?',
+    options: [
+      'ใช้ MockHttp package',
+      'ใช้ Future.delayed กับข้อมูล in-memory',
+      'ใช้ localhost server',
+      'ใช้ dart:io HttpClient',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="data/fetching-http" questions={quizFetching} />
+
+<ProgressTracker client:visible id="data/fetching-http" />

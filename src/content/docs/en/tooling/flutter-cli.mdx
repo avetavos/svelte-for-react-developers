@@ -1,0 +1,156 @@
+---
+title: 'The Flutter CLI'
+description: 'flutter run, build, analyze, and doctor vs npm scripts and Vite — hot reload vs Fast Refresh, and the commands you reach for every day.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React, your day-to-day workflow runs through npm scripts defined in `package.json` — `npm run dev`, `npm run build`, `npm run test`. Flutter replaces all of these with the `flutter` CLI and a matching set of first-party subcommands. There is no separate config file for scripts: the commands are built into the SDK and work identically on every machine.
+
+## Core commands
+
+The table below is your cheat-sheet. Every npm script you reach for has a direct Flutter equivalent, and in several cases Flutter collapses multiple npm commands into one.
+
+| npm / Vite | Flutter CLI | Notes |
+|---|---|---|
+| `npm run dev` / `vite` | `flutter run` | Starts the app on device or emulator, enables hot reload |
+| `npm run build` | `flutter build apk` / `flutter build ipa` / `flutter build web` | Target-specific production builds |
+| `npm test` | `flutter test` | Runs all files matching `test/**/*_test.dart` |
+| `npx eslint .` | `flutter analyze` | Static analysis — lint errors |
+| `npx tsc --noEmit` | `flutter analyze` | Same command catches type errors too |
+| *(no equivalent)* | `flutter doctor` | Diagnoses the local Flutter/toolchain setup |
+| *(no equivalent)* | `flutter clean` | Deletes `build/` and `.dart_tool/` — like `rm -rf node_modules/.cache` |
+| *(no equivalent)* | `flutter pub upgrade` | Upgrades all dependencies to the latest compatible versions |
+
+Notice that `flutter analyze` replaces both ESLint and `tsc`. Dart is a statically typed language, so the same analysis pass handles type errors and lint rules together.
+
+export const cliReact = `// React — npm scripts in package.json
+{
+  "scripts": {
+    "dev":       "vite",
+    "build":     "vite build",
+    "preview":   "vite preview",
+    "test":      "jest --watch",
+    "lint":      "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  }
+}`;
+
+export const cliFlutter = `# Flutter CLI equivalents
+
+# Start on connected device (hot reload enabled)
+flutter run
+
+# Production builds
+flutter build apk        # Android APK
+flutter build ipa        # iOS archive
+flutter build web        # Web output
+
+# Run all tests
+flutter test
+
+# Static analysis (lint + type check combined)
+flutter analyze
+
+# Diagnose toolchain setup
+flutter doctor
+
+# Clean build artifacts
+flutter clean
+
+# Upgrade dependencies
+flutter pub upgrade`;
+
+<ReactFlutter client:visible react={cliReact} flutter={cliFlutter} reactTitle="React / npm" flutterTitle="Flutter CLI" />
+
+## Hot reload vs Fast Refresh
+
+React's Fast Refresh and Flutter's hot reload solve the same problem: you edit a file, save it, and the running app reflects the change in under a second — without losing component/widget state.
+
+**Flutter hot reload** (`r` in the terminal, or the reload button in VS Code / Android Studio) injects updated Dart code into the running VM. State is preserved. Most widget changes — layout, text, colors, logic — reflect immediately in 100–300 ms.
+
+**Flutter hot restart** (`R`) is the closer match to a full browser page reload. The app restarts from `main()` and all state is cleared. You need a hot restart when you:
+
+- Change `initState` or a `StatefulWidget` constructor
+- Modify global or static state
+- Add a new `StatefulWidget` where there was none before
+
+React Fast Refresh maps to Flutter hot reload (state preserved). A full browser reload — `Ctrl+R` or restarting `vite` — maps to Flutter hot restart (state cleared).
+
+One key difference: Flutter hot reload works on **physical devices over USB**, not just emulators. There is no browser required.
+
+## flutter doctor
+
+`flutter doctor` checks the entire local toolchain and reports what is working and what is broken. It covers:
+
+- Flutter SDK version and channel
+- Android toolchain (SDK, `adb`, licenses)
+- Xcode and iOS tools (macOS only)
+- Chrome (for web targets)
+- VS Code and Android Studio plugin status
+- Connected devices
+
+Think of it as running `node -v && npm -v && tsc -v && xcode-select -p && adb version` all at once, with a clear pass/fail summary for each component.
+
+```bash
+# Standard check
+flutter doctor
+
+# Verbose output — shows exact paths and version numbers
+flutter doctor -v
+```
+
+Example output:
+
+```
+Doctor summary (to see all details, run flutter doctor -v):
+[✓] Flutter (Channel stable, 3.22.0)
+[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)
+[✗] Xcode - develop for iOS and macOS
+    ✗ Xcode installation is incomplete; a full installation is necessary for iOS
+      and Mac development.
+[✓] Chrome - develop for the web
+[✓] VS Code (version 1.89.0)
+[✓] Connected device (2 available)
+```
+
+Any `✗` item includes the exact command to fix it. Run `flutter doctor` after every SDK update or when something stops working — it is almost always the fastest path to the root cause.
+
+export const quizFlutterCli = [
+  {
+    q: 'Which flutter command is the equivalent of `npm run dev`?',
+    options: [
+      'flutter start',
+      'flutter run',
+      'flutter serve',
+      'flutter dev',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the difference between flutter hot reload and hot restart?',
+    options: [
+      'Hot reload clears state; hot restart preserves it',
+      'Hot reload preserves state; hot restart clears it and restarts from main()',
+      'They are identical',
+      'Hot reload only works on emulators',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which command combines type-checking AND linting into one step in Flutter?',
+    options: [
+      'flutter lint',
+      'flutter typecheck',
+      'flutter analyze',
+      'flutter check',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="tooling/flutter-cli" questions={quizFlutterCli} />
+
+<ProgressTracker client:visible id="tooling/flutter-cli" />

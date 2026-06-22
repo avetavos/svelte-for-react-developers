@@ -1,0 +1,258 @@
+---
+title: 'Dart for JS/TS Developers'
+description: 'Learn Dart through your existing TypeScript knowledge — types, null safety, classes, async/await, and collections side by side.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+Dart is a strongly typed, sound null-safe language that compiles to native ARM and JavaScript. If you know TypeScript you already understand most of it — the type syntax is different but the concepts are the same. This lesson maps the key Dart features onto their TypeScript equivalents so you can start reading Flutter code immediately.
+
+## Types and sound null safety
+
+TypeScript's `string | null` union becomes Dart's `String?`. The `?` suffix on any type means "this value may be null." Without `?`, the type is guaranteed non-null and the compiler enforces it at every assignment.
+
+export const tsTypes = `// TypeScript
+let name: string = 'Ava';
+let maybeAge: number | null = null;
+let definiteAge: number = 30;
+
+function greet(n: string): string {
+  return \`Hello, \${n}!\`;
+}`;
+
+export const dartTypes = `// Dart
+String name = 'Ava';
+int? maybeAge = null;
+int definiteAge = 30;
+
+String greet(String n) {
+  return 'Hello, \$n!';
+}`;
+
+<ReactFlutter react={tsTypes} flutter={dartTypes} />
+
+<Diff title="TypeScript types → Dart types">
+
+- **`string` → `String`**, **`number` → `int` / `double`**, **`boolean` → `bool`**. Dart primitive type names are capitalised (except `int`, `double`, `bool`).
+- **`T | null` → `T?`**. Dart's null safety is sound — the compiler proves at compile time that a non-nullable variable can never hold null. No runtime `TypeError: Cannot read properties of null`.
+- **Template literals (`` `Hello ${name}` ``) → string interpolation (`'Hello $name'`)** — use `'$name'` for a simple variable and `'${expr}'` for an expression.
+- **Return types** are written before the function name, not after a `:`.
+
+</Diff>
+
+## `var`, `final`, and `const`
+
+export const tsVarFinal = `// TypeScript
+let counter = 0;          // mutable
+const MAX = 100;          // runtime constant
+const PI = 3.14159;       // runtime constant
+
+// 'as const' for compile-time literal
+const COLORS = ['red', 'green'] as const;`;
+
+export const dartVarFinal = `// Dart
+var counter = 0;          // mutable, type inferred
+final max = 100;          // runtime constant (set once)
+const pi = 3.14159;       // compile-time constant
+
+// const list = compile-time literal
+const colors = ['red', 'green'];`;
+
+<ReactFlutter react={tsVarFinal} flutter={dartVarFinal} />
+
+<Diff title="let/const → var/final/const">
+
+- **`var`** infers the type and allows reassignment — same as `let` in JS/TS.
+- **`final`** = assigned once, value determined at runtime. Use it for most "I won't reassign this" variables — equivalent to TypeScript `const` for objects.
+- **`const`** = compile-time constant. The value must be computable at compile time. In Flutter, `const` widgets are cached and never rebuilt unnecessarily.
+
+</Diff>
+
+## Classes and constructors
+
+export const tsClass = `// TypeScript
+class User {
+  readonly id: string;
+  name: string;
+
+  constructor(id: string, name: string) {
+    this.id = id;
+    this.name = name;
+  }
+
+  greet(): string {
+    return \`Hi, I'm \${this.name}\`;
+  }
+}
+
+const u = new User('1', 'Ava');
+console.log(u.greet());`;
+
+export const dartClass = `// Dart
+class User {
+  final String id;
+  String name;
+
+  User(this.id, this.name); // shorthand constructor
+
+  String greet() => 'Hi, I\\'m \$name';
+}
+
+final u = User('1', 'Ava');
+print(u.greet());`;
+
+<ReactFlutter react={tsClass} flutter={dartClass} />
+
+<Diff title="TypeScript class → Dart class">
+
+- **`this.id = id`** becomes `User(this.id, this.name)` — Dart's initialising formal shorthand. No constructor body needed for simple field assignments.
+- **Named parameters** (Flutter convention): `User({required this.id, required this.name})`. Call site: `User(id: '1', name: 'Ava')`. Named parameters in Flutter widgets are the equivalent of React props.
+- **Arrow functions `=>` exist in Dart** for single-expression functions, just like in JS/TS.
+- **`new` keyword is optional** in Dart 2+ — `User('1', 'Ava')` and `new User('1', 'Ava')` are identical. Flutter code omits `new`.
+
+</Diff>
+
+## `async` / `await` and `Future`
+
+export const tsAsync = `// TypeScript
+async function fetchUser(id: string): Promise<User> {
+  const res = await fetch(\`/api/users/\${id}\`);
+  return res.json() as Promise<User>;
+}
+
+// Usage
+const user = await fetchUser('42');`;
+
+export const dartAsync = `// Dart
+Future<User> fetchUser(String id) async {
+  final res = await http.get(Uri.parse('/api/users/\$id'));
+  return User.fromJson(jsonDecode(res.body));
+}
+
+// Usage
+final user = await fetchUser('42');`;
+
+<ReactFlutter react={tsAsync} flutter={dartAsync} />
+
+`Future<T>` is Dart's `Promise<T>`. The `async`/`await` syntax is identical. Dart also has `Stream<T>` for sequences of async values — the equivalent of an async generator / RxJS `Observable`.
+
+## Collections, spreads, and collection-if
+
+export const tsCollections = `// TypeScript
+const nums: number[] = [1, 2, 3];
+const map: Record<string, number> = { a: 1, b: 2 };
+const set: Set<string> = new Set(['x', 'y']);
+
+// spread
+const more = [...nums, 4, 5];
+
+// conditional item
+const isAdmin = true;
+const items = ['home', ...(isAdmin ? ['admin'] : [])];`;
+
+export const dartCollections = `// Dart
+List<int> nums = [1, 2, 3];
+Map<String, int> map = {'a': 1, 'b': 2};
+Set<String> set = {'x', 'y'};
+
+// spread
+final more = [...nums, 4, 5];
+
+// collection-if (Dart-native syntax)
+final isAdmin = true;
+final items = [
+  'home',
+  if (isAdmin) 'admin',
+];`;
+
+<ReactFlutter react={tsCollections} flutter={dartCollections} />
+
+<Diff title="TS collections → Dart collections">
+
+- **`T[]` → `List<T>`** — Dart's ordered list. Literals look identical: `[1, 2, 3]`.
+- **`Record<K,V>` → `Map<K,V>`** — key/value pairs with curly-brace literals.
+- **`Set<T>`** exists in both — Dart uses curly braces without the `new Set(...)` wrapper.
+- **Collection-if** (`if (cond) expr`) and **collection-for** (`for (var x in list) expr`) are Dart syntax built into list/map/set literals. No `.filter().map()` chaining needed inside widget trees — very common in Flutter `children` arrays.
+
+</Diff>
+
+## Runnable Dart example
+
+export const dartDemoCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+// Pure Dart logic — same as you would write in Node/TS
+List<String> buildGreetings(List<String> names, {bool formal = false}) {
+  return [
+    for (final name in names)
+      formal ? 'Good day, \$name.' : 'Hey, \$name!',
+  ];
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const names = ['Ava', 'Ben', 'Cleo'];
+    final greetings = buildGreetings(names, formal: false);
+
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        appBar: AppBar(title: const Text('Dart for JS Devs')),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            for (final g in greetings)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(g, style: const TextStyle(fontSize: 16)),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={dartDemoCode} />
+
+export const quizDart = [
+  {
+    q: "What is the Dart equivalent of TypeScript's `string | null`?",
+    options: ['String | null', 'String?', 'nullable String', 'Optional<String>'],
+    answer: 1,
+  },
+  {
+    q: 'What is the difference between `final` and `const` in Dart?',
+    options: [
+      'There is no difference — they are synonyms',
+      '`final` is for primitives, `const` is for objects',
+      '`final` is a runtime constant (set once); `const` is a compile-time constant',
+      '`const` allows reassignment; `final` does not',
+    ],
+    answer: 2,
+  },
+  {
+    q: "What is Dart's equivalent of a TypeScript `Promise<T>`?",
+    options: ['Stream<T>', 'Future<T>', 'Observable<T>', 'Async<T>'],
+    answer: 1,
+  },
+  {
+    q: 'Which Dart feature lets you conditionally include an item in a list literal without `.filter()`?',
+    options: ['Null-aware operator', 'Spread operator', 'Collection-if', 'Pattern matching'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro/dart-for-js-devs" questions={quizDart} />
+
+<ProgressTracker client:visible id="intro/dart-for-js-devs" />

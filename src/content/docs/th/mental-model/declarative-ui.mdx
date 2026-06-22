@@ -1,0 +1,171 @@
+---
+title: 'Declarative UI'
+description: 'Flutter และ React ใช้แนวคิดเดียวกัน — UI = f(state) เรียนรู้ว่า widget tree, element tree และ hot reload map กับสิ่งที่คุณรู้อยู่แล้วอย่างไร'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+สิ่งที่น่าโล่งใจที่สุดสำหรับ React developer ที่มาเรียน Flutter คือ declarative UI model นั้นเหมือนกันในระดับแกนหลัก — UI ของคุณคือ pure function ของ state เมื่อ state เปลี่ยน คุณ describe UI ใหม่และ framework จะหาว่าต้องอัปเดตอะไร ความแตกต่างอยู่ที่ plumbing — Flutter มี element tree และ reconciler เป็นของตัวเองแทน virtual DOM แต่ mental model ที่คุณมีอยู่แล้วนั้นถูกต้องทุกประการ
+
+## UI = f(state): แนวคิดเดียวกัน, plumbing ต่างกัน
+
+export const reactDeclarative = `// React — declarative counter
+import { useState } from 'react';
+
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(c => c + 1)}>
+        Increment
+      </button>
+    </div>
+  );
+}`;
+
+export const flutterDeclarative = `// Flutter — declarative counter (StatefulWidget)
+class Counter extends StatefulWidget {
+  const Counter({super.key});
+
+  @override
+  State<Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<Counter> {
+  int _count = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Count: \$_count',
+            style: const TextStyle(fontSize: 24)),
+        ElevatedButton(
+          onPressed: () => setState(() => _count++),
+          child: const Text('Increment'),
+        ),
+      ],
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={reactDeclarative} flutter={flutterDeclarative} />
+
+export const declarativeCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Counter(),
+        ),
+      ),
+    );
+  }
+}
+
+class Counter extends StatefulWidget {
+  const Counter({super.key});
+
+  @override
+  State<Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<Counter> {
+  int _count = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Count: \$_count',
+          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () => setState(() => _count++),
+          child: const Text('Increment', style: TextStyle(fontSize: 18)),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: () => setState(() => _count = 0),
+          child: const Text('Reset'),
+        ),
+      ],
+    );
+  }
+}`;
+
+<DartPad client:visible code={declarativeCode} />
+
+<Diff title="React reconciliation → Flutter element tree">
+
+- **`useState` / `setState`** → `setState(() { ... })` ภายใน `_CounterState` การเรียกมันจะ schedule การ rebuild ของ widget
+- **Virtual DOM diff** → Flutter element tree + RenderObject tree Flutter diff widget tree ใหม่กับ element tree ที่มีอยู่ — แนวคิดเดียวกัน, implementation ต่างกัน
+- **Re-render เมื่อ state เปลี่ยน** → `build()` ถูกเรียกอีกครั้ง Flutter ฉลาด — เฉพาะ subtree ใต้ `State` ที่เปลี่ยนเท่านั้นที่ rebuild
+- **React.StrictMode double-render (dev)** → Flutter debug mode ใช้ hot reload — ไม่มี double-render แต่ Dart VM เพิ่ม assertion พิเศษ
+- **`useEffect` cleanup** → method `dispose()` บน `State<T>` ครอบคลุมในบทเรียนถัดไป
+
+</Diff>
+
+export const quizDeclarative = [
+  {
+    q: 'ข้อใดเป็นความจริงเกี่ยวกับ declarative model ของ Flutter?',
+    options: [
+      'Flutter ใช้ imperative model — คุณเรียก widget.show()',
+      "Flutter's UI = f(state) model เหมือนกับของ React ในระดับพื้นฐาน",
+      'Flutter สร้าง DOM ใหม่ทั้งหมดทุกครั้งที่ state เปลี่ยน',
+      'Flutter ไม่มีแนวคิด state — ทุกอย่าง stateless',
+    ],
+    answer: 1,
+  },
+  {
+    q: "Flutter method ใดที่เทียบเท่ากับ React's setState?",
+    options: [
+      'widget.update()',
+      'this.refresh()',
+      'setState(() { ... })',
+      'rebuild()',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Flutter equivalent ของ React virtual DOM คืออะไร?',
+    options: [
+      'Widget tree',
+      'Element tree และ RenderObject tree',
+      'BuildContext',
+      'Scaffold',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ใน Flutter method build() ทำงานเมื่อใด?',
+    options: [
+      'ครั้งเดียวตอนที่ app เริ่มต้น',
+      'หลังทุก animation frame',
+      'เมื่อ framework พิจารณาว่า widget ต้อง rebuild (เช่น หลัง setState)',
+      'เฉพาะเมื่อผู้ใช้แตะหน้าจอ',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="mental-model/declarative-ui" questions={quizDeclarative} />
+
+<ProgressTracker client:visible id="mental-model/declarative-ui" />

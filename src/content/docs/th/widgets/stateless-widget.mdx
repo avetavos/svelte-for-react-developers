@@ -1,0 +1,171 @@
+---
+title: 'Stateless Widget'
+description: 'StatelessWidget และ build() เทียบกับ function component ของ React ที่ return JSX — สิ่งที่เทียบเท่าใน Flutter ที่คุณรู้จักดีอยู่แล้ว'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+ใน React function component คือฟังก์ชันที่รับ props เข้ามาแล้ว return JSX ออกไป สิ่งที่เทียบเท่าใน Flutter คือ `StatelessWidget` ซึ่งเป็น class ที่มี method `build()` เพียงตัวเดียว โดยรับ `BuildContext` เข้ามาแล้ว return `Widget` ออกไป โมเดลการ render เหมือนกันทุกประการ ทั้งคู่อธิบายว่า UI ควรหน้าตาเป็นอย่างไรเมื่อได้ input บางอย่าง และ framework จะรันคำอธิบายนั้นใหม่เมื่อ input เปลี่ยน
+
+ความแตกต่างหลัก ๆ อยู่ที่ syntax เท่านั้น คือแทนที่จะเขียนฟังก์ชันคุณก็เขียน class แทน แทนที่จะ `return <div>` คุณก็ return `Widget` object แทน และแทนที่จะใช้ angle-bracket ของ JSX คุณก็ซ้อน constructor เข้าไปแทน
+
+## เปรียบเทียบแบบเคียงข้างกัน
+
+export const slwReact = `// React function component
+function Greeting({ name }) {
+  return (
+    <div style={{ padding: 16 }}>
+      <h2>Hello, {name}!</h2>
+      <p>Welcome to Flutter for React Devs.</p>
+    </div>
+  );
+}
+
+// Usage
+<Greeting name="Ava" />`;
+
+export const slwFlutter = `// Flutter StatelessWidget
+class Greeting extends StatelessWidget {
+  final String name;
+  const Greeting({super.key, required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Hello, \$name!',
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const Text('Welcome to Flutter for React Devs.'),
+        ],
+      ),
+    );
+  }
+}
+
+// Usage
+const Greeting(name: 'Ava')`;
+
+<ReactFlutter client:visible react={slwReact} flutter={slwFlutter} />
+
+<Diff title="Function component → StatelessWidget">
+
+- **เป็น class ไม่ใช่ function** `StatelessWidget` คือ Dart class ที่ `extends StatelessWidget` คุณ override `build()` แทนการเขียน body ของฟังก์ชันธรรมดา
+- **`BuildContext context`** คือ argument ตัวแรกของ `build()` เสมอ มันให้เราเข้าถึง widget tree ที่อยู่เหนือ widget ตัวนี้ (theme, locale, navigator) นักพัฒนา React มองมันเป็นส่วนผสมระหว่าง React context กับตำแหน่งของ component ใน tree ได้
+- **`const` constructor** การทำเครื่องหมาย constructor เป็น `const` ช่วยให้ Flutter ข้ามการ rebuild ได้เมื่อ input ไม่เปลี่ยน เป็นการ optimize แบบเดียวกับที่ `React.memo` ให้ แต่ทำงานอัตโนมัติในระดับภาษา
+- **`super.key`** คือสิ่งที่เทียบเท่ากับ prop `key` ภายในของ React ควรส่งต่อมันผ่าน `super.key` ใน constructor เสมอ เพื่อให้ Flutter ทำ reconcile widget tree ได้ถูกต้อง
+- **ไม่มี JSX** การประกอบ widget คือการเรียก constructor ของ Dart เช่น `Padding(padding: ..., child: ...)` ตอนแรกอาจดูยืดยาวกว่า แต่มันถูก type-check เต็มรูปแบบและ IDE ช่วย autocomplete ได้
+
+</Diff>
+
+## ตัวอย่างที่รันได้
+
+export const slwCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: ProfileCard(
+            name: 'Ava Tavos',
+            role: 'React → Flutter Developer',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ProfileCard extends StatelessWidget {
+  final String name;
+  final String role;
+
+  const ProfileCard({super.key, required this.name, required this.role});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircleAvatar(radius: 36, backgroundColor: Colors.blue,
+              child: Icon(Icons.person, size: 36, color: Colors.white)),
+          const SizedBox(height: 12),
+          Text(name,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(role,
+              style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={slwCode} />
+
+export const quizSlw = [
+  {
+    q: 'อะไรคือสิ่งที่เทียบเท่ากับ function component ของ React ที่ไม่มี local state ใน Flutter?',
+    options: ['StatefulWidget', 'StatelessWidget', 'InheritedWidget', 'RenderBox'],
+    answer: 1,
+  },
+  {
+    q: 'พารามิเตอร์ `BuildContext context` ใน `build()` ให้อะไรกับเรา?',
+    options: [
+      'props ของ component',
+      'route ปัจจุบัน',
+      'การเข้าถึง widget tree ที่อยู่เหนือ widget ตัวนี้ (theme, locale, navigator)',
+      'รายการ child widget',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ทำไมเราควรทำเครื่องหมาย constructor ของ widget เป็น `const` ใน Flutter?',
+    options: [
+      'มันบังคับ — Flutter จะ throw error ถ้าไม่ใส่',
+      'มันป้องกันไม่ให้ Dart compiler ทำ tree-shaking widget นั้น',
+      'มันช่วยให้ Flutter ข้ามการ rebuild widget ได้เมื่อ input ไม่เปลี่ยน',
+      'มันทำให้ widget เป็น immutable ในระดับ type',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'จุดประสงค์ของ `super.key` ใน constructor ของ Flutter widget คืออะไร?',
+    options: [
+      'มันเก็บชื่อที่ใช้แสดงของ widget ไว้สำหรับ debug',
+      'มันส่งต่อ reconciliation key ของ Flutter เพื่อให้ framework จับคู่ widget ข้ามการ rebuild ได้',
+      'มันทำเครื่องหมายว่า widget นั้นเป็น root ของ sub-tree',
+      'มันเป็น alias ของ hashCode ของ widget',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="widgets/stateless-widget" questions={quizSlw} />
+
+<ProgressTracker client:visible id="widgets/stateless-widget" />

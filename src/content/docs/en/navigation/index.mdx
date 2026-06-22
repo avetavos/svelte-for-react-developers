@@ -1,0 +1,119 @@
+---
+title: 'Navigation'
+description: 'How Flutter navigation maps to react-router and the history API — a module overview with a two-screen demo.'
+---
+
+import DartPad from '../../../../components/DartPad.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React, navigation is typically URL-driven: react-router maps URL paths to components, the browser history API records each visit, and the user can deep-link to any screen by typing an address. Flutter takes a different approach. By default, Flutter uses an imperative **stack** managed by a `Navigator` widget — you push routes onto the stack and pop them off, much like calling `history.push` and `history.back` in plain JavaScript, but without any URL involvement on mobile.
+
+Both models converge for web and deep-linking scenarios. Flutter's `go_router` package (covered in its own lesson) brings declarative, URL-based routing that maps almost directly onto react-router v6.
+
+## What this module covers
+
+| Lesson | Flutter concept | React analogy |
+|---|---|---|
+| Navigator basics | `Navigator.push` / `.pop` | `useNavigate`, `history.push` |
+| Named routes | `routes:` map + `pushNamed` | `<Routes>` + `<Route path="...">` |
+| go\_router | `GoRouter`, `GoRoute` | react-router v6 `createBrowserRouter` |
+| Passing data | Constructor args, `await pop` | Route state, `useParams`, callbacks |
+| Tabs & drawer | `BottomNavigationBar`, `Drawer` | Tab libs, sidebar components |
+
+## Runnable overview: push and pop
+
+The demo below shows the core Flutter navigation primitive: `Navigator.push` takes a `BuildContext` and a `Route` object, pushes the new screen onto the stack, and Flutter automatically wires up the back button. `Navigator.pop` returns to the previous screen.
+
+export const indexCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Home')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DetailScreen()),
+            );
+          },
+          child: const Text('Go to Detail'),
+        ),
+      ),
+    );
+  }
+}
+
+class DetailScreen extends StatelessWidget {
+  const DetailScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Detail')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Go Back'),
+        ),
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={indexCode} />
+
+export const quizIndex = [
+  {
+    q: 'What is the primary mental model Flutter uses for default navigation?',
+    options: [
+      'URL-based routing, like the browser history API',
+      'An imperative stack — screens are pushed on and popped off',
+      'A flat map of named component trees',
+      'A finite-state machine with transitions',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which Flutter widget manages the navigation stack?',
+    options: ['Scaffold', 'Router', 'Navigator', 'RouteObserver'],
+    answer: 2,
+  },
+  {
+    q: "Which Flutter package brings react-router v6-style declarative, URL-based routing to Flutter?",
+    options: ['flutter_router', 'auto_route', 'go_router', 'fluro'],
+    answer: 2,
+  },
+  {
+    q: 'In the push/pop model, what happens to the previous screen when you call Navigator.push?',
+    options: [
+      'It is unmounted and garbage-collected immediately',
+      'It stays mounted below the new screen on the stack',
+      'It is serialized to shared preferences',
+      'It re-runs its build method',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="navigation/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="navigation/index" />

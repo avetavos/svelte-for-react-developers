@@ -1,0 +1,269 @@
+---
+title: 'JSON and Typed Models'
+description: 'Parsing JSON into typed Dart classes with fromJson factories vs TypeScript interfaces and JSON.parse.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+TypeScript's structural type system lets you define an `interface` and immediately treat any `JSON.parse` result as that type — the compiler trusts the shape you declared. Dart uses nominal typing and has no runtime structural casting. You must write an explicit `fromJson` factory constructor that reads each field by name from the decoded map. It is more code, but it is also more explicit: if a field is missing or the wrong type, you find out immediately rather than at the call site.
+
+## Side-by-side comparison
+
+export const jsonReact = `// TypeScript — interface + JSON.parse
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+// TypeScript trusts the shape (no runtime check)
+const user = JSON.parse(raw) as User;
+console.log(user.name);
+
+// With Zod for runtime validation
+import { z } from 'zod';
+
+const UserSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  email: z.string().email(),
+});
+
+const safeUser = UserSchema.parse(JSON.parse(raw));`;
+
+export const jsonFlutter = `// Dart — class with fromJson / toJson
+import 'dart:convert';
+
+class User {
+  final int id;
+  final String name;
+  final String email;
+
+  const User({
+    required this.id,
+    required this.name,
+    required this.email,
+  });
+
+  // Explicit field mapping — no structural magic
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      email: json['email'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'email': email,
+  };
+}
+
+// Usage
+final map = jsonDecode(raw) as Map<String, dynamic>;
+final user = User.fromJson(map);
+print(user.name);`;
+
+<ReactFlutter client:visible react={jsonReact} flutter={jsonFlutter} />
+
+<Diff title="Structural typing vs explicit fromJson">
+
+- **No structural casting.** TypeScript accepts `JSON.parse(raw) as User` because it structurally matches the interface at compile time. Dart rejects this pattern — you must call `User.fromJson(map)` to convert the untyped `Map<String, dynamic>` into a real `User` instance.
+- **`factory` constructors.** Dart's `factory` keyword marks a constructor that may return a cached instance or delegate to another constructor — it is the conventional home for `fromJson` because it can contain arbitrary logic before calling the real constructor.
+- **`as` casts are runtime checks.** Writing `json['id'] as int` in Dart throws a `TypeError` at runtime if the value is not an `int`. This is a feature, not a bug: you get an early, clear error instead of a silent `undefined` downstream.
+- **`toJson` is manual too.** There is no built-in serialization. The `toJson` method returns a `Map<String, dynamic>` that `jsonEncode` (from `dart:convert`) can then stringify.
+- **Codegen for large models.** For production apps, consider `json_serializable` (generates `fromJson`/`toJson`) or `freezed` (adds immutability, `copyWith`, and union types). Both eliminate hand-written boilerplate the same way Zod schemas eliminate repetitive validation code.
+
+</Diff>
+
+## Runnable example
+
+export const dartpadCode = `import 'dart:convert';
+import 'package:flutter/material.dart';
+
+class User {
+  final int id;
+  final String name;
+  final String email;
+
+  const User({
+    required this.id,
+    required this.name,
+    required this.email,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      email: json['email'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'email': email,
+  };
+}
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'JSON Models',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        useMaterial3: true,
+      ),
+      home: const UserModelScreen(),
+    );
+  }
+}
+
+class UserModelScreen extends StatelessWidget {
+  const UserModelScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Hardcoded JSON string — no network needed
+    const rawJson = '{"id": 42, "name": "Ada Lovelace", "email": "ada@babbage.io"}';
+    final map = jsonDecode(rawJson) as Map<String, dynamic>;
+    final user = User.fromJson(map);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('JSON Model Demo'),
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: Card(
+          margin: const EdgeInsets.all(24),
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.teal,
+                      child: Text(
+                        user.name[0],
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      user.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 28),
+                _Field(label: 'ID', value: '\${user.id}'),
+                const SizedBox(height: 8),
+                _Field(label: 'Name', value: user.name),
+                const SizedBox(height: 8),
+                _Field(label: 'Email', value: user.email),
+                const Divider(height: 28),
+                Text(
+                  'toJson(): \${user.toJson()}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Field extends StatelessWidget {
+  final String label;
+  final String value;
+  const _Field({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 60,
+          child: Text(
+            '\$label:',
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.teal,
+            ),
+          ),
+        ),
+        Expanded(child: Text(value)),
+      ],
+    );
+  }
+}`;
+
+<DartPad client:visible code={dartpadCode} />
+
+export const quizJsonModels = [
+  {
+    q: "Why can't you write `final user = jsonDecode(raw) as User;` in Dart?",
+    options: [
+      '`jsonDecode` is not available in Dart',
+      'Dart uses nominal typing — a `Map<String, dynamic>` cannot be cast to `User` without an explicit constructor',
+      '`as` casts are not allowed on class types',
+      'You must use `jsonDecode` only inside a `Future`',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the conventional role of a `factory` constructor in Dart model classes?',
+    options: [
+      'It creates a singleton instance of the class',
+      'It marks the constructor as private',
+      'It is where `fromJson` logic lives — it can run arbitrary code before delegating to the real constructor',
+      'It prevents subclassing',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which Dart packages can generate `fromJson`/`toJson` boilerplate automatically?',
+    options: [
+      '`dart:convert` and `dart:mirrors`',
+      '`json_serializable` and `freezed`',
+      '`retrofit` and `dio`',
+      '`provider` and `riverpod`',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="data/json-models" questions={quizJsonModels} />
+
+<ProgressTracker client:visible id="data/json-models" />

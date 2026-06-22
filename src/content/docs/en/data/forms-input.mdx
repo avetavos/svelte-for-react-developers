@@ -1,0 +1,388 @@
+---
+title: 'Forms and Input'
+description: 'TextField, TextEditingController, Form validation vs React controlled inputs and onChange handlers.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React, form inputs are "controlled" — you bind a `value` prop to state and update that state via an `onChange` handler. Flutter takes a slightly different approach: a `TextEditingController` acts like a ref that holds the current text value, and you attach it to a `TextField`. Reading the value is `controller.text` rather than `event.target.value`, and there is no re-render required just to capture input.
+
+For full form validation Flutter provides a `Form` widget paired with `GlobalKey<FormState>`. Each `TextFormField` inside it accepts a `validator` callback. Calling `formKey.currentState!.validate()` triggers every validator at once and returns `true` only when all pass — the equivalent of accumulating per-field error state and checking it manually in React.
+
+## Controlled Input vs TextField
+
+export const fiReact = `import { useState } from 'react';
+
+function EmailInput() {
+  const [email, setEmail] = useState('');
+
+  return (
+    <div>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Enter email"
+      />
+      <p>Current value: {email}</p>
+    </div>
+  );
+}`;
+
+export const fiFlutter = `class EmailInput extends StatefulWidget {
+  const EmailInput({super.key});
+  @override
+  State<EmailInput> createState() => _EmailInputState();
+}
+
+class _EmailInputState extends State<EmailInput> {
+  // Controller is like a ref — it holds the live text value.
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    // Always dispose controllers to free resources.
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TextField(
+          controller: _controller,
+          decoration: const InputDecoration(
+            labelText: 'Enter email',
+          ),
+        ),
+        // ValueListenableBuilder rebuilds only this Text widget
+        // when the controller value changes.
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _controller,
+          builder: (_, value, __) =>
+              Text('Current value: \${value.text}'),
+        ),
+      ],
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={fiReact} flutter={fiFlutter} />
+
+## Form Validation
+
+export const fvReact = `import { useState } from 'react';
+
+function LoginForm() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState({});
+
+  function validate() {
+    const next = {};
+    if (!email.includes('@')) next.email = 'Invalid email';
+    if (password.length < 6) next.password = 'Min 6 characters';
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (validate()) {
+      console.log('Login successful!');
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Email"
+      />
+      {errors.email && <span>{errors.email}</span>}
+
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Password"
+      />
+      {errors.password && <span>{errors.password}</span>}
+
+      <button type="submit">Log in</button>
+    </form>
+  );
+}`;
+
+export const fvFlutter = `// GlobalKey<FormState> is the handle Flutter uses to
+// call validate() on the whole form at once.
+final _formKey = GlobalKey<FormState>();
+
+class LoginForm extends StatefulWidget {
+  const LoginForm({super.key});
+  @override
+  State<LoginForm> createState() => _LoginFormState();
+}
+
+class _LoginFormState extends State<LoginForm> {
+  late final TextEditingController _emailController;
+  late final TextEditingController _passwordController;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    // Triggers every validator — returns true when all pass.
+    if (_formKey.currentState!.validate()) {
+      print('Login successful!');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          TextFormField(
+            controller: _emailController,
+            decoration: const InputDecoration(labelText: 'Email'),
+            validator: (value) {
+              if (value == null || !value.contains('@')) {
+                return 'Invalid email';
+              }
+              return null; // null = valid
+            },
+          ),
+          TextFormField(
+            controller: _passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Password'),
+            validator: (value) {
+              if (value == null || value.length < 6) {
+                return 'Min 6 characters';
+              }
+              return null;
+            },
+          ),
+          ElevatedButton(
+            onPressed: _submit,
+            child: const Text('Log in'),
+          ),
+        ],
+      ),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={fvReact} flutter={fvFlutter} />
+
+## Runnable example
+
+export const fiCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: LoginForm(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class LoginForm extends StatefulWidget {
+  const LoginForm({super.key});
+
+  @override
+  State<LoginForm> createState() => _LoginFormState();
+}
+
+class _LoginFormState extends State<LoginForm> {
+  // GlobalKey<FormState> is the handle that lets you call
+  // formKey.currentState!.validate() to trigger all validators.
+  final _formKey = GlobalKey<FormState>();
+
+  // Controllers are created in initState and disposed in dispose —
+  // the idiomatic Flutter equivalent of React refs for input values.
+  late final TextEditingController _emailController;
+  late final TextEditingController _passwordController;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    // validate() calls every validator, shows inline errors,
+    // and returns true only when all fields pass.
+    if (_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login successful!')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Login',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          const SizedBox(height: 24),
+          TextFormField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              hintText: 'you@example.com',
+              border: OutlineInputBorder(),
+            ),
+            // validator returns a String error message, or null when valid.
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Email is required';
+              }
+              if (!value.contains('@')) {
+                return 'Enter a valid email address';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Password',
+              border: OutlineInputBorder(),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Password is required';
+              }
+              if (value.length < 6) {
+                return 'Password must be at least 6 characters';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _submit,
+              child: const Text('Log in'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}`;
+
+<DartPad client:visible code={fiCode} />
+
+<Diff title="Controlled input vs TextEditingController">
+
+- **Reading the value.** In React you read `event.target.value` inside `onChange`. In Flutter you read `controller.text` at any point — no event needed. You can also listen to changes via `controller.addListener(callback)` or `ValueListenableBuilder`.
+- **Lifecycle cleanup.** `TextEditingController` allocates resources; you must call `controller.dispose()` in `dispose()`. React controlled inputs have no equivalent cleanup step.
+- **Validation location.** `TextFormField` accepts a `validator` callback that lives alongside the field in the widget tree. React developers typically store error state in `useState` and validate in a handler function — Flutter keeps the rule and the UI co-located.
+- **Triggering validation.** `formKey.currentState!.validate()` walks every `TextFormField` in the `Form` and displays errors in one call. In React you accumulate field errors manually and check whether the resulting object is empty.
+- **Error display.** Flutter renders the error string returned by `validator` directly below the field via `InputDecoration` — no `{errors.field && <span>}` conditional needed.
+
+</Diff>
+
+export const quizFi = [
+  {
+    q: 'How do you read the current text value from a Flutter TextField?',
+    options: [
+      'event.target.value inside an onChange callback',
+      'controller.text, where controller is a TextEditingController',
+      'setState(() => text = field.value)',
+      'TextInput.getValue(context)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What should a TextFormField validator return when the input is valid?',
+    options: [
+      'true',
+      'An empty string',
+      'null',
+      'ValidationResult.ok',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the purpose of GlobalKey<FormState> in Flutter?',
+    options: [
+      'It uniquely identifies the app in the widget tree',
+      'It provides a handle to call validate() and save() on the Form from outside the build method',
+      'It stores the current form values between hot reloads',
+      'It prevents the Form widget from being garbage collected',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why must you call controller.dispose() when a StatefulWidget is removed?',
+    options: [
+      'To commit unsaved text to the database',
+      'To trigger a final rebuild before the widget unmounts',
+      'To free the native listener and memory held by the TextEditingController',
+      'dispose() is optional — Flutter garbage-collects controllers automatically',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/forms-input" questions={quizFi} />
+
+<ProgressTracker client:visible id="data/forms-input" />

@@ -1,0 +1,209 @@
+---
+title: "Future และ Async/Await"
+description: "วิธีที่ Flutter's Future ทำงานเหมือน JS Promise — async/await, .then(), การจัดการ error และ try/catch"
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+`Future<T>` ใน Dart คือ `Promise<T>` ใน JavaScript ทั้งคู่แทนค่า single value ที่ยังไม่พร้อมใช้งาน — มันจะมาถึง (หรือล้มเหลว) ในบางจุดในอนาคต แนวคิดทุกอย่างที่คุณรู้จาก JS Promise แมปได้โดยตรง: `.then()`, `.catch()`, `async`/`await`, `try`/`catch` และการประมวลผลแบบ parallel ด้วย `Future.wait` / `Promise.all` mental model เหมือนกัน เพียงแต่ API surface เปลี่ยนไปเล็กน้อย
+
+## เปรียบเทียบแบบ side-by-side
+
+export const reactCode = `// --- Promise chain style ---
+function loadUser(id) {
+  return fetch(\`/api/users/\${id}\`)
+    .then(res => res.json())
+    .then(data => {
+      console.log('User:', data.name);
+      return data;
+    })
+    .catch(err => {
+      console.error('Failed:', err.message);
+    });
+}
+
+// --- async/await style ---
+async function loadUserAsync(id) {
+  try {
+    const res = await fetch(\`/api/users/\${id}\`);
+    const data = await res.json();
+    console.log('User:', data.name);
+    return data;
+  } catch (err) {
+    console.error('Failed:', err.message);
+  }
+}`;
+
+export const flutterCode = `// --- Future chain style ---
+Future<void> loadUser(String id) {
+  return Future.delayed(
+    const Duration(seconds: 1),
+    () => {'name': 'Ava', 'id': id},
+  )
+    .then((data) {
+      print('User: \${data['name']}');
+    })
+    .catchError((err) {
+      print('Failed: \$err');
+    });
+}
+
+// --- async/await style ---
+Future<void> loadUserAsync(String id) async {
+  try {
+    // Simulating an HTTP call with Future.delayed
+    final data = await Future.delayed(
+      const Duration(seconds: 1),
+      () => {'name': 'Ava', 'id': id},
+    );
+    print('User: \${data['name']}');
+  } catch (err) {
+    print('Failed: \$err');
+  }
+}`;
+
+<ReactFlutter client:visible react={reactCode} flutter={flutterCode} />
+
+<Diff title="Future vs Promise">
+
+- **`.catchError()` vs `.catch()`** ตัวจัดการ error แบบ chain style ของ Dart คือ `.catchError(fn)` ไม่ใช่ `.catch(fn)` ในทางปฏิบัติ `async`/`await` กับ `try`/`catch` เป็น idiomatic มากกว่าใน Dart — เช่นเดียวกับที่มันกลายเป็นใน modern JS
+- **`void` Futures.** Dart มี `Future<void>` สำหรับ async operations ที่ไม่ผลิตค่า (side effects, fire-and-forget) JS Promises resolve เป็น `undefined` โดยปริยาย แต่ Dart ทำให้การไม่มี return value ชัดเจนในประเภท
+- **`Future.wait` vs `Promise.all`.** เพื่อรัน Future หลายตัวพร้อมกันและรอให้ทุกตัวเสร็จ ให้ใช้ `Future.wait([futureA, futureB])` มันคืนค่าเป็น `Future<List<T>>` เหมือนกับ `Promise.all` ทุกประการ
+- **`Completer` vs `new Promise(resolve, reject)`.** เมื่อคุณต้องการ resolve หรือ reject Future ด้วยตนเอง (เช่น การ wrap callback API) ให้ใช้ `Completer<T>` เรียก `completer.complete(value)` หรือ `completer.completeError(err)` — ตัวเทียบเท่าโดยตรงของ arguments `resolve`/`reject` ใน Promise constructor
+- **ประเภทของ Error.** JS `catch (err)` ให้คุณได้ `unknown` แต่ Dart `catch (e)` ให้คุณได้ `Object` — คุณสามารถเพิ่ม `on SpecificException catch (e)` เพื่อ catch typed errors ซึ่งใกล้เคียงกับการ check `instanceof` แบบ typed
+
+</Diff>
+
+## ตัวอย่างที่รันได้จริง
+
+แอปด้านล่างแสดงการทำงานของ `FutureBuilder` ที่ consume `Future.delayed` — รูปแบบ Flutter ที่เทียบเท่ากับ `useEffect(() => { fetch(...).then(setData) }, [])` สังเกต spinner หายไปและผลลัพธ์ปรากฏหลังจากสองวินาที
+
+export const dartPadCode = `import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(child: FutureDemo()),
+      ),
+    );
+  }
+}
+
+// Simulates a network call — replace with http.get() in a real app.
+Future<String> fetchMessage() {
+  return Future.delayed(
+    const Duration(seconds: 2),
+    () => 'Hello from the future!',
+  );
+}
+
+class FutureDemo extends StatefulWidget {
+  const FutureDemo({super.key});
+
+  @override
+  State<FutureDemo> createState() => _FutureDemoState();
+}
+
+class _FutureDemoState extends State<FutureDemo> {
+  // Hold the Future in state so it does not restart on every rebuild.
+  late final Future<String> _messageFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _messageFuture = fetchMessage();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _messageFuture,
+      builder: (context, snapshot) {
+        // ConnectionState.waiting === Promise pending
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                'Awaiting the future...',
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+            ],
+          );
+        }
+
+        // snapshot.hasError === Promise rejected
+        if (snapshot.hasError) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 40),
+              const SizedBox(height: 12),
+              Text(
+                'Error: \${snapshot.error}',
+                style: const TextStyle(color: Colors.red, fontSize: 14),
+              ),
+            ],
+          );
+        }
+
+        // snapshot.data present === Promise resolved
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle_outline,
+                color: Colors.green, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              snapshot.data ?? '',
+              style: const TextStyle(
+                  fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Future resolved — like a Promise.then() callback.',
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}`;
+
+<DartPad client:visible code={dartPadCode} />
+
+export const quizFuturesAsync = [
+  {
+    q: 'Future ใน Dart เทียบเท่ากับอะไรใน JavaScript?',
+    options: ['callback', 'Promise', 'async function', 'event listener'],
+    answer: 1,
+  },
+  {
+    q: 'เมธอดใดใน Future ที่เทียบเท่ากับ .catch() ใน Promise?',
+    options: ['.onError()', '.catchError()', '.handleError()', '.rescue()'],
+    answer: 1,
+  },
+  {
+    q: 'ถ้า Future ล้มเหลวและไม่มีการจัดการ error จะเกิดอะไรขึ้น?',
+    options: ['Flutter crashes silently', 'The Future is ignored', 'An unhandled exception is thrown', 'The app restarts'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/futures-async" questions={quizFuturesAsync} />
+
+<ProgressTracker client:visible id="data/futures-async" />

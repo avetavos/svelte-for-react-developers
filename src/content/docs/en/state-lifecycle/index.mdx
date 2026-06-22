@@ -1,0 +1,66 @@
+---
+title: 'State & Lifecycle'
+description: 'Where state lives in Flutter — StatefulWidget + State — and how the lifecycle maps to React hooks and class component lifecycle methods.'
+---
+
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+In React, state lives **inside** the component — either as a `useState` hook variable or as `this.state` in a class component. When state changes, React re-renders the component function (or calls `render()`).
+
+Flutter separates the concern differently. A `StatefulWidget` is the immutable configuration object (like your props/JSX tag), and a companion `State<T>` class holds the mutable state and owns the `build()` method. The two work as a unit: the widget provides identity and configuration; the state provides memory and lifecycle.
+
+## Why the split?
+
+Flutter's widget tree is rebuilt very frequently — any ancestor rebuild can recreate widget objects. If state lived on the widget itself it would be destroyed on every rebuild. By keeping state in a separate, longer-lived `State` object that Flutter manages, the widget description can be cheaply recreated while state survives across rebuilds.
+
+| React concept | Flutter equivalent |
+|---|---|
+| `useState` / `this.state` | fields on the `State<T>` class |
+| `setState(newVal)` | `setState(() { field = newVal; })` |
+| Component function / `render()` | `State.build(BuildContext)` |
+| `useEffect(fn, [])` — mount | `initState()` |
+| `useEffect(fn, [dep])` — prop change | `didUpdateWidget(oldWidget)` |
+| `useEffect(() => cleanup, [])` — unmount | `dispose()` |
+| `useContext` / React Context | `InheritedWidget` / `BuildContext` |
+| React `key` prop | Flutter `Key` on a widget |
+
+## Module lessons
+
+1. **State & Lifecycle overview** ← you are here
+2. **setState vs useState** — the mutable state API
+3. **build() vs render()** — Flutter's pure rebuild model
+4. **The lifecycle in depth** — `initState`, `didChangeDependencies`, `didUpdateWidget`, `dispose`
+5. **Rebuilds & Keys** — `const` widgets, identity, and reconciliation
+
+export const quizIndex = [
+  {
+    q: 'Why does Flutter separate StatefulWidget from its State class?',
+    options: [
+      'To enforce immutability on the widget tree while keeping state alive across rebuilds',
+      'Because Dart does not support fields on abstract classes',
+      'To make hot reload work',
+      'To allow widgets to be shared across multiple trees',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'Which React hook maps most closely to Flutter\'s initState()?',
+    options: [
+      'useCallback',
+      'useMemo',
+      'useEffect with an empty dependency array',
+      'useReducer',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which Flutter method is the equivalent of a useEffect cleanup function?',
+    options: ['initState', 'build', 'dispose', 'setState'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="state-lifecycle/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="state-lifecycle/index" />

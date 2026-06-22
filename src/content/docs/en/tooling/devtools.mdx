@@ -1,0 +1,122 @@
+---
+title: 'Flutter DevTools'
+description: 'Flutter DevTools widget inspector, performance profiler, and memory view vs React DevTools and the React Profiler — your debugging toolkit mapped.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React DevTools is a browser extension that lets you inspect the component tree, view props and state, and profile renders. Flutter DevTools is a standalone web app — served locally — that does the same for Flutter, plus adds performance timelines, memory graphs, and network inspection. You launch it with `flutter devtools` or directly from your IDE. The key difference is that it is not tied to a browser: it works for iOS, Android, desktop, and web targets alike.
+
+## Launching DevTools
+
+During a running `flutter run` session, press `d` in the terminal or click "Open DevTools" in VS Code or IntelliJ. DevTools opens in a browser tab at a localhost URL. You can also run `flutter devtools` standalone to launch the UI without a running app, then connect to a running process by URL.
+
+This is the equivalent of clicking the React DevTools browser extension icon — except it works for every Flutter target, not just web.
+
+## Panel overview
+
+The conceptual mapping between React DevTools and Flutter DevTools is direct. Each tab in React DevTools has a counterpart in Flutter DevTools.
+
+export const devtoolsReact = `React DevTools panels:
+├─ Components tab
+│   ├─ Component tree (like DOM Inspector)
+│   ├─ Props viewer
+│   ├─ State viewer (hooks)
+│   └─ Context values
+└─ Profiler tab
+    ├─ Record renders
+    ├─ Flamegraph per commit
+    └─ Why did this render?`;
+
+export const devtoolsFlutter = `Flutter DevTools panels:
+├─ Widget Inspector
+│   ├─ Widget tree (like Components tab)
+│   ├─ Properties panel (widget fields)
+│   ├─ Layout Explorer (flexbox-like debug)
+│   └─ Select Widget Mode (click on screen)
+├─ Performance tab
+│   ├─ Frame timeline (60fps budget)
+│   ├─ UI thread vs Raster thread
+│   └─ Flame chart per frame
+├─ Memory tab
+│   ├─ Heap snapshot
+│   ├─ Allocation tracing
+│   └─ Leak detection
+└─ Network tab
+    └─ HTTP/HTTPS request log`;
+
+<ReactFlutter client:visible react={devtoolsReact} flutter={devtoolsFlutter} reactTitle="React DevTools" flutterTitle="Flutter DevTools" />
+
+## Widget Inspector
+
+The Widget Inspector is the direct equivalent of the Components tab in React DevTools. It renders a scrollable tree of every widget in the current build, from the root `MaterialApp` down to individual `Text` and `Icon` leaves.
+
+**Select Widget Mode** lets you tap any widget on the running device or emulator and jump to it in the tree — the same interaction as clicking a component in the React DevTools Components tab to highlight it in the browser.
+
+The **Layout Explorer** shows column and row constraints visually. When you have a `Row` or `Column` that is overflowing or not behaving as expected, the Layout Explorer renders each child's flex factor, size, and available space. Think of it as Chrome's flexbox overlay, but for Flutter's constraint system rather than CSS.
+
+The **Properties panel** shows the widget's constructor parameters and their current resolved values — the direct equivalent of the Props panel in React DevTools.
+
+## Performance profiler
+
+Flutter's Performance tab records frame timelines. Every frame should complete in under 16 ms to hit 60 fps. The tab splits work into two threads:
+
+- **UI thread** — runs your Dart code: `build()`, layout, and hit-testing.
+- **Raster thread** — runs GPU rendering of the composited layer tree.
+
+Frames that exceed the budget appear as tall bars in the timeline. Jank frames are highlighted in red. This maps directly to the Profiler flamegraph in React DevTools: a commit that took too long shows as a wide bar, and you drill in to find which component caused it.
+
+In React you reach for `React.memo` and `useMemo` to reduce unnecessary re-renders. In Flutter the equivalent tools are `const` constructors (which short-circuit the build phase entirely) and `RepaintBoundary` (which isolates a subtree from parent repaints). The Performance tab is where you confirm whether those optimisations are working.
+
+## Memory tab
+
+The Memory tab has no direct React DevTools equivalent — it is closer to the Memory tab in Chrome DevTools. You can take heap snapshots to identify widget leaks: `StatefulWidget`s that were removed from the tree but whose `State` objects were not garbage-collected because a listener, `AnimationController`, or `StreamSubscription` was not disposed in `dispose()`.
+
+The allocation tracing view shows which Dart classes are being created most frequently, which is useful when diagnosing unexpected object churn between frames.
+
+## Network tab
+
+The Network tab logs every HTTP and HTTPS request made by the app, including headers, response codes, and timing. There is no direct React DevTools equivalent here — this is the Flutter counterpart to the Network panel in Chrome DevTools.
+
+## Enabling DevTools in VS Code
+
+Install the Flutter extension, then start a debug session via Run and Debug. DevTools opens automatically and is linked to the running process. Breakpoints, hot reload, and DevTools all work together in the same session — equivalent to having React DevTools, the browser console, and the React Profiler all open simultaneously against a `vite dev` server.
+
+export const quizDevtools = [
+  {
+    q: 'How do you open Flutter DevTools during a running flutter run session?',
+    options: [
+      'Press "d" in the terminal or click Open DevTools in your IDE',
+      'Run npm run devtools',
+      'Open chrome://devtools',
+      'Run flutter inspect',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'What is the Flutter equivalent of the React DevTools Components tab?',
+    options: [
+      'The Network tab',
+      'The Widget Inspector',
+      'The Memory tab',
+      'The Performance tab',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'In the Flutter Performance tab, what does a red frame indicate?',
+    options: [
+      'A Dart compile error',
+      'A frame that exceeded the 16ms budget (janky frame)',
+      'A memory leak',
+      'A failed network request',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="tooling/devtools" questions={quizDevtools} />
+
+<ProgressTracker client:visible id="tooling/devtools" />

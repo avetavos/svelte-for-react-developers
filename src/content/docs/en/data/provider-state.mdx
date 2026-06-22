@@ -1,0 +1,251 @@
+---
+title: 'Shared State with Provider'
+description: 'Managing shared app state with Provider, ChangeNotifier, and context.watch vs React Context and Redux.'
+---
+
+import ReactFlutter from '../../../../components/ReactFlutter.tsx';
+import DartPad from '../../../../components/DartPad.tsx';
+import Diff from '../../../../components/Diff.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+React solves shared state with the Context API or Redux — you create a context, wrap your tree in a provider, and consume it from any descendant. Flutter's Provider package works the same way: you define a `ChangeNotifier` class (your state), wrap your tree in `ChangeNotifierProvider`, and read from any descendant via `context.watch` or `context.read`. If you've used React Context with `useReducer`, Provider will feel immediately familiar.
+
+## Side-by-side comparison
+
+export const provReact = `// React: Context API + useReducer
+const CounterContext = createContext(null);
+
+function counterReducer(state, action) {
+  switch (action.type) {
+    case 'increment': return { count: state.count + 1 };
+    default: return state;
+  }
+}
+
+export function CounterProvider({ children }) {
+  const [state, dispatch] = useReducer(counterReducer, { count: 0 });
+  return (
+    <CounterContext.Provider value={{ state, dispatch }}>
+      {children}
+    </CounterContext.Provider>
+  );
+}
+
+// Consuming component
+function CounterDisplay() {
+  const { state } = useContext(CounterContext);
+  return <p>Count: {state.count}</p>;
+}
+
+function IncrementButton() {
+  const { dispatch } = useContext(CounterContext);
+  return (
+    <button onClick={() => dispatch({ type: 'increment' })}>
+      Increment
+    </button>
+  );
+}`;
+
+export const provFlutter = `// Flutter: Provider + ChangeNotifier
+class CounterModel extends ChangeNotifier {
+  int _count = 0;
+  int get count => _count;
+
+  void increment() {
+    _count++;
+    notifyListeners(); // equivalent to dispatch / setState
+  }
+}
+
+// Wrapping the tree — identical to Context.Provider
+void main() {
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => CounterModel(),
+      child: const MyApp(),
+    ),
+  );
+}
+
+// Consuming widgets
+class CounterDisplay extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // context.watch rebuilds this widget when notifyListeners() fires
+    final count = context.watch<CounterModel>().count;
+    return Text('Count: \${count}');
+  }
+}
+
+class IncrementButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // context.read does NOT subscribe — safe for callbacks
+    return ElevatedButton(
+      onPressed: () => context.read<CounterModel>().increment(),
+      child: const Text('Increment'),
+    );
+  }
+}`;
+
+<ReactFlutter client:visible react={provReact} flutter={provFlutter} />
+
+## Runnable example
+
+export const provCode = `import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+void main() {
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => CounterModel(),
+      child: const MyApp(),
+    ),
+  );
+}
+
+class CounterModel extends ChangeNotifier {
+  int _count = 0;
+  int get count => _count;
+
+  void increment() {
+    _count++;
+    notifyListeners();
+  }
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: CounterPage(),
+        ),
+      ),
+    );
+  }
+}
+
+class CounterPage extends StatelessWidget {
+  const CounterPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: const [
+        CounterDisplay(),
+        SizedBox(height: 24),
+        IncrementButton(),
+      ],
+    );
+  }
+}
+
+class CounterDisplay extends StatelessWidget {
+  const CounterDisplay({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final counter = context.watch<CounterModel>();
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Count',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '\${counter.count}',
+              style: const TextStyle(
+                fontSize: 64,
+                fontWeight: FontWeight.bold,
+                color: Colors.indigo,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class IncrementButton extends StatelessWidget {
+  const IncrementButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      onPressed: () => context.read<CounterModel>().increment(),
+      icon: const Icon(Icons.add),
+      label: const Text('Increment', style: TextStyle(fontSize: 16)),
+    );
+  }
+}`;
+
+<DartPad client:visible code={provCode} />
+
+<Diff title="React Context vs Provider">
+
+- **`ChangeNotifier` vs reducer/useState.** Your state lives in a Dart class that extends `ChangeNotifier`. Properties are plain getters; mutation methods call `notifyListeners()` at the end. No action objects, no switch statement — it's closer to a MobX observable class than a Redux reducer.
+- **`notifyListeners()` vs `setState`/`dispatch`.** Calling `notifyListeners()` inside a `ChangeNotifier` method tells Provider to rebuild all `context.watch` subscribers — the exact role `setState` plays in a local `useState` hook or `dispatch` plays in `useReducer`.
+- **`context.watch` vs `useContext`.** `context.watch<T>()` subscribes the current widget to changes in `T` and triggers a rebuild when `notifyListeners()` fires. It is the direct equivalent of calling `useContext(MyContext)` in a React component.
+- **`context.read` vs `useContext` (for callbacks).** `context.read<T>()` retrieves the model *without* subscribing. Use it inside callbacks (`onPressed`, `onChanged`) where you never want the widget to rebuild just because the model changed — the same pattern as pulling `dispatch` out of context inside an event handler.
+- **`ChangeNotifierProvider` vs `Context.Provider`.** Both wrap a subtree and make a value available to descendants. The key difference is that `ChangeNotifierProvider` also owns the lifecycle — it calls `dispose()` on your `ChangeNotifier` when the widget leaves the tree, preventing memory leaks without any extra cleanup code.
+
+</Diff>
+
+Riverpod and Bloc are popular alternatives with more features — Provider is the recommended starting point.
+
+export const quizProv = [
+  {
+    q: "What does calling `notifyListeners()` inside a `ChangeNotifier` method do?",
+    options: [
+      'It disposes the notifier and releases memory',
+      'It triggers a rebuild in all widgets that called context.watch on this notifier',
+      'It sends an event to the Flutter framework event loop',
+      'It re-creates the ChangeNotifier from scratch',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the key difference between `context.watch<T>()` and `context.read<T>()`?',
+    options: [
+      'watch is synchronous; read is asynchronous',
+      'watch subscribes the widget and triggers rebuilds; read retrieves the value without subscribing',
+      'watch works only inside StatefulWidget; read works anywhere',
+      'They are identical — read is just an alias for watch',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the React equivalent of a Flutter `ChangeNotifier` class?',
+    options: [
+      'A plain object passed to Context.Provider as the value prop',
+      'A useRef holding mutable state',
+      'A useState or useReducer pairing that holds state and exposes an update function',
+      'A Redux middleware',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="data/provider-state" questions={quizProv} />
+
+<ProgressTracker client:visible id="data/provider-state" />
