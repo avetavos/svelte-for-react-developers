@@ -9,9 +9,9 @@ function CopyBtn({ text }: { text: string }) {
   );
 }
 
-export default function ReactFlutter(
-  { react, flutter, reactTitle = 'React', flutterTitle = 'Flutter' }:
-  { react: string; flutter: string; reactTitle?: string; flutterTitle?: string },
+export default function ReactSvelte(
+  { react, svelte, reactTitle = 'React', svelteTitle = 'Svelte' }:
+  { react: string; svelte: string; reactTitle?: string; svelteTitle?: string },
 ) {
   return (
     <div class="tsgo">
@@ -20,8 +20,8 @@ export default function ReactFlutter(
         <pre><code>{react}</code></pre>
       </div>
       <div class="tsgo__col">
-        <header>{flutterTitle}<CopyBtn text={flutter} /></header>
-        <pre><code>{flutter}</code></pre>
+        <header>{svelteTitle}<CopyBtn text={svelte} /></header>
+        <pre><code>{svelte}</code></pre>
       </div>
     </div>
   );
