@@ -7,6 +7,7 @@ import ReactSvelte from '../../../../components/ReactSvelte.tsx';
 import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+import Mermaid from '../../../../components/Mermaid.astro';
 
 Next.js กำหนด rendering mode ผ่านฟังก์ชัน `getServerSideProps`, `getStaticProps`, หรือ React Server Components SvelteKit ใช้แนวทางที่สม่ำเสมอกว่า: ทุก page มีค่า default เป็น **SSR** และคุณ opt out ได้ต่อ page ผ่าน page options ที่ export ออกมาจาก `+page.js` หรือ `+layout.js`
 
@@ -143,17 +144,18 @@ export default {
 
 SvelteKit ให้ผสม mode ในแต่ละ route ได้:
 
-```
-src/routes/
-├── +layout.js          → ssr: true (default)
-├── +page.svelte        → SSR (home page)
-├── about/
-│   ├── +page.js        → prerender: true
-│   └── +page.svelte    → static (prerendered)
-└── dashboard/
-    ├── +layout.js      → ssr: false
-    └── +page.svelte    → CSR only (protected page)
-```
+export const renderingModesDiagram = `flowchart TB
+  routes(["src/routes/"])
+  routes --> rootLayout["+layout.js → ssr: true (default)"]
+  routes --> rootPage["+page.svelte → SSR (home page)"]
+  routes --> about["about/"]
+  about --> aboutConfig["+page.js → prerender: true"]
+  about --> aboutPage["+page.svelte → static (prerendered)"]
+  routes --> dashboard["dashboard/"]
+  dashboard --> dashConfig["+layout.js → ssr: false"]
+  dashboard --> dashPage["+page.svelte → CSR only (protected page)"]`;
+
+<Mermaid code={renderingModesDiagram} title="Mixing rendering modes per route" />
 
 <Diff title="Next.js rendering modes เทียบกับ SvelteKit">
 

@@ -7,6 +7,7 @@ import ReactSvelte from '../../../../components/ReactSvelte.tsx';
 import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+import Mermaid from '../../../../components/Mermaid.astro';
 
 ใน React Router คุณสร้าง layout ด้วย component ที่ render `<Outlet />` เพื่อให้ child routes แสดงผลตรงนั้น ส่วน Next.js App Router ใช้ไฟล์ `layout.tsx` ที่ wrap `{children}` ให้อัตโนมัติ SvelteKit ใช้แนวคิดเดียวกันผ่านไฟล์ `+layout.svelte` — วาง `<slot />` ไว้ตรงไหน child pages ก็จะแสดงผลตรงนั้น และ layout จะ **persist** ข้ามการนำทางโดยไม่ unmount
 
@@ -115,16 +116,17 @@ export const navSvelte = `<script>
 
 Layout ซ้อนกันได้ตามลำดับชั้น directory — เหมือนกับ Next.js App Router ทุกประการ
 
-```
-src/routes/
-├── +layout.svelte        ← root layout (nav + footer)
-├── +page.svelte          ← /
-└── dashboard/
-    ├── +layout.svelte    ← dashboard layout (sidebar)
-    ├── +page.svelte      ← /dashboard
-    └── settings/
-        └── +page.svelte  ← /dashboard/settings
-```
+export const nestedLayoutsDiagram = `flowchart TB
+  routes(["src/routes/"])
+  routes --> rootLayout["+layout.svelte (root layout — nav + footer)"]
+  routes --> rootPage["+page.svelte → /"]
+  routes --> dashboard["dashboard/"]
+  dashboard --> dashLayout["+layout.svelte (dashboard layout — sidebar)"]
+  dashboard --> dashPage["+page.svelte → /dashboard"]
+  dashboard --> settings["settings/"]
+  settings --> settingsPage["+page.svelte → /dashboard/settings"]`;
+
+<Mermaid code={nestedLayoutsDiagram} title="Nested layouts in SvelteKit" />
 
 `/dashboard/settings` จะได้รับทั้ง root layout และ dashboard layout ซ้อนกัน โดยไม่ต้องกำหนด config ใด ๆ เพิ่มเติม
 

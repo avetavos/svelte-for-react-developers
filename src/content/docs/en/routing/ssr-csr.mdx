@@ -7,6 +7,7 @@ import ReactSvelte from '../../../../components/ReactSvelte.tsx';
 import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+import Mermaid from '../../../../components/Mermaid.astro';
 
 Next.js gave React developers three distinct rendering modes — `getServerSideProps` (SSR), `getStaticProps` (SSG), and client-only components — each requiring different APIs and mental models. SvelteKit unifies all three with a small set of **page options**: exported constants you place in a `+page.js` or `+page.server.js` file. Every page defaults to SSR; you opt in to other modes with one or two lines.
 
@@ -92,6 +93,21 @@ export const prerender = true; // all blog routes prerendered by default
 export const prerender = false; // override: this page is SSR only
 export const ssr = true;
 ```
+
+You can mix modes per route across the tree:
+
+export const renderingModesDiagram = `flowchart TB
+  routes(["src/routes/"])
+  routes --> rootLayout["+layout.js → ssr: true (default)"]
+  routes --> rootPage["+page.svelte → SSR (home page)"]
+  routes --> about["about/"]
+  about --> aboutConfig["+page.js → prerender: true"]
+  about --> aboutPage["+page.svelte → static (prerendered)"]
+  routes --> dashboard["dashboard/"]
+  dashboard --> dashConfig["+layout.js → ssr: false"]
+  dashboard --> dashPage["+page.svelte → CSR only (protected page)"]`;
+
+<Mermaid code={renderingModesDiagram} title="Mixing rendering modes per route" />
 
 ## Adapters
 

@@ -7,6 +7,7 @@ import ReactSvelte from '../../../../components/ReactSvelte.tsx';
 import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+import Mermaid from '../../../../components/Mermaid.astro';
 
 React มีจุดเริ่มต้นหลักสามแบบ ได้แก่ Create React App (เลิกใช้งานแล้ว), Vite กับ React plugin และ Next.js สำหรับงาน full-stack/SSR Svelte แบ่งแบบเดียวกันแทบทุกอย่าง — **Vite + Svelte plugin** สำหรับ SPA และ **SvelteKit** สำหรับ full-stack/SSR ถ้าคุณคุ้นเคยกับ toolchain ของ React คุณก็เข้าใจ shape ของ Svelte อยู่แล้ว เปลี่ยนแค่ชื่อเท่านั้น
 
@@ -73,27 +74,31 @@ export const setupSvelte = `{
 
 **Vite + Svelte SPA** (เทียบเท่ากับ Vite + React):
 
-```
-src/
-  main.ts          ← entry point (เดิมคือ main.tsx)
-  App.svelte       ← root component (เดิมคือ App.tsx)
-  lib/             ← shared components และ utilities
-index.html
-vite.config.ts
-```
+export const spaStructureDiagram = `flowchart TB
+  root(["project root"])
+  root --> src["src/"]
+  src --> main["main.ts — entry point (was main.tsx)"]
+  src --> app["App.svelte — root component (was App.tsx)"]
+  src --> lib["lib/ — shared components and utilities"]
+  root --> indexHtml["index.html"]
+  root --> viteConfig["vite.config.ts"]`;
+
+<Mermaid code={spaStructureDiagram} title="Vite + Svelte SPA project structure" />
 
 **SvelteKit** (เทียบเท่ากับ Next.js):
 
-```
-src/
-  routes/          ← file-based routing (เดิมคือ app/ หรือ pages/ ใน Next.js)
-    +page.svelte   ← UI ของแต่ละ route
-    +layout.svelte ← shared layout wrapper
-  lib/             ← shared utilities และ components
-static/            ← public assets (เดิมคือ public/)
-svelte.config.js
-vite.config.ts
-```
+export const kitStructureDiagram = `flowchart TB
+  root(["project root"])
+  root --> src["src/"]
+  src --> routes["routes/ — file-based routing (was app/ or pages/ in Next.js)"]
+  routes --> page["+page.svelte — a route's UI"]
+  routes --> layout["+layout.svelte — shared layout wrapper"]
+  src --> lib["lib/ — shared utilities and components"]
+  root --> staticDir["static/ — public assets (was public/)"]
+  root --> svelteConfig["svelte.config.js"]
+  root --> viteConfig["vite.config.ts"]`;
+
+<Mermaid code={kitStructureDiagram} title="SvelteKit project structure" />
 
 mental model แมปได้ชัดเจน: `src/routes/` ใน SvelteKit ทำหน้าที่เหมือน `app/` (หรือ `pages/`) ใน Next.js naming convention `+page.svelte` เป็นของ SvelteKit เฉพาะ — prefix `+` บอกให้รู้ว่าเป็น framework file ไม่ใช่ helper file ของคุณเอง
 

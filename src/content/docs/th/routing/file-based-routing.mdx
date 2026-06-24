@@ -7,26 +7,28 @@ import ReactSvelte from '../../../../components/ReactSvelte.tsx';
 import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+import Mermaid from '../../../../components/Mermaid.astro';
 
 ใน SvelteKit โครงสร้างโฟลเดอร์ใต้ `src/routes/` คือ URL ของแอปพลิเคชันโดยตรง ไม่มีขั้นตอนการกำหนด route เพิ่มเติม — แค่สร้างไฟล์และโฟลเดอร์ที่ถูกต้อง แล้ว SvelteKit จะจัดการ routing ให้เอง บทเรียนนี้จะพาคุณไปดู route patterns หลัก ๆ ทั้งหมด พร้อมเปรียบเทียบกับ react-router และ Next.js
 
 ## File tree และ URL ที่สอดคล้องกัน
 
-```
-src/routes/
-├── +page.svelte                  →  /
-├── about/
-│   └── +page.svelte              →  /about
-├── blog/
-│   ├── +page.svelte              →  /blog
-│   └── [slug]/
-│       └── +page.svelte          →  /blog/:slug
-└── dashboard/
-    ├── +layout.svelte            →  layout ครอบทุก /dashboard/* routes
-    ├── +page.svelte              →  /dashboard
-    └── settings/
-        └── +page.svelte          →  /dashboard/settings
-```
+export const routesTreeDiagram = `flowchart TB
+  routes(["src/routes/"])
+  routes --> rootPage["+page.svelte → /"]
+  routes --> about["about/"]
+  about --> aboutPage["+page.svelte → /about"]
+  routes --> blog["blog/"]
+  blog --> blogPage["+page.svelte → /blog"]
+  blog --> slug["[slug]/"]
+  slug --> slugPage["+page.svelte → /blog/:slug"]
+  routes --> dashboard["dashboard/"]
+  dashboard --> dashLayout["+layout.svelte (shared layout)"]
+  dashboard --> dashPage["+page.svelte → /dashboard"]
+  dashboard --> settings["settings/"]
+  settings --> settingsPage["+page.svelte → /dashboard/settings"]`;
+
+<Mermaid code={routesTreeDiagram} title="SvelteKit src/routes/ file tree" />
 
 ทุกโฟลเดอร์คือ URL segment ทุกไฟล์ `+page.svelte` คือหน้าที่จะแสดงผลที่ URL นั้น ส่วน `+layout.svelte` ครอบทุก sibling และ child route ในโฟลเดอร์เดียวกัน
 

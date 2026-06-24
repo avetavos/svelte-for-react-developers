@@ -7,6 +7,7 @@ import ReactSvelte from '../../../../components/ReactSvelte.tsx';
 import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+import Mermaid from '../../../../components/Mermaid.astro';
 
 In React Router you compose layouts by nesting `<Outlet />` inside a parent route component — any child route renders where you place the outlet. SvelteKit takes a file-system approach instead: a `+layout.svelte` file automatically wraps every route in the same directory. You get the same nesting behaviour, but without any explicit route configuration.
 
@@ -163,6 +164,19 @@ Here is a complete layout you can drop into any SvelteKit project:
 - `+layout.svelte` wraps all routes in the same directory — and nested directories inherit it automatically.
 - Children render at `{@render children()}` (Svelte 5 snippet syntax). There is no `<slot />` in Svelte 5 layouts.
 - Layouts **nest**: `dashboard/+layout.svelte` wraps all routes under `/dashboard`, inside the root layout.
+
+export const nestedLayoutsDiagram = `flowchart TB
+  routes(["src/routes/"])
+  routes --> rootLayout["+layout.svelte (root layout — nav + footer)"]
+  routes --> rootPage["+page.svelte → /"]
+  routes --> dashboard["dashboard/"]
+  dashboard --> dashLayout["+layout.svelte (dashboard layout — sidebar)"]
+  dashboard --> dashPage["+page.svelte → /dashboard"]
+  dashboard --> settings["settings/"]
+  settings --> settingsPage["+page.svelte → /dashboard/settings"]`;
+
+<Mermaid code={nestedLayoutsDiagram} title="Nested layouts in SvelteKit" />
+
 - Use plain `<a href="/about">` — no `<Link>` component needed. SvelteKit intercepts `<a>` clicks and performs client-side navigation automatically.
 - `page` from `$app/state` provides `url`, `params`, `data`, `route.id`, and more — all reactive.
 - `page.url.pathname` is the idiomatic way to implement active-link logic.

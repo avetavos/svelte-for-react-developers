@@ -8,6 +8,7 @@ import SveltePlayground from '../../../../components/SveltePlayground.tsx';
 import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+import Mermaid from '../../../../components/Mermaid.astro';
 
 ใน React ทุก component คือ **function** ที่ return JSX ออกมา ส่วนใน Svelte ทุก component คือ **ไฟล์ `.svelte`** ที่รวม script, markup และ styles ไว้ในรูปแบบเดียวที่หน้าตาคล้าย HTML ที่เราคุ้นเคย ไม่ต้องมี JSX ไม่ต้องมี `className` และไม่ต้องแยกไฟล์ CSS ออกไปต่างหาก
 
@@ -25,15 +26,13 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## ไฟล์ `.svelte` มีสามส่วน
 
-```
-<script>   ← logic ของ component (JS/TS, runes)
-</script>
+export const svelteFileDiagram = `flowchart TB
+  file([".svelte file"])
+  file --> script["&lt;script&gt; — component logic (JS/TS, runes)"]
+  file --> markup["markup — HTML template (no JSX, no return)"]
+  file --> style["&lt;style&gt; — scoped CSS (auto-scoped to this component)"]`;
 
-markup     ← HTML template (ไม่มี JSX, ไม่มี "return")
-
-<style>    ← scoped CSS (ถูก scope ให้ component นี้โดยอัตโนมัติ)
-</style>
-```
+<Mermaid code={svelteFileDiagram} title="The three sections of a .svelte file" />
 
 มีแค่ส่วน markup เท่านั้นที่จำเป็นต้องมี ส่วน `<script>` และ `<style>` นั้น optional
 

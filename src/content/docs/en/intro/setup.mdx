@@ -7,6 +7,7 @@ import ReactSvelte from '../../../../components/ReactSvelte.tsx';
 import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+import Mermaid from '../../../../components/Mermaid.astro';
 
 React has three mainstream starting points: Create React App (now deprecated), Vite with the React plugin, and Next.js for full-stack/SSR work. Svelte mirrors this split almost exactly — **Vite + Svelte plugin** for SPAs and **SvelteKit** for full-stack/SSR. If you know the React toolchain you already understand the shape of the Svelte one; the names just changed.
 
@@ -53,27 +54,31 @@ Both a Vite+Svelte SPA and a SvelteKit project are thin wrappers around familiar
 
 **Vite + Svelte SPA** (equivalent to Vite + React):
 
-```
-src/
-  main.ts          ← entry point (was main.tsx)
-  App.svelte       ← root component (was App.tsx)
-  lib/             ← shared components and utilities
-index.html
-vite.config.ts
-```
+export const spaStructureDiagram = `flowchart TB
+  root(["project root"])
+  root --> src["src/"]
+  src --> main["main.ts — entry point (was main.tsx)"]
+  src --> app["App.svelte — root component (was App.tsx)"]
+  src --> lib["lib/ — shared components and utilities"]
+  root --> indexHtml["index.html"]
+  root --> viteConfig["vite.config.ts"]`;
+
+<Mermaid code={spaStructureDiagram} title="Vite + Svelte SPA project structure" />
 
 **SvelteKit** (equivalent to Next.js):
 
-```
-src/
-  routes/          ← file-based routing (was app/ or pages/ in Next.js)
-    +page.svelte   ← a route's UI
-    +layout.svelte ← shared layout wrapper
-  lib/             ← shared utilities and components
-static/            ← public assets (was public/)
-svelte.config.js
-vite.config.ts
-```
+export const kitStructureDiagram = `flowchart TB
+  root(["project root"])
+  root --> src["src/"]
+  src --> routes["routes/ — file-based routing (was app/ or pages/ in Next.js)"]
+  routes --> page["+page.svelte — a route's UI"]
+  routes --> layout["+layout.svelte — shared layout wrapper"]
+  src --> lib["lib/ — shared utilities and components"]
+  root --> staticDir["static/ — public assets (was public/)"]
+  root --> svelteConfig["svelte.config.js"]
+  root --> viteConfig["vite.config.ts"]`;
+
+<Mermaid code={kitStructureDiagram} title="SvelteKit project structure" />
 
 The mental model maps cleanly: `src/routes/` in SvelteKit does what `app/` (or `pages/`) does in Next.js. The `+page.svelte` naming convention is SvelteKit-specific — the `+` prefix distinguishes framework files from your own helper files.
 

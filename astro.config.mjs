@@ -13,6 +13,9 @@ export default defineConfig({
   output: 'static',
   integrations: [starlight({
       title: 'Svelte for React Developers',
+      head: [
+        { tag: 'script', attrs: { type: 'module', src: '/svelte-for-react-developers/enhance.js' } },
+      ],
       defaultLocale: 'en',
       locales: {
         en: { label: 'English', lang: 'en' },
