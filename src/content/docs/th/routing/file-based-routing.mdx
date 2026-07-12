@@ -54,7 +54,7 @@ export const staticSvelte = `<!-- src/routes/about/+page.svelte -->
 
 ## Dynamic routes — `[param]`
 
-ชื่อโฟลเดอร์ที่ห้อมล้อมด้วยวงเล็บเหลี่ยมกลายเป็น dynamic segment คุณอ่านค่า param ใน `+page.svelte` ผ่าน `$page.params`:
+ชื่อโฟลเดอร์ที่ห้อมล้อมด้วยวงเล็บเหลี่ยมกลายเป็น dynamic segment คุณอ่านค่า param ใน `+page.svelte` ผ่าน `page.params`:
 
 export const dynamicReact = `// react-router v6
 { path: '/blog/:slug', element: <BlogPost /> }
@@ -71,7 +71,7 @@ export const dynamicSvelte = `<!-- src/routes/blog/[slug]/+page.svelte -->
   import { page } from '\$app/state';
 <\/script>
 
-<h1>Post: {\$page.params.slug}</h1>`;
+<h1>Post: {page.params.slug}</h1>`;
 
 <ReactSvelte react={dynamicReact} svelte={dynamicSvelte} />
 
@@ -102,8 +102,12 @@ function DashboardLayout() {
 }`;
 
 export const layoutSvelte = `<!-- src/routes/dashboard/+layout.svelte -->
+<script>
+  let { children } = \$props();
+<\/script>
+
 <nav>Dashboard nav</nav>
-<slot />
+{@render children()}
 
 <!-- src/routes/dashboard/+page.svelte -->
 <h1>Dashboard Home</h1>
@@ -113,14 +117,14 @@ export const layoutSvelte = `<!-- src/routes/dashboard/+layout.svelte -->
 
 <ReactSvelte react={layoutReact} svelte={layoutSvelte} />
 
-`<slot />` ใน `+layout.svelte` คือจุดที่ child page จะถูก render เข้าไป — ทำหน้าที่เหมือน `<Outlet />` ของ react-router พอดี
+`{@render children()}` ใน `+layout.svelte` คือจุดที่ child page จะถูก render เข้าไป — ทำหน้าที่เหมือน `<Outlet />` ของ react-router พอดี
 
 <Diff title="react-router / Next.js vs SvelteKit — file-based routing">
 
 - Static route: react-router ต้องการ config object — SvelteKit แค่ต้องการโฟลเดอร์และ `+page.svelte`
 - Dynamic segment: react-router `:slug`, Next.js `[slug].tsx` หรือ `[slug]/page.tsx` — SvelteKit `[slug]/+page.svelte` (convention เหมือน Next.js แต่ขยายด้วย `+page.svelte`)
-- Layout: react-router ใช้ `<Outlet />`, Next.js App Router ใช้ `layout.tsx` — SvelteKit ใช้ `+layout.svelte` ที่มี `<slot />`
-- การอ่าน route param: react-router `useParams()`, Next.js `params` prop — SvelteKit `$page.params` จาก `$app/state`
+- Layout: react-router ใช้ `<Outlet />`, Next.js App Router ใช้ `layout.tsx` — SvelteKit ใช้ `+layout.svelte` ที่มี `{@render children()}`
+- การอ่าน route param: react-router `useParams()`, Next.js `params` prop — SvelteKit `page.params` จาก `$app/state`
 - ทุก level ของโฟลเดอร์สามารถมี `+layout.svelte` ของตัวเอง — layouts ซ้อนกันได้ไม่จำกัด
 
 </Diff>

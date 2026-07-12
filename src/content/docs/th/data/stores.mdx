@@ -29,10 +29,8 @@ function Counter() {
 }`;
 
 export const storesWritableSvelte = `<!-- store.js -->
-<script context="module">
-  import { writable } from 'svelte/store';
-  export const count = writable(0);
-<\/script>
+import { writable } from 'svelte/store';
+export const count = writable(0);
 
 <!-- Counter.svelte -->
 <script>

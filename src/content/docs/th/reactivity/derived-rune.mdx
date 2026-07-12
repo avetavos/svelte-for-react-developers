@@ -9,7 +9,7 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-`useMemo` ของ React จดจำผลการคำนวณที่หนัก — แต่คุณต้องประกาศ reactive input ทุกตัวใน **dependency array** yokai ค่าจะเก่า Svelte 5's `$derived` ทำสิ่งเดียวกันโดยไม่ต้องใช้ array: คอมไพเลอร์สแกน expression หาตัวแปร reactive ทุกตัวที่อ่าน และรันการคำนวณใหม่อัตโนมัติเมื่อใดก็ตามที่ค่าเหล่านั้นเปลี่ยน
+`useMemo` ของ React จดจำผลการคำนวณที่หนัก — แต่คุณต้องประกาศ reactive input ทุกตัวใน **dependency array** มิฉะนั้นค่าจะเก่า Svelte 5's `$derived` ทำสิ่งเดียวกันโดยไม่ต้องใช้ array: คอมไพเลอร์สแกน expression หาตัวแปร reactive ทุกตัวที่อ่าน และรันการคำนวณใหม่อัตโนมัติเมื่อใดก็ตามที่ค่าเหล่านั้นเปลี่ยน
 
 ## $derived vs useMemo
 
