@@ -124,7 +124,7 @@ export const templateBlocksCode = `<script>
 - React `.map((item, i) => <li key={i}>)` → Svelte `{#each items as item, i (i)}` … `{/each}`
 - React: ไม่มี async block ในตัว — คุณต้องจัดการ state ของ loading/error เองด้วย `useState` + `useEffect`
 - Svelte: `{#await promise}` … `{:then data}` … `{:catch err}` จัดการ lifecycle ของ async ทั้งหมดแบบ declarative
-- template block ของ Svelte **ไม่ใช่** JavaScript — มันใช้ภายใน expression `$derived` ไม่ได้ ใช้ได้แค่ใน markup เท่านั้น
+- template block ของ Svelte **ไม่ใช่** JavaScript — จึงใช้ภายใน expression `$derived` ไม่ได้ ใช้ได้แค่ใน markup เท่านั้น
 
 </Diff>
 

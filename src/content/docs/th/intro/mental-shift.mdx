@@ -57,7 +57,7 @@ export const mentalShiftSvelte = `<script>
 
 ใน React คุณ **เลือกเข้า** สู่ reactivity: ทุกอย่างที่อยู่นอก `useState` หรือ `useReducer` จะไม่ reactive ใน Svelte คุณ **เลือกออก**: ตัวแปร `$state` ทุกตัว reactive ทุกที่ที่ถูกอ่าน ทั้งใน template ใน `$derived` expressions และใน `$effect` callbacks
 
-ซึ่งหมายความว่าคุณสามารถ refactor ได้อย่างอิสระ แยก helper function ที่อ่าน `$state` ออกมา — มันยังคง reactive ส่งค่า `$state` ไปยัง child component — มันยังคง reactive compiler track การ reads ไม่ใช่ call sites
+ซึ่งหมายความว่าคุณสามารถ refactor ได้อย่างอิสระ แยก helper function ที่อ่าน `$state` ออกมา — ยังคง reactive ส่งค่า `$state` ไปยัง child component — ก็ยังคง reactive compiler track การ reads ไม่ใช่ call sites
 
 ## $effect โดยไม่มี dependency arrays
 
@@ -75,7 +75,7 @@ $effect(() => {
 });
 ```
 
-ถ้า `count` เปลี่ยน effect จะรันใหม่ ถ้าคุณเพิ่มตัวแปร `$state` อื่นเข้าไปใน effect ทีหลัง มันจะถูก track อัตโนมัติ ไม่มี dependencies ที่พลาด ไม่มี lint warnings
+ถ้า `count` เปลี่ยน effect จะรันใหม่ ถ้าคุณเพิ่มตัวแปร `$state` อื่นเข้าไปใน effect ทีหลัง จะถูก track อัตโนมัติ ไม่มี dependencies ที่พลาด ไม่มี lint warnings
 
 ## ลองเลย: runes ในการใช้งานจริง
 

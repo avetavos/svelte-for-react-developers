@@ -13,9 +13,9 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## Svelte คือ compiler ไม่ใช่ runtime
 
-React ส่ง JavaScript runtime (~45 kB gzip สำหรับ React + ReactDOM) ที่รันในเบราว์เซอร์และจัดการ virtual DOM tree ทุกครั้งที่เรียก `setState` จะเกิด reconciliation pass: React diff vDOM ใหม่กับอันก่อนหน้าแล้ว patch real DOM
+React ส่ง JavaScript runtime (~45 kB gzip สำหรับ React + ReactDOM) ที่รันใน browser และจัดการ virtual DOM tree ทุกครั้งที่เรียก `setState` จะเกิด reconciliation pass: React diff vDOM ใหม่กับอันก่อนหน้าแล้ว patch real DOM
 
-Svelte ทำงานที่ **build time** ไฟล์ `.svelte` ของคุณถูก compile เป็น JavaScript ที่กระชับและปราศจาก framework ที่คุยกับ DOM โดยตรง ไม่มี virtual DOM ให้ diff ไม่มี reconciler ที่ต้องส่งไป ผลลัพธ์คือ `document.createElement` และ `element.textContent =` ล้วนๆ — สิ่งที่เบราว์เซอร์ต้องการน้อยที่สุด
+Svelte ทำงานที่ **build time** ไฟล์ `.svelte` ของคุณถูก compile เป็น JavaScript ที่กระชับและปราศจาก framework ที่คุยกับ DOM โดยตรง ไม่มี virtual DOM ให้ diff ไม่มี reconciler ที่ต้องส่งไป ผลลัพธ์คือ `document.createElement` และ `element.textContent =` ล้วนๆ — สิ่งที่ browser ต้องการน้อยที่สุด
 
 ผลที่เกิดขึ้นจริง:
 
@@ -76,7 +76,7 @@ export const indexSvelte = `<script>
 
 ## ลองเล่นดูเลย
 
-Playground ด้านล่างนี้เป็น Svelte 5 component ที่สมบูรณ์และแก้ไขได้ เปลี่ยนชื่อ กดปุ่ม ปรับแต่ง style — ทุกอย่างรันในเบราว์เซอร์ของคุณ
+Playground ด้านล่างนี้เป็น Svelte 5 component ที่สมบูรณ์และแก้ไขได้ เปลี่ยนชื่อ กดปุ่ม ปรับแต่ง style — ทุกอย่างรันใน browser ของคุณ
 
 export const indexCode = `<script>
   let name = \$state('React developer');
@@ -98,7 +98,7 @@ export const indexCode = `<script>
 
 <Diff title="React component vs Svelte component">
 
-- **Runtime model** — React ส่ง JavaScript runtime library ที่รันในเบราว์เซอร์ของทุกคน Svelte compile component เป็น vanilla JS ตอน build time ไม่มี framework code ถูกส่งไป
+- **Runtime model** — React ส่ง JavaScript runtime library ที่รันใน browser ของทุกคน Svelte compile component เป็น vanilla JS ตอน build time ไม่มี framework code ถูกส่งไป
 - **Virtual DOM** — React สร้าง virtual DOM tree ในทุก render และ diff เพื่อหาการเปลี่ยนแปลง Svelte สร้าง DOM mutation โดยตรง (`element.textContent = value`) ไม่มีขั้นตอน diffing
 - **Boilerplate** — React ต้องการ `useState` และ setter สำหรับทุก reactive value Svelte 5 ใช้การ assign `$state()` compiler จัดการ reactivity wiring อัตโนมัติ
 - **Styles** — React ไม่มี scoping ในตัว ทีมต้องเพิ่ม CSS Modules, styled-components หรือ Tailwind Svelte scope `<style>` block ให้กับ component อัตโนมัติโดยไม่ต้องตั้งค่าอะไร

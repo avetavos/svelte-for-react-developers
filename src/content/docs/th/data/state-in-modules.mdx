@@ -9,7 +9,7 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-นักพัฒนา React แชร์ state ข้าม component tree ด้วย Context — `createContext`, Provider ที่ครอบส่วนหนึ่งของ tree, และ `useContext` ในทุก consumer มันทำงานได้ แต่ต้องการ boilerplate มาก: Provider ต้องครอบทุก consumer และการเพิ่ม shared state ใหม่หมายถึงต้องอัปเดต Provider ด้วย
+นักพัฒนา React แชร์ state ข้าม component tree ด้วย Context — `createContext`, Provider ที่ครอบส่วนหนึ่งของ tree, และ `useContext` ในทุก consumer ทำงานได้ แต่ต้องการ boilerplate มาก: Provider ต้องครอบทุก consumer และการเพิ่ม shared state ใหม่หมายถึงต้องอัปเดต Provider ด้วย
 
 Svelte 5 แนะนำโมเดลที่เรียบง่ายกว่า: **`.svelte.ts` modules** คุณประกาศ `$state` และ `$derived` ระดับ module ในไฟล์ `.svelte.ts` (หรือ `.svelte.js`) แล้ว export ออกมา จากนั้น import เข้า component ใดก็ได้ Reactivity ทำงานเองโดยอัตโนมัติ — ทุก component ที่อ่านตัวแปรนั้นจะ re-render เมื่อค่าเปลี่ยน ไม่ต้องมี Provider ไม่ต้องมี context object ไม่ต้อง `useContext`
 

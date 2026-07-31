@@ -9,7 +9,7 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-Reactivity ของ React สร้างบน **immutability** — คุณไม่เคย mutate state โดยตรง; คุณเรียก setter และ React จัดตาราง re-render Reactivity ของ Svelte 5 สร้างบน **rune และ direct assignment** — คุณประกาศ state ด้วย `$state()` แล้ว mutate มันเหมือน JavaScript variable ทั่วไป compiler ของ Svelte ตรวจจับการ assign และ emit โค้ด DOM update ทั้งสองโมเดลให้ผลลัพธ์เหมือนกัน แต่ feel ต่างกันมาก
+Reactivity ของ React สร้างบน **immutability** — คุณไม่เคย mutate state โดยตรง; คุณเรียก setter และ React จัดตาราง re-render Reactivity ของ Svelte 5 สร้างบน **rune และ direct assignment** — คุณประกาศ state ด้วย `$state()` แล้ว mutate ได้เหมือน JavaScript variable ทั่วไป compiler ของ Svelte ตรวจจับการ assign และ emit โค้ด DOM update ทั้งสองโมเดลให้ผลลัพธ์เหมือนกัน แต่ feel ต่างกันมาก
 
 ## ประกาศ state
 
@@ -173,9 +173,9 @@ export const quizReactivity = [
   {
     q: 'ทำไม Svelte $derived ถึงไม่ต้องการ dependency array เหมือน React useMemo?',
     options: [
-      'มัน cache ทุก input ที่เป็นไปได้',
+      'cache ทุก input ที่เป็นไปได้',
       'Svelte compiler ติดตาม $state variable ที่ expression อ่านตอน build time',
-      'มัน recompute ทุกครั้งที่ render เสมอ',
+      'recompute ทุกครั้งที่ render เสมอ',
       'Svelte ใช้ proxy เพื่อดัก variable read ทุกครั้งที่ runtime',
     ],
     answer: 1,

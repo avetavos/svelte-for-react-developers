@@ -73,7 +73,7 @@ export const overviewSvelte = `<!-- Counter.svelte -->
 
 - React state เป็น **immutable** — คุณเรียก `setCount(n + 1)` และ React จัดตาราง re-render Svelte state เป็น **mutable** — คุณเขียน `count++` และ reactivity ที่ compiler ใส่ไว้จะจัดการเอง
 - React component คือ **ฟังก์ชันที่ return JSX** Svelte component คือ **ไฟล์** — markup คือ body ของไฟล์ ไม่มี `return`
-- React ส่ง **runtime** ไปยังทุกเบราว์เซอร์เพื่อ diff และ reconcile Svelte **compile ออกไป** — output คือโค้ด DOM manipulation ธรรมดา ไม่มี framework ใน bundle
+- React ส่ง **runtime** ไปยังทุก browser เพื่อ diff และ reconcile Svelte **compile ออกไป** — output คือโค้ด DOM manipulation ธรรมดา ไม่มี framework ใน bundle
 - `children` ใน React คือ prop (renderable value ใด ๆ) Svelte **snippet** คือ typed template fragment ที่เรียกด้วย `{@render children()}`
 
 </Diff>
@@ -95,7 +95,7 @@ export const quizMentalModelIndex = [
       'ใช้ diffing algorithm ที่เร็วกว่า',
       'Compile component เป็นโค้ด DOM update โดยตรงตอน build time',
       'Batch DOM write ทั้งหมดลงใน single frame',
-      'มอบหมาย reconciliation ให้กับเบราว์เซอร์',
+      'มอบหมาย reconciliation ให้กับ browser',
     ],
     answer: 1,
   },

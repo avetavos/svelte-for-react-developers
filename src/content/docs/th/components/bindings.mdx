@@ -9,7 +9,7 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-React ใช้ **controlled input**: คุณตั้งค่า `value={state}` แล้วอัปเดตมันเองใน `onChange` นี่เป็นความตั้งใจ — one-way data flow ทำให้การเปลี่ยน state ชัดเจน ส่วน Svelte มี `bind:value` สำหรับ **two-way binding** ที่เชื่อม input กับตัวแปรเข้าด้วยกันโดยอัตโนมัติ ไม่มีอะไรใน React ที่เทียบได้ตรง ๆ — มันเป็น superpower ของ Svelte จริง ๆ
+React ใช้ **controlled input**: คุณตั้งค่า `value={state}` แล้วอัปเดต state เองใน `onChange` นี่เป็นความตั้งใจ — one-way data flow ทำให้การเปลี่ยน state ชัดเจน ส่วน Svelte มี `bind:value` สำหรับ **two-way binding** ที่เชื่อม input กับตัวแปรเข้าด้วยกันโดยอัตโนมัติ ไม่มีอะไรใน React ที่เทียบได้ตรง ๆ — เป็น superpower ของ Svelte จริง ๆ
 
 ## Text input: controlled เทียบกับ `bind:value`
 
@@ -148,7 +148,7 @@ export const bindingsCode = `<script>
 - Svelte `bind:value={state}` ทำทั้งสองอย่างใน directive เดียว — two-way binding โดยไม่ต้องมี handler
 - `bind:checked` สำหรับ checkbox, `bind:value` สำหรับ text/number/email/select/textarea
 - ปรัชญาของ React: **one-way data flow** (ชัดเจน) ส่วน Svelte: **two-way binding เป็นแบบ opt-in** (สะดวก)
-- `bind:` เป็น directive ของ Svelte มันใช้ได้แค่กับ DOM element หรือ component ที่เปิดเผย prop แบบ `$bindable()` — ใช้กับค่า JS ทั่วไปไม่ได้
+- `bind:` เป็น directive ของ Svelte ใช้ได้แค่กับ DOM element หรือ component ที่เปิดเผย prop แบบ `$bindable()` — ใช้กับค่า JS ทั่วไปไม่ได้
 - React ไม่มีอะไรเทียบได้ตรง ๆ ที่ใกล้เคียงที่สุดคือ custom hook (`useInput`) ที่ return `{ value, onChange }`
 
 </Diff>
@@ -159,8 +159,8 @@ export const quizBindings = [
     options: [
       'ตั้งค่า value แบบ read-only ให้กับ input',
       'สร้าง two-way binding — เมื่อ input เปลี่ยน ตัวแปรจะอัปเดต และในทางกลับกันด้วย',
-      'มันเทียบเท่ากับ defaultValue ของ React',
-      'มันกันไม่ให้ผู้ใช้พิมพ์',
+      'เทียบเท่ากับ defaultValue ของ React',
+      'กันไม่ให้ผู้ใช้พิมพ์',
     ],
     answer: 1,
   },

@@ -9,7 +9,7 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-React ส่ง JavaScript **runtime** ไปให้ browser ของผู้ใช้ทุกคน — ประมาณ 45 kB แบบ gzip สำหรับ React และ ReactDOM รวมกัน runtime นั้นดูแล virtual DOM tree, diff ทุกครั้งที่ state เปลี่ยน และ patch real DOM ตามผล Svelte เลือกแนวทางที่แตกต่างอย่างสิ้นเชิง: มันทำงานในฐานะ **compiler** ไฟล์ `.svelte` ของคุณจะถูกแปลงเป็น JavaScript ธรรมดาที่ปราศจาก framework ณ เวลา build เมื่อโค้ดถึงมือ browser แล้ว ไม่มี Svelte runtime อยู่เลย — มีแต่คำสั่ง DOM โดยตรงที่ compiler สร้างออกมา
+React ส่ง JavaScript **runtime** ไปให้ browser ของผู้ใช้ทุกคน — ประมาณ 45 kB แบบ gzip สำหรับ React และ ReactDOM รวมกัน runtime นั้นดูแล virtual DOM tree, diff ทุกครั้งที่ state เปลี่ยน และ patch real DOM ตามผล Svelte เลือกแนวทางที่แตกต่างอย่างสิ้นเชิง: ทำงานในฐานะ **compiler** ไฟล์ `.svelte` ของคุณจะถูกแปลงเป็น JavaScript ธรรมดาที่ปราศจาก framework ณ เวลา build เมื่อโค้ดถึงมือ browser แล้ว ไม่มี Svelte runtime อยู่เลย — มีแต่คำสั่ง DOM โดยตรงที่ compiler สร้างออกมา
 
 ## React runtime vs Svelte compiler
 
@@ -56,7 +56,7 @@ export const compilerModelCode = `<script>
 
 <SveltePlayground client:visible code={compilerModelCode} />
 
-ลองกดปุ่มและสังเกตว่า label เปลี่ยนแปลงทันทีโดยไม่มี re-render ทั้ง component นี่คือ Svelte compiler ทำงาน — มันรู้ล่วงหน้าว่า `label` ขึ้นอยู่กับ `count` จึงสร้างโค้ดที่อัปเดตเฉพาะ DOM node ที่เกี่ยวข้องโดยตรง
+ลองกดปุ่มและสังเกตว่า label เปลี่ยนแปลงทันทีโดยไม่มี re-render ทั้ง component นี่คือ Svelte compiler ทำงาน — compiler รู้ล่วงหน้าว่า `label` ขึ้นอยู่กับ `count` จึงสร้างโค้ดที่อัปเดตเฉพาะ DOM node ที่เกี่ยวข้องโดยตรง
 
 <Diff title="React runtime vs Svelte compiler">
 

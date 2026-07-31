@@ -8,7 +8,7 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-ใน Next.js คุณควบคุมรูปแบบ output ด้วย `output` ใน `next.config.js` (`'export'` สำหรับ static, ค่าเริ่มต้นสำหรับ Node server) และเลือกแพลตฟอร์ม deployment โดยทำตามเอกสารของมัน ส่วน SvelteKit ใช้แนวทางที่ชัดเจนกว่า: คุณติดตั้งแพ็กเกจ **adapter** แล้วอ้างอิงมันใน `svelte.config.js` adapter เป็นตัวกำหนดว่า `npm run build` จะผลิตอะไรออกมา — เว็บไซต์ static, Node.js server, bundle ของ Vercel edge function และอื่น ๆ
+ใน Next.js คุณควบคุมรูปแบบ output ด้วย `output` ใน `next.config.js` (`'export'` สำหรับ static, ค่าเริ่มต้นสำหรับ Node server) และเลือกแพลตฟอร์ม deployment โดยทำตามเอกสารของตัวเอง ส่วน SvelteKit ใช้แนวทางที่ชัดเจนกว่า: คุณติดตั้งแพ็กเกจ **adapter** แล้วอ้างอิง adapter นั้นใน `svelte.config.js` adapter เป็นตัวกำหนดว่า `npm run build` จะผลิตอะไรออกมา — เว็บไซต์ static, Node.js server, bundle ของ Vercel edge function และอื่น ๆ
 
 ## เปรียบเทียบไฟล์ config
 
@@ -118,7 +118,7 @@ npm install --save-dev @sveltejs/adapter-vercel
 <Diff title="Next.js output modes vs SvelteKit adapters">
 
 - Next.js: `output: 'export'` ใน `next.config.js` สำหรับ static; ค่าเริ่มต้นสำหรับการ render ฝั่ง server
-- SvelteKit: ติดตั้งแพ็กเกจ adapter, import มันใน `svelte.config.js`, ส่งต่อให้ `kit.adapter`
+- SvelteKit: ติดตั้งแพ็กเกจ adapter, import เข้ามาใน `svelte.config.js`, ส่งต่อให้ `kit.adapter`
 - `adapter-static` ≈ Next.js `output: 'export'` — ผลิตโฟลเดอร์ของ HTML/CSS/JS
 - `adapter-auto` ไม่มีตัวเทียบเท่าใน Next.js — ตรวจจับและตั้งค่าแพลตฟอร์มโดยอัตโนมัติ
 - `adapter-node` ≈ output แบบ standalone server ของ Next.js

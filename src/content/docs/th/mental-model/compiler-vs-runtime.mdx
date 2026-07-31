@@ -9,13 +9,13 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-นี่คือความแตกต่างทางสถาปัตยกรรมที่ใหญ่ที่สุดระหว่าง React และ Svelte และมันกำหนดทุกสิ่งที่เกี่ยวข้อง React เป็น **runtime library** — ส่งตัวเองไปยังเบราว์เซอร์และ reconcile virtual DOM ทุกครั้งที่ state เปลี่ยน Svelte เป็น **compiler** — วิเคราะห์ component ของคุณตอน build time และ output JavaScript ธรรมดาที่ update DOM โดยตรง เมื่อโค้ดถึงเบราว์เซอร์ Svelte เองก็แทบจะหายไปแล้ว
+นี่คือความแตกต่างทางสถาปัตยกรรมที่ใหญ่ที่สุดระหว่าง React และ Svelte และกำหนดทุกสิ่งที่เกี่ยวข้อง React เป็น **runtime library** — ส่งตัวเองไปยัง browser และ reconcile virtual DOM ทุกครั้งที่ state เปลี่ยน Svelte เป็น **compiler** — วิเคราะห์ component ของคุณตอน build time และ output JavaScript ธรรมดาที่ update DOM โดยตรง เมื่อโค้ดถึง browser Svelte เองก็แทบจะหายไปแล้ว
 
-## สิ่งที่ React ส่งไปยังเบราว์เซอร์
+## สิ่งที่ React ส่งไปยัง browser
 
-React รวม reconciler, fiber scheduler, synthetic event system และ hooks runtime เข้าด้วยกัน — ทั้งหมดนี้ทำงานบน device ของผู้ใช้ทุกคน ทุกครั้งที่โหลดหน้า เมื่อ state เปลี่ยน React สร้าง virtual DOM tree ใหม่ diff กับ tree ก่อนหน้า แล้วจึง flush การเปลี่ยนแปลง DOM จริง ๆ ขั้นตอน diff นั้นเกิดขึ้นที่ **runtime** ในเบราว์เซอร์
+React รวม reconciler, fiber scheduler, synthetic event system และ hooks runtime เข้าด้วยกัน — ทั้งหมดนี้ทำงานบน device ของผู้ใช้ทุกคน ทุกครั้งที่โหลดหน้า เมื่อ state เปลี่ยน React สร้าง virtual DOM tree ใหม่ diff กับ tree ก่อนหน้า แล้วจึง flush การเปลี่ยนแปลง DOM จริง ๆ ขั้นตอน diff นั้นเกิดขึ้นที่ **runtime** ใน browser
 
-## สิ่งที่ Svelte ส่งไปยังเบราว์เซอร์
+## สิ่งที่ Svelte ส่งไปยัง browser
 
 Svelte วิเคราะห์ template และ state ของ component ที่ **build time** และสร้างโค้ด DOM update แบบ imperative เป้าหมาย เมื่อ `count` เปลี่ยน compiled output จะเรียก `textContent = count` — DOM write โดยตรงหนึ่งครั้ง ไม่มี diffing ไม่มี reconciler "Runtime" ของ Svelte ที่ส่งมานั้นเล็กมาก (เป็นแค่ utility function จำนวนหนึ่งสำหรับสิ่งต่าง ๆ เช่น `{#each}` keyed list และ transition)
 
@@ -58,7 +58,7 @@ export const compilerSvelte = `<!-- Svelte — compiles to direct DOM code -->
 
 **Performance:** ไม่มีการ diff virtual DOM หมายความว่างานน้อยลงต่อการเปลี่ยนแปลง state ความแตกต่างนี้แทบไม่รู้สึกสำหรับ UI ส่วนใหญ่ แต่มีนัยสำคัญสำหรับ list ขนาดใหญ่ animation หรืออุปกรณ์ที่ช้า
 
-**Mental model:** คุณเขียน declarative component เหมือนที่ทำใน React Compiler จัดการงาน imperative DOM ให้คุณ ไม่จำเป็นต้องคิดว่ามันทำงานอย่างไร — แค่รู้ว่า `count++` จะ update ทุกที่ที่ `count` ปรากฏใน template โดยอัตโนมัติ
+**Mental model:** คุณเขียน declarative component เหมือนที่ทำใน React Compiler จัดการงาน imperative DOM ให้คุณ ไม่จำเป็นต้องคิดว่าทำงานอย่างไร — แค่รู้ว่า `count++` จะ update ทุกที่ที่ `count` ปรากฏใน template โดยอัตโนมัติ
 
 **ไม่มี stale closure จาก diffing:** เพราะ Svelte ไม่ re-run function component ทั้งหมดในแต่ละ update (ต่างจาก React ที่ re-render function component ใหม่) bug ประเภท stale closure ใน React hook จึงไม่มีในรูปแบบเดียวกันใน Svelte
 
@@ -89,7 +89,7 @@ export const compilerCode = `<script>
 
 <Diff title="React runtime vs Svelte compiler">
 
-- React ส่ง reconciler, fiber scheduler และ hooks runtime ไปยังทุกเบราว์เซอร์ Svelte compile งานนั้นออกไปตอน build time
+- React ส่ง reconciler, fiber scheduler และ hooks runtime ไปยังทุก browser Svelte compile งานนั้นออกไปตอน build time
 - React diff **virtual DOM** ทุกครั้งที่ state เปลี่ยน Svelte emit **direct DOM assignment** — `element.textContent = value` — ไม่มีขั้นตอน diff
 - React function component **re-run ทั้งหมด** ในแต่ละ render Svelte component รัน `<script>` ครั้งเดียวตอน mount; มีแค่โค้ด update เป้าหมายที่รันเมื่อมีการเปลี่ยนแปลง
 - React `useMemo(() => x * 2, [x])` ต้องการ manual dependency array Svelte `$derived(x * 2)` ติดตาม dependency โดยอัตโนมัติตอน compile time
@@ -103,8 +103,8 @@ export const quizCompiler = [
     q: 'Svelte วิเคราะห์ component และสร้างโค้ด DOM update เมื่อใด?',
     options: [
       'ที่ runtime ทุกครั้งที่ state เปลี่ยน',
-      'ที่ build time ก่อนที่โค้ดจะถึงเบราว์เซอร์',
-      'เมื่อ component mount ในเบราว์เซอร์ครั้งแรก',
+      'ที่ build time ก่อนที่โค้ดจะถึง browser',
+      'เมื่อ component mount ใน browser ครั้งแรก',
       'เมื่อผู้ใช้ interact กับ component ครั้งแรก',
     ],
     answer: 1,

@@ -8,7 +8,7 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-ในโปรเจกต์ React คุณรัน `tsc --noEmit` เพื่อจับ type error ในไฟล์ `.tsx` ทั้งหมด มันทำงานได้เพราะ TypeScript เข้าใจ JSX โดยกำเนิด แต่ template ของ Svelte ไม่ใช่ JSX — มันเป็น syntax เฉพาะตัวที่ `tsc` ไม่สามารถ parse ได้ จึงเป็นที่มาของ **svelte-check**: เครื่องมือ CLI ที่เข้าใจโครงสร้างไฟล์ `.svelte` รัน TypeScript compiler บนบล็อก `<script lang="ts">` และยังตรวจสอบ type ของ expression ใน template เช่น การอ้างอิงตัวแปร reactive และการ destructure `$props` ด้วย
+ในโปรเจกต์ React คุณรัน `tsc --noEmit` เพื่อจับ type error ในไฟล์ `.tsx` ทั้งหมด ทำงานได้เพราะ TypeScript เข้าใจ JSX โดยกำเนิด แต่ template ของ Svelte ไม่ใช่ JSX — เป็น syntax เฉพาะตัวที่ `tsc` ไม่สามารถ parse ได้ จึงเป็นที่มาของ **svelte-check**: เครื่องมือ CLI ที่เข้าใจโครงสร้างไฟล์ `.svelte` รัน TypeScript compiler บนบล็อก `<script lang="ts">` และยังตรวจสอบ type ของ expression ใน template เช่น การอ้างอิงตัวแปร reactive และการ destructure `$props` ด้วย
 
 ## เปรียบเทียบ component แบบ TypeScript
 
@@ -111,7 +111,7 @@ export const quizSvelteCheck = [
     options: [
       'tsc ไม่รองรับ TypeScript ในโปรเจกต์ Svelte',
       'TypeScript ไม่ได้รับการรองรับใน Svelte 5',
-      'tsc ไม่สามารถ parse syntax ของ template .svelte ได้ — มันเข้าใจแค่ .ts และ .tsx',
+      'tsc ไม่สามารถ parse syntax ของ template .svelte ได้ — tsc เข้าใจแค่ .ts และ .tsx',
       'คุณต้อง eject โปรเจกต์ก่อน',
     ],
     answer: 2,

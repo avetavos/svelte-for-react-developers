@@ -63,7 +63,7 @@ export const sameSvelte = `<script>
 
 ### 2. ไม่มี hook rules
 
-React hook มีกฎเข้มงวด: เรียกที่ top level เท่านั้น ห้ามอยู่ใน condition หรือ loop ต้องเรียกในลำดับเดิมเสมอ Svelte rune ไม่มีข้อจำกัดเหล่านี้ — คุณสามารถเรียก `$state` ใน condition หรือใน loop ก็ได้ มันคือ compiler directive ไม่ใช่ function call ที่ถูกติดตามตาม call order
+React hook มีกฎเข้มงวด: เรียกที่ top level เท่านั้น ห้ามอยู่ใน condition หรือ loop ต้องเรียกในลำดับเดิมเสมอ Svelte rune ไม่มีข้อจำกัดเหล่านี้ — คุณสามารถเรียก `$state` ใน condition หรือใน loop ก็ได้ เพราะ rune คือ compiler directive ไม่ใช่ function call ที่ถูกติดตามตาม call order
 
 export const sameHooksReact = `// React — hooks must be at the top level, always called
 function Conditional({ show }) {
@@ -89,9 +89,9 @@ export const sameHooksSvelte = `<script>
 
 - **Mutation ใช้ได้** `array.push()`, `object.key = value` — compiler ของ Svelte instrument `$state` เพื่อให้ direct mutation ถูกติดตาม กฎ immutability ของ React ไม่มีผลที่นี่
 - **ไม่มี hook rules** Rune (`$state`, `$derived`, `$effect`) คือ compiler directive ไม่ใช่ runtime function call ไม่มีกฎลำดับ call ไม่มีข้อจำกัด "ต้องอยู่ที่ top level"
-- **ไม่มี virtual DOM** ไม่มี reconciler ไม่มี fiber ไม่มี "batched re-render" Update คือ direct DOM write แบบ surgical คุณไม่สามารถเรียก `forceUpdate()` หรือ trigger full re-render ได้ — มันไม่ใช่ concept ที่มีอยู่
+- **ไม่มี virtual DOM** ไม่มี reconciler ไม่มี fiber ไม่มี "batched re-render" Update คือ direct DOM write แบบ surgical คุณไม่สามารถเรียก `forceUpdate()` หรือ trigger full re-render ได้ — ไม่ใช่ concept ที่มีอยู่
 - **`on:click` ไม่มีแล้ว** Svelte 4 ใช้ directive `on:event` Svelte 5 ใช้ lowercase HTML event attribute (`onclick`, `oninput`, `onkeydown`) syntax เก่าถูกลบออกไปแล้ว
-- **Children คือ snippet ไม่ใช่ value** `{@render children()}` เรียก snippet function คุณไม่สามารถ spread children, map เหนือมัน หรือส่งมันเป็น arbitrary value แบบที่ React ให้ treat `children` เป็น node tree
+- **Children คือ snippet ไม่ใช่ value** `{@render children()}` เรียก snippet function คุณไม่สามารถ spread children, map ทับ หรือส่งต่อเป็น arbitrary value แบบที่ React ให้ treat `children` เป็น node tree
 
 </Diff>
 

@@ -8,7 +8,7 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-นักพัฒนา React ที่ใช้ Vite คงคุ้นเคยกับ `@vitejs/plugin-react` อยู่แล้ว — มันเพิ่ม JSX transform และ Fast Refresh ให้กับ dev server ของ Vite ฝั่ง Svelte ก็มีตัวเทียบเท่าโดยตรง: `@sveltejs/vite-plugin-svelte` ซึ่งคอมไพล์ไฟล์ `.svelte` และต่อ HMR ของ Svelte ให้ ถ้าคุณใช้ SvelteKit (framework แบบ full-stack) plugin ตัวนี้จะถูกห่อหุ้มอยู่ใน `@sveltejs/kit/vite` และตั้งค่าให้คุณโดยอัตโนมัติ
+นักพัฒนา React ที่ใช้ Vite คงคุ้นเคยกับ `@vitejs/plugin-react` อยู่แล้ว — plugin ตัวนี้เพิ่ม JSX transform และ Fast Refresh ให้กับ dev server ของ Vite ฝั่ง Svelte ก็มีตัวเทียบเท่าโดยตรง: `@sveltejs/vite-plugin-svelte` ซึ่งคอมไพล์ไฟล์ `.svelte` และต่อ HMR ของ Svelte ให้ ถ้าคุณใช้ SvelteKit (framework แบบ full-stack) plugin ตัวนี้จะถูกห่อหุ้มอยู่ใน `@sveltejs/kit/vite` และตั้งค่าให้คุณโดยอัตโนมัติ
 
 ## เปรียบเทียบ vite.config
 
@@ -44,7 +44,7 @@ export default defineConfig({
 });
 ```
 
-ในโปรเจกต์ SvelteKit คุณ **ไม่ต้อง** import `@sveltejs/vite-plugin-svelte` โดยตรง — `sveltekit()` ทำ re-export และตั้งค่ามันให้คุณแล้ว
+ในโปรเจกต์ SvelteKit คุณ **ไม่ต้อง** import `@sveltejs/vite-plugin-svelte` โดยตรง — `sveltekit()` ทำ re-export และตั้งค่าให้คุณแล้ว
 
 ## การติดตั้ง
 

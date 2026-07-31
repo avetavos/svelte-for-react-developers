@@ -9,7 +9,7 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-`useEffect` มี footgun ที่เป็นที่รู้จักดี: ลืมตัวแปรใน dependency array และ effect ของคุณจะรันด้วยค่าเก่า ใส่มากเกินไปและมันจะรันบ่อยเกินไป `$effect` ของ Svelte 5 แก้ปัญหานี้โดยสิ้นเชิง — **ไม่มี dependency array** effect รันครั้งแรก จากนั้นรันใหม่อัตโนมัติทุกครั้งที่ reactive value ที่มันอ่านในการรันก่อนหน้าเปลี่ยน คอมไพเลอร์ track dependencies แทนคุณ
+`useEffect` มี footgun ที่เป็นที่รู้จักดี: ลืมตัวแปรใน dependency array และ effect ของคุณจะรันด้วยค่าเก่า ใส่มากเกินไปและจะรันบ่อยเกินไป `$effect` ของ Svelte 5 แก้ปัญหานี้โดยสิ้นเชิง — **ไม่มี dependency array** effect รันครั้งแรก จากนั้นรันใหม่อัตโนมัติทุกครั้งที่ reactive value ที่อ่านในการรันก่อนหน้าเปลี่ยน คอมไพเลอร์ track dependencies แทนคุณ
 
 ## Side effect พื้นฐาน
 
@@ -41,7 +41,7 @@ export const effectBasicSvelte = `<script>
 ## $effect รันเมื่อไหร่?
 
 - **การรันแรก:** หลัง component mount (เหมือน `useEffect` ที่ไม่มี deps)
-- **รันใหม่:** synchronously หลัง reactive dependency ที่มันอ่านในการรันก่อนหน้าเปลี่ยน
+- **รันใหม่:** synchronously หลัง reactive dependency ที่อ่านในการรันก่อนหน้าเปลี่ยน
 - **ไม่รันระหว่าง render:** ต่างจาก `useMemo`, `$effect` ไม่รันในขั้นตอน rendering แบบ synchronous
 
 ## Cleanup

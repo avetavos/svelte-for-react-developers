@@ -8,7 +8,7 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-นักพัฒนา React พึ่งพาส่วนขยาย browser **React DevTools** ในการตรวจสอบ component tree, ดู props และ state, และทำ profile การ render ส่วน Svelte ก็มีตัวเทียบเท่าของตัวเอง: ส่วนขยาย **Svelte DevTools** (มีให้ใช้ทั้ง Chrome และ Firefox) ขั้นตอนการทำงานโดยรวมคุ้นเคย — เปิด DevTools, หา component ของคุณ, ตรวจสอบข้อมูลของมัน — แต่ panel ต่าง ๆ สะท้อน reactivity model ของ Svelte แทนที่จะเป็นแบบ hook ของ React
+นักพัฒนา React พึ่งพาส่วนขยาย browser **React DevTools** ในการตรวจสอบ component tree, ดู props และ state, และทำ profile การ render ส่วน Svelte ก็มีตัวเทียบเท่าของตัวเอง: ส่วนขยาย **Svelte DevTools** (มีให้ใช้ทั้ง Chrome และ Firefox) ขั้นตอนการทำงานโดยรวมคุ้นเคย — เปิด DevTools, หา component ของคุณ, ตรวจสอบข้อมูลของตัวเอง — แต่ panel ต่าง ๆ สะท้อน reactivity model ของ Svelte แทนที่จะเป็นแบบ hook ของ React
 
 ## การติดตั้ง
 
@@ -67,7 +67,7 @@ Svelte DevTools แสดง **จำนวนครั้งของการ 
 
 ## ใช้งานได้เฉพาะตอนพัฒนา
 
-ส่วนขยายทั้งสองทำงานเฉพาะใน development build เท่านั้น พวกมันพึ่งพา metadata สำหรับ debug ที่ Svelte และ React ตัดออกจาก production bundle หาก DevTools ไม่แสดง component บน production deployment นั่นเป็นพฤติกรรมที่คาดไว้
+ส่วนขยายทั้งสองทำงานเฉพาะใน development build เท่านั้น เพราะพึ่งพา metadata สำหรับ debug ที่ Svelte และ React ตัดออกจาก production bundle หาก DevTools ไม่แสดง component บน production deployment นั่นเป็นพฤติกรรมที่คาดไว้
 
 <Diff title="React DevTools vs Svelte DevTools">
 

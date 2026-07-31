@@ -9,7 +9,7 @@ import Diff from '../../../../components/Diff.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-ใน React คุณต้อง opt in เพื่อ scope style — CSS Modules, styled-components, Emotion, Tailwind หรือ mechanism อื่น ๆ ใน Svelte การ scope เป็น **default** ทุก `<style>` block จะถูก scope อัตโนมัติไปยัง component ของตัวเองตอน compile time คุณเขียน class name ธรรมดาเช่น `.card` และมันไม่สามารถรั่วออกไปหรือ conflict กับ component อื่นได้
+ใน React คุณต้อง opt in เพื่อ scope style — CSS Modules, styled-components, Emotion, Tailwind หรือ mechanism อื่น ๆ ใน Svelte การ scope เป็น **default** ทุก `<style>` block จะถูก scope อัตโนมัติไปยัง component ของตัวเองตอน compile time คุณเขียน class name ธรรมดาเช่น `.card` และไม่สามารถรั่วออกไปหรือ conflict กับ component อื่นได้
 
 ## แนวทางของ React: CSS Modules
 
@@ -123,20 +123,20 @@ export const quizScopedStyles = [
   {
     q: 'ใน Svelte เกิดอะไรขึ้นกับ CSS class name เช่น .card ที่กำหนดไว้ใน <style> block?',
     options: [
-      'มันกลายเป็น global class ที่เข้าถึงได้จาก component ใด ๆ',
-      'มัน scope อยู่กับ component ปัจจุบัน — ไม่สามารถ affect component อื่นได้',
+      'กลายเป็น global class ที่เข้าถึงได้จาก component ใด ๆ',
+      'scope อยู่กับ component ปัจจุบัน — ไม่สามารถ affect component อื่นได้',
       'ต้อง import เข้า component อื่นเพื่อใช้',
-      'มันถูกละเลยเว้นแต่คุณจะเพิ่ม attribute scoped="true"',
+      'ถูกละเลยเว้นแต่คุณจะเพิ่ม attribute scoped="true"',
     ],
     answer: 1,
   },
   {
     q: '"class:error={isError}" ใน Svelte template หมายความว่าอะไร?',
     options: [
-      'มันตั้งค่า class attribute ของ element เป็น string "error={isError}"',
-      'มันเพิ่ม CSS class "error" ให้กับ element เฉพาะเมื่อ isError เป็น truthy',
-      'มัน import error class จาก CSS Module',
-      'มันทำให้เกิด error ตอน build time — syntax นี้ไม่ valid',
+      'ตั้งค่า class attribute ของ element เป็น string "error={isError}"',
+      'เพิ่ม CSS class "error" ให้กับ element เฉพาะเมื่อ isError เป็น truthy',
+      'import error class จาก CSS Module',
+      'ทำให้เกิด error ตอน build time — syntax นี้ไม่ valid',
     ],
     answer: 1,
   },
